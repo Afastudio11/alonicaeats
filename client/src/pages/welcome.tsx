@@ -27,6 +27,17 @@ export default function WelcomePage() {
       return;
     }
 
+    // Validate table number is numeric and within valid range
+    const tableNum = parseInt(tableNumber.trim());
+    if (isNaN(tableNum) || tableNum < 1 || tableNum > 999) {
+      toast({
+        title: "Nomor meja tidak valid",
+        description: "Nomor meja harus berupa angka (1-999)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Store customer data
     localStorage.setItem('alonica-customer', JSON.stringify({
       name: customerName.trim(),
@@ -125,9 +136,14 @@ export default function WelcomePage() {
           />
           <Input
             type="text"
+            inputMode="numeric"
             placeholder="Nomor Meja Kamu"
             value={tableNumber}
-            onChange={(e) => setTableNumber(e.target.value)}
+            onChange={(e) => {
+              // Only allow numeric characters
+              const numericValue = e.target.value.replace(/[^0-9]/g, '');
+              setTableNumber(numericValue);
+            }}
             className="w-full h-14 px-4 rounded-xl bg-white text-foreground placeholder-muted-foreground border-0 focus:outline-none focus:ring-2 focus:ring-white/30"
             data-testid="input-table-number"
           />
