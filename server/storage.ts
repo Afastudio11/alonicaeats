@@ -27,8 +27,17 @@ export interface IStorage {
   // Orders
   getOrders(): Promise<Order[]>;
   getOrder(id: string): Promise<Order | undefined>;
+  getOrderByMidtransOrderId(midtransOrderId: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
+  updateOrderPayment(id: string, paymentData: {
+    paymentStatus?: string;
+    midtransTransactionId?: string;
+    midtransTransactionStatus?: string;
+    qrisUrl?: string;
+    paymentExpiredAt?: Date;
+    paidAt?: Date;
+  }): Promise<Order | undefined>;
 
   // Inventory
   getInventoryItems(): Promise<InventoryItem[]>;
@@ -438,6 +447,30 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
+    return updated || undefined;
+  }
+
+  async getOrderByMidtransOrderId(midtransOrderId: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.midtransOrderId, midtransOrderId));
+    return order || undefined;
+  }
+
+  async updateOrderPayment(id: string, paymentData: {
+    paymentStatus?: string;
+    midtransTransactionId?: string;
+    midtransTransactionStatus?: string;
+    qrisUrl?: string;
+    paymentExpiredAt?: Date;
+    paidAt?: Date;
+  }): Promise<Order | undefined> {
+    const [updated] = await db
+      .update(orders)
+      .set({ 
+        ...paymentData,
+        updatedAt: new Date() 
+      })
+      .where(eq(orders.id, id))
+      .returning();
     return updated || undefined;
   }
 

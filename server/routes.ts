@@ -6,6 +6,15 @@ import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, ins
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
+import { MidtransService } from "./midtrans-service";
+
+// Initialize Midtrans service
+let midtransService: MidtransService;
+try {
+  midtransService = new MidtransService();
+} catch (error) {
+  console.warn('Midtrans service not initialized:', error instanceof Error ? error.message : error);
+}
 
 // Image file signature validation
 const IMAGE_SIGNATURES = {
@@ -316,11 +325,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/orders", async (req, res) => {
     try {
-      const validatedData = insertOrderSchema.parse(req.body);
-      const order = await storage.createOrder(validatedData);
-      res.status(201).json(order);
+      if (!midtransService) {
+        return res.status(500).json({ message: "Payment service not available. Please configure Midtrans API keys." });
+      }
+
+      const { customerName, tableNumber, items } = req.body;
+      
+      if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Customer name, table number, and items are required" });
+      }
+
+      // Calculate total server-side by fetching actual menu item prices
+      let subtotal = 0;
+      const itemDetails = [];
+      
+      for (const orderItem of items) {
+        const menuItem = await storage.getMenuItem(orderItem.itemId);
+        if (!menuItem || !menuItem.isAvailable) {
+          return res.status(400).json({ message: `Menu item ${orderItem.itemId} not found or unavailable` });
+        }
+        
+        const itemTotal = menuItem.price * orderItem.quantity;
+        subtotal += itemTotal;
+        
+        itemDetails.push({
+          id: menuItem.id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity: orderItem.quantity
+        });
+      }
+
+      const total = subtotal; // No discounts for now
+      
+      // Generate unique Midtrans order ID
+      const midtransOrderId = `ALONICA-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+      
+      // Create QRIS payment with Midtrans
+      const paymentResult = await midtransService.createQRISPayment({
+        orderId: midtransOrderId,
+        grossAmount: total,
+        customerDetails: {
+          name: customerName,
+          phone: '' // Optional for now
+        },
+        itemDetails
+      });
+
+      if (!paymentResult.success) {
+        return res.status(500).json({ 
+          message: "Failed to create payment", 
+          error: paymentResult.error 
+        });
+      }
+
+      // Create order with payment information
+      const orderData = {
+        customerName,
+        tableNumber,
+        items,
+        subtotal,
+        discount: 0,
+        total,
+        paymentMethod: 'qris' as const,
+        paymentStatus: 'pending' as const,
+        midtransOrderId,
+        midtransTransactionId: paymentResult.transactionId,
+        midtransTransactionStatus: paymentResult.transactionStatus,
+        qrisUrl: paymentResult.qrisUrl,
+        paymentExpiredAt: paymentResult.expiryTime ? new Date(paymentResult.expiryTime) : new Date(Date.now() + 15 * 60 * 1000), // 15 minutes default
+        status: 'pending' as const
+      };
+
+      const order = await storage.createOrder(orderData);
+      
+      res.status(201).json({
+        order,
+        payment: {
+          qrisUrl: paymentResult.qrisUrl,
+          expiryTime: paymentResult.expiryTime,
+          transactionId: paymentResult.transactionId,
+          midtransOrderId
+        }
+      });
     } catch (error) {
-      res.status(400).json({ message: "Invalid order data" });
+      console.error('Order creation error:', error);
+      res.status(500).json({ message: "Failed to create order" });
     }
   });
 
@@ -342,6 +432,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Payment status check endpoint (public access for customers)
+  app.get("/api/orders/:id/payment-status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const order = await storage.getOrder(id);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // If payment is still pending and we have a transaction ID, check with Midtrans
+      if (order.paymentStatus === 'pending' && order.midtransTransactionId && midtransService) {
+        const statusResult = await midtransService.getTransactionStatus(order.midtransTransactionId);
+        
+        if (statusResult.success) {
+          // Update payment status based on Midtrans response
+          let newPaymentStatus = order.paymentStatus;
+          let orderStatus = order.status;
+          
+          if (statusResult.transactionStatus === 'settlement' || statusResult.transactionStatus === 'capture') {
+            newPaymentStatus = 'paid';
+            orderStatus = 'preparing'; // Move order to preparing when paid
+          } else if (statusResult.transactionStatus === 'deny' || 
+                     statusResult.transactionStatus === 'cancel' || 
+                     statusResult.transactionStatus === 'failure') {
+            newPaymentStatus = 'failed';
+          } else if (statusResult.transactionStatus === 'expire') {
+            newPaymentStatus = 'expired';
+          }
+
+          // Update order if status changed
+          if (newPaymentStatus !== order.paymentStatus) {
+            await storage.updateOrderPayment(id, {
+              paymentStatus: newPaymentStatus,
+              midtransTransactionStatus: statusResult.transactionStatus,
+              paidAt: newPaymentStatus === 'paid' ? new Date() : undefined
+            });
+            
+            // Update order status if paid
+            if (newPaymentStatus === 'paid' && orderStatus !== order.status) {
+              await storage.updateOrderStatus(id, orderStatus);
+            }
+          }
+
+          return res.json({
+            paymentStatus: newPaymentStatus,
+            transactionStatus: statusResult.transactionStatus,
+            orderId: order.id,
+            total: order.total
+          });
+        }
+      }
+
+      // Return current status from database
+      res.json({
+        paymentStatus: order.paymentStatus,
+        transactionStatus: order.midtransTransactionStatus,
+        orderId: order.id,
+        total: order.total
+      });
+    } catch (error) {
+      console.error('Payment status check error:', error);
+      res.status(500).json({ message: "Failed to check payment status" });
+    }
+  });
+
+  // Midtrans webhook endpoint (no auth required, uses signature verification)
+  app.post("/api/payments/midtrans/webhook", async (req, res) => {
+    try {
+      if (!midtransService) {
+        return res.status(500).json({ message: "Payment service not available" });
+      }
+
+      // Process webhook notification
+      const notificationData = midtransService.processWebhookNotification(req.body);
+      
+      // Find order by Midtrans order ID
+      const order = await storage.getOrderByMidtransOrderId(notificationData.orderId);
+      
+      if (!order) {
+        console.warn(`Webhook received for unknown order: ${notificationData.orderId}`);
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Update payment status
+      await storage.updateOrderPayment(order.id, {
+        paymentStatus: notificationData.paymentStatus,
+        midtransTransactionStatus: notificationData.transactionStatus,
+        paidAt: notificationData.paymentStatus === 'paid' ? new Date() : undefined
+      });
+
+      // Update order status when payment is confirmed
+      if (notificationData.paymentStatus === 'paid' && order.status === 'pending') {
+        await storage.updateOrderStatus(order.id, 'preparing');
+      }
+
+      console.log(`Payment ${notificationData.paymentStatus} for order ${order.id}`);
+      
+      // Always return 200 to Midtrans to acknowledge receipt
+      res.status(200).json({ message: "Webhook processed successfully" });
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+      // Still return 200 to prevent Midtrans from retrying
+      res.status(200).json({ message: "Webhook received" });
+    }
+  });
+
+  // Get Midtrans client configuration for frontend
+  app.get("/api/payments/config", async (req, res) => {
+    try {
+      if (!midtransService) {
+        return res.status(500).json({ message: "Payment service not available" });
+      }
+
+      const config = midtransService.getClientConfig();
+      res.json(config);
+    } catch (error) {
+      console.error('Payment config error:', error);
+      res.status(500).json({ message: "Failed to get payment config" });
     }
   });
 

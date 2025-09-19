@@ -88,10 +88,10 @@ export class MidtransService {
     }
   }
 
-  // Check transaction status
-  async getTransactionStatus(transactionId: string) {
+  // Check transaction status using order_id (not transaction_id)
+  async getTransactionStatus(orderId: string) {
     try {
-      const statusResponse = await this.coreApi.transaction.status(transactionId);
+      const statusResponse = await this.coreApi.transaction.status(orderId);
       return {
         success: true,
         transactionId: statusResponse.transaction_id,
