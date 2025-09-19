@@ -6,6 +6,7 @@ import {
   BarChart3, 
   Package, 
   Settings, 
+  Receipt,
   LogOut,
   X
 } from "lucide-react";
@@ -20,6 +21,7 @@ interface AdminSidebarProps {
 
 const SIDEBAR_ITEMS = [
   { key: 'orders', label: 'Orders', icon: ClipboardList, path: '/admin/orders' },
+  { key: 'cashier', label: 'Kasir Manual', icon: Receipt, path: '/admin/cashier' },
   { key: 'menu', label: 'Custom Menu', icon: Utensils, path: '/admin/menu' },
   { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
