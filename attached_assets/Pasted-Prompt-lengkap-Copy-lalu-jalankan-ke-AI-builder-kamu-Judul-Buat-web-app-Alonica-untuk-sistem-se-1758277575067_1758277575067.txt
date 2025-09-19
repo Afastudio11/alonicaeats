@@ -1,0 +1,132 @@
+Prompt lengkap. Copy lalu jalankan ke AI builder kamu.
+
+Judul
+Buat web app “Alonica” untuk sistem self order restoran. Mobile-first. Responsif. Framework bebas. Utama di mobile 375x812. Sertakan halaman Admin yang bisa diakses dari login.
+
+Gaya visual
+• Palet warna: Maroon #800001. Putih #FFFFFF. Abu terang #F5F6F7. Abu teks #6B7280. Hijau status #22C55E. Kuning status #FACC15. Merah status #EF4444.
+• Font: Playfair Display untuk brand dan judul. Inter atau SF Pro untuk body.
+• Komponen: Card putih full, sudut 16px, shadow tipis 0 8 20 rgba(0,0,0,0.06).
+• Tombol primer: latar #800001, teks putih, sudut 14px, tinggi 48–56px.
+• Input: pill 12px, border #E5E7EB, focus ring maroon.
+• Ikon: sederhana, outline.
+• Pattern: ilustrasi makanan samar untuk beberapa area yang disebutkan.
+
+Brand header
+• Logo teks “Alonica” pakai Playfair Display, warna #800001.
+• Spasi udara luas. Konsisten di semua halaman.
+
+Routing
+• /welcome, /menu, /cart, /payment, /success, /admin.
+• Simpan state: customerName, tableNumber, cartItems\[], subtotal, discount, total, paymentMethod.
+
+Format harga
+• Tampilkan “Rp 35.000”. Pemisah ribuan titik.
+
+1. Welcome/Login Page
+   • Latar merah penuh #800001.
+   • Tengah layar: “Welcome to Alonica” huruf besar, Playfair Display.
+   • Dua input besar: Nama Kamu, Nomor Meja Kamu. Placeholder jelas.
+   • Tombol “Pesan Sekarang”. Gaya tombol primer.
+   • Ikon gear kecil di kanan atas untuk masuk Admin.
+   • Setelah submit, simpan nama dan meja ke state lalu arahkan ke /menu.
+
+2. Menu Page
+   • Header brand “Alonica”.
+   • Search bar penuh dengan ikon search kiri dan ikon mic kanan. Placeholder “Search for food, restaurants…”.
+   • Section title: Makanan, Minuman.
+   • Grid 2 kolom kartu menu. Setiap card:
+   – Gambar di atas, rasio 4:3, sudut 16px.
+   – Nama item. Harga besar di bawah.
+   – Card putih, shadow tipis.
+   – Tap membuka detail singkat atau langsung tambah ke cart dengan tombol plus kecil.
+   • Contoh item: Nasi Goreng Rp 25.000, Mie Kering Rp 35.000, Kopi Susu Alonica Rp 21.000, Matcha Green Tea Rp 21.000.
+   • Nav bar bawah: Home, Search, Cart dengan badge jumlah.
+
+3. Cart/Order Details Page
+   • Daftar item bertumpuk.
+   • Tiap baris: foto kecil kiri 56x56 sudut 12px. Tengah: nama, catatan opsional “Catatan: …”. Harga merah.
+   • Kanan: stepper minus dan plus, tombol kotak 36x36.
+   • Kotak Summary di bawah: card merah dengan pattern makanan samar sebagai background.
+   – Baris Sub-Total, Discount, Total.
+   – Total besar “Rp 110.000”.
+   • Tombol besar “Bayar Sekarang” warna putih teks maroon atau maroon teks putih. Arahkan ke /payment.
+
+4. Payment Page
+   • Selector metode: dua opsi Cash dan QRIS.
+   • Setiap opsi berupa kartu 120x120, ikon besar. Ketika terpilih beri border maroon 2px dan ceklist kecil di pojok kanan atas.
+   • Jika QRIS dipilih, tampilkan preview gambar QRIS contoh di tengah.
+   • Baris TOTAL tebal “Rp 110.000”.
+   • Tombol “Pay and Confirm” penuh lebar.
+   • Validasi: jika belum pilih metode, tombol disabled.
+
+5. Success/Thank You Page
+   • Latar putih dengan pattern makanan samar.
+   • Ikon centang bulat merah maroon di tengah.
+   • Teks besar “Terima Kasih!”.
+   • Subteks “Pesanan Kamu Sedang Kami Proses, Ya.”
+   • Brand “Alonica” di bawah tengah.
+   • Tombol kecil “Kembali ke Menu”.
+
+Interaksi umum
+• Transisi halus 150–200ms.
+• State kosong memiliki copy ramah.
+• Semua tombol dapat ditekan sekali, tampilkan loading singkat 600ms.
+• Simpan cart di localStorage agar tidak hilang saat refresh.
+
+Data contoh
+• Seed 8–12 item dengan kategori. Sertakan stok indikator sederhana opsional.
+
+Admin Dashboard (/admin) setelah login
+• Sidebar kiri: Orders, Custom Menu, Analytics, Inventory, Settings, Logout.
+• Header: “Restaurant Admin – Self Order Dashboard”.
+
+A. Orders Management
+• Kartu ringkas di atas:
+– Total Orders Today 47.
+– Completed Orders 32.
+– Pending Orders 15.
+– Revenue Today Rp 2,450,000.
+• Tabel Recent Orders: kolom Order ID, Customer, Table, Items, Total, Status, Time, Actions.
+• Status chip: Preparing biru, Ready hijau muda, Completed abu, Pending kuning.
+• Actions: Ready, Complete, Accept, View.
+• Tombol “Refresh Orders” kanan atas.
+
+B. Custom Menu
+• Filter kategori: All, Main Course, Beverages, Sides, Desserts.
+• Kartu item besar berisi gambar, nama, badge kategori, deskripsi singkat, harga besar, tombol Edit, Duplicate, Delete.
+• Switch visibility di sudut kartu.
+• Tombol “Add New Item” kanan atas.
+
+C. Analytics Dashboard
+• Tab Daily, Weekly, Monthly.
+• KPI cards:
+– Total Revenue Rp 12,500,000 naik 12.5%.
+– Total Orders 284 naik 8.2%.
+– Average Order Value Rp 44,014 turun 2.1%.
+– Peak Hour 19:00 dengan 28 orders.
+• Grafik:
+– Daily Sales Trend bar.
+– Hourly Orders Pattern line.
+• Dropdown “Last 7 days”.
+
+D. Inventory Management
+• Kartu ringkas: Total Items 6. Critical Stock 1. Low Stock 1. Sufficient 4.
+• Filter chips: All, Bahan Pokok, Protein, Bumbu & Minyak, Dairy, Minuman.
+• Tabel: Item Name, Category, Current Stock, Stock Level bar berwarna, Min/Max, Status chip, Supplier, Price/Unit.
+• Tombol “Add Item” dan “Refresh”.
+• Contoh baris: Beras Premium 25 kg. Daging Ayam 5 kg. Minyak Goreng 15 liter. Telur Ayam 3 kg status Critical. Keju Mozzarella 8 kg. Coca Cola 48 botol.
+
+Akses Admin
+• Dari Welcome, ikon gear membuka modal login admin sederhana. Field email dan password. Jika benar, arahkan ke /admin.
+
+Aksesibilitas
+• Kontras teks minimum 4.5:1.
+• Semua ikon memiliki label aria.
+• Fokus keyboard terlihat.
+
+Output yang diminta
+• Hasil akhir berupa web responsif sesuai layout di atas.
+• Gunakan palet, font, dan komponen yang sudah ditetapkan.
+• Sertakan placeholder gambar makanan berkualitas.
+• Semua teks UI pakai Bahasa Indonesia seperti contoh.
