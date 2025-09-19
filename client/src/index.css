@@ -124,12 +124,14 @@
     @apply bg-white rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.06)];
   }
 
-  /* Print specific styles - only show kitchen ticket */
+  /* Print specific styles */
   @media print {
+    /* Default: hide everything */
     body * {
       visibility: hidden;
     }
     
+    /* Show kitchen ticket when printing from kitchen */
     .kitchen-ticket, .kitchen-ticket * {
       visibility: visible;
     }
@@ -142,16 +144,53 @@
       margin: 0;
       padding: 20px;
     }
+
+    /* Show customer receipt when printing from success page */
+    .customer-receipt, .customer-receipt * {
+      visibility: visible;
+    }
     
-    /* Hide everything else when printing */
+    .customer-receipt {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      margin: 0;
+      padding: 20px;
+      background: white !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      max-width: none !important;
+    }
+    
+    /* Hide navigation and buttons during print */
     .print-hide {
       display: none !important;
     }
     
     /* Ensure clean print layout */
     @page {
-      margin: 10mm;
+      margin: 15mm;
       size: A4;
+    }
+    
+    /* Receipt specific print styles */
+    .receipt-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .receipt-item {
+      border-bottom: 1px solid #eee;
+      padding: 8px 0;
+    }
+    
+    .receipt-total {
+      font-weight: bold;
+      font-size: 18px;
+      border-top: 2px solid #333;
+      padding-top: 10px;
+      margin-top: 10px;
     }
   }
 

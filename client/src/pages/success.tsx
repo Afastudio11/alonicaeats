@@ -80,7 +80,7 @@ export default function SuccessPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm px-6 py-4 sticky top-0 z-10 print:hidden">
+      <header className="bg-white shadow-sm px-6 py-4 sticky top-0 z-10 print-hide">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Button
@@ -111,7 +111,7 @@ export default function SuccessPage() {
 
       {/* Receipt Content */}
       <div className="px-6 py-8">
-        <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-8 print:shadow-none print:max-w-none" data-testid="receipt-container">
+        <div className="customer-receipt max-w-md mx-auto bg-white rounded-2xl shadow-lg p-8" data-testid="receipt-container">
           {/* Success Icon */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4" data-testid="icon-success">
@@ -126,7 +126,7 @@ export default function SuccessPage() {
           </div>
 
           {/* Restaurant Info */}
-          <div className="text-center border-b border-border pb-6 mb-6">
+          <div className="receipt-header text-center border-b border-border pb-6 mb-6">
             <h1 className="text-3xl font-playfair font-bold text-primary mb-2" data-testid="text-restaurant-name">
               Alonica
             </h1>
@@ -175,7 +175,7 @@ export default function SuccessPage() {
           <div className="space-y-4 border-b border-border pb-6 mb-6">
             <h3 className="font-semibold text-foreground">Detail Pesanan</h3>
             {items.map((item: any, index: number) => (
-              <div key={index} className="flex justify-between items-start" data-testid={`receipt-item-${index}`}>
+              <div key={index} className="receipt-item flex justify-between items-start" data-testid={`receipt-item-${index}`}>
                 <div className="flex-1">
                   <p className="font-medium text-foreground" data-testid={`text-item-name-${index}`}>{item.name}</p>
                   <p className="text-sm text-muted-foreground">
@@ -206,7 +206,7 @@ export default function SuccessPage() {
                 <span className="font-medium text-red-600" data-testid="text-discount">-{formatCurrency(receiptData.discount)}</span>
               </div>
             )}
-            <div className="flex justify-between text-lg font-bold">
+            <div className="receipt-total flex justify-between text-lg font-bold">
               <span>Total</span>
               <span data-testid="text-total">{formatCurrency(receiptData.total)}</span>
             </div>
@@ -240,7 +240,7 @@ export default function SuccessPage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="max-w-md mx-auto mt-8 space-y-4 print:hidden">
+        <div className="max-w-md mx-auto mt-8 space-y-4 print-hide">
           <Button
             onClick={handlePrintReceipt}
             variant="outline"
