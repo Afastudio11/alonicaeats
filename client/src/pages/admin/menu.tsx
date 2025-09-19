@@ -335,28 +335,39 @@ function MenuItemForm({
     try {
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0];
-        const imageURL = uploadedFile.uploadURL;
+        const rawImageURL = uploadedFile.uploadURL;
+        
+        // Finalize upload and set ACL policy
+        const finalizeResponse = await apiRequest('POST', '/api/objects/finalize', {
+          rawPath: rawImageURL,
+        });
+        
+        if (!finalizeResponse.ok) {
+          throw new Error('Failed to finalize upload');
+        }
+        
+        const { path: finalizedPath } = await finalizeResponse.json();
         
         // If we're editing an existing item, update its image
         if (initialData?.id) {
-          const response = await apiRequest('PUT', `/api/menu/${initialData.id}/image`, {
-            imageURL: imageURL,
+          const updateResponse = await apiRequest('PUT', `/api/menu/${initialData.id}/image`, {
+            imageURL: finalizedPath,
           });
           
-          if (response.ok) {
+          if (updateResponse.ok) {
             queryClient.invalidateQueries({ queryKey: ['/api/menu'] });
-            const imagePath = await response.json();
-            setUploadedImageUrl(imagePath.image);
-            setFormData(prev => ({ ...prev, image: imagePath.image }));
+            const updatedItem = await updateResponse.json();
+            setUploadedImageUrl(updatedItem.image);
+            setFormData(prev => ({ ...prev, image: updatedItem.image }));
             toast({
               title: "Upload berhasil",
               description: "Foto menu telah diupload",
             });
           }
         } else {
-          // For new items, just set the URL in form data
-          setUploadedImageUrl(imageURL);
-          setFormData(prev => ({ ...prev, image: imageURL }));
+          // For new items, use the finalized path
+          setUploadedImageUrl(finalizedPath);
+          setFormData(prev => ({ ...prev, image: finalizedPath }));
           toast({
             title: "Upload berhasil",
             description: "Foto menu telah diupload",

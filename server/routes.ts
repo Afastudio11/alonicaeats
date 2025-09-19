@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 
 // Simple in-memory session storage (production should use database or Redis)
 const activeSessions = new Map<string, { userId: string; username: string; role: string; expires: Date }>();
@@ -404,6 +405,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint to finalize upload and set ACL policy
+  app.post("/api/objects/finalize", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { rawPath } = req.body;
+      const user = (req as any).user;
+      
+      if (!rawPath) {
+        return res.status(400).json({ error: "rawPath is required" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      
+      // Set ACL policy to make object public and owned by the admin user
+      const normalizedPath = await objectStorageService.trySetObjectEntityAclPolicy(rawPath, {
+        owner: user.id,
+        visibility: 'public'
+      });
+      
+      res.json({ path: normalizedPath });
+    } catch (error) {
+      console.error("Error finalizing upload:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Endpoint to serve public objects from object storage
   app.get("/public-objects/:filePath(*)", async (req, res) => {
     const filePath = req.params.filePath;
@@ -420,12 +446,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint to serve private objects (uploaded images)
+  // Endpoint to serve private objects (uploaded images) with ACL enforcement
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      objectStorageService.downloadObject(objectFile, res);
+      
+      // Get user ID from session if authenticated
+      const authHeader = req.headers.authorization;
+      const sessionToken = authHeader?.replace('Bearer ', '');
+      let userId: string | undefined;
+      
+      if (sessionToken) {
+        const session = activeSessions.get(sessionToken);
+        if (session && session.expires > new Date()) {
+          userId = session.userId;
+        }
+      }
+      
+      // Check ACL permissions before serving
+      const hasAccess = await objectStorageService.canAccessObjectEntity({
+        userId,
+        objectFile,
+        requestedPermission: ObjectPermission.READ
+      });
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Set appropriate cache headers based on object visibility
+      const cacheTtl = userId ? 300 : 86400; // 5 minutes for private, 1 day for public
+      objectStorageService.downloadObject(objectFile, res, cacheTtl);
     } catch (error) {
       console.error("Error checking object access:", error);
       if (error instanceof ObjectNotFoundError) {
