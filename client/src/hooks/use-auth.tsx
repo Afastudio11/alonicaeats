@@ -13,12 +13,14 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  authReady: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     // Check for saved user in localStorage
@@ -31,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('alonica-user');
       }
     }
+    // Auth hydration is complete
+    setAuthReady(true);
   }, []);
 
   const loginMutation = useMutation({
@@ -41,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (data) => {
       setUser(data.user);
       localStorage.setItem('alonica-user', JSON.stringify(data.user));
+      setAuthReady(true);
     },
   });
 
@@ -57,7 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     login,
     logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    authReady
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
