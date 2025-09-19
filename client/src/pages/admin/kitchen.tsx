@@ -16,12 +16,36 @@ export default function KitchenSection() {
 
   const { data: orders = [], isLoading, refetch } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
       const response = await apiRequest('PATCH', `/api/orders/${orderId}/status`, { status });
       return response.json();
+    },
+    onMutate: async ({ orderId, status }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/orders'] });
+      
+      // Snapshot the previous value
+      const previousOrders = queryClient.getQueryData<Order[]>(['/api/orders']);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData<Order[]>(['/api/orders'], (old) => {
+        if (!old) return old;
+        return old.map(order => 
+          order.id === orderId 
+            ? { ...order, status, updatedAt: new Date().toISOString() }
+            : order
+        );
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousOrders };
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
@@ -37,12 +61,68 @@ export default function KitchenSection() {
         });
       }
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // If we have a previous value, rollback to it
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['/api/orders'], context.previousOrders);
+      }
       toast({
         title: "Gagal update status",
         description: "Silakan coba lagi",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    }
+  });
+
+  // Separate mutation for auto-completing orders
+  const autoCompleteMutation = useMutation({
+    mutationFn: async ({ orderId }: { orderId: string }) => {
+      const response = await apiRequest('PATCH', `/api/orders/${orderId}/status`, { status: 'completed' });
+      return response.json();
+    },
+    onMutate: async ({ orderId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/orders'] });
+      
+      // Snapshot the previous value
+      const previousOrders = queryClient.getQueryData<Order[]>(['/api/orders']);
+      
+      // Optimistically update to completed
+      queryClient.setQueryData<Order[]>(['/api/orders'], (old) => {
+        if (!old) return old;
+        return old.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'completed', updatedAt: new Date().toISOString() }
+            : order
+        );
+      });
+      
+      return { previousOrders };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      toast({
+        title: "Pesanan selesai",
+        description: "Pesanan telah otomatis diselesaikan dan siap disajikan",
+      });
+    },
+    onError: (err, variables, context) => {
+      // If auto-complete fails, rollback to the previous state (should be 'ready')
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['/api/orders'], context.previousOrders);
+      }
+      toast({
+        title: "Gagal menyelesaikan pesanan",
+        description: "Pesanan tetap dalam status siap saji. Silakan selesaikan manual",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
     }
   });
 
@@ -60,7 +140,18 @@ export default function KitchenSection() {
   };
 
   const handleMarkReady = (orderId: string) => {
-    updateStatusMutation.mutate({ orderId, status: 'ready' });
+    // First update to 'ready', then auto-complete to 'completed'
+    updateStatusMutation.mutate(
+      { orderId, status: 'ready' },
+      {
+        onSuccess: () => {
+          // After successfully marking as ready, automatically complete the order
+          setTimeout(() => {
+            autoCompleteMutation.mutate({ orderId });
+          }, 500); // Small delay to ensure the ready state is visible
+        }
+      }
+    );
   };
 
   const printKitchenTicket = (order: Order) => {

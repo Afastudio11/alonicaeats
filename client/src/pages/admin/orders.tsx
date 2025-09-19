@@ -17,12 +17,36 @@ export default function OrdersSection() {
 
   const { data: orders = [], isLoading, refetch } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
       const response = await apiRequest('PATCH', `/api/orders/${orderId}/status`, { status });
       return response.json();
+    },
+    onMutate: async ({ orderId, status }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/orders'] });
+      
+      // Snapshot the previous value
+      const previousOrders = queryClient.getQueryData<Order[]>(['/api/orders']);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData<Order[]>(['/api/orders'], (old) => {
+        if (!old) return old;
+        return old.map(order => 
+          order.id === orderId 
+            ? { ...order, status, updatedAt: new Date().toISOString() }
+            : order
+        );
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousOrders };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
@@ -31,12 +55,20 @@ export default function OrdersSection() {
         description: "Status pesanan telah diperbarui",
       });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // If we have a previous value, rollback to it
+      if (context?.previousOrders) {
+        queryClient.setQueryData(['/api/orders'], context.previousOrders);
+      }
       toast({
         title: "Gagal update status",
         description: "Silakan coba lagi",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
     }
   });
 
