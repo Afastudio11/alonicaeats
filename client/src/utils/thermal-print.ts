@@ -19,7 +19,7 @@ export function injectThermalCSS(paperSize: ThermalPaperSize): HTMLStyleElement 
           size: 58mm auto;
           margin: 1mm 2mm; /* Smaller margins for 58mm */
         }
-        .kitchen-ticket, .customer-receipt {
+        .kitchen-ticket, .customer-receipt, .admin-receipt {
           font-size: 10px !important;
           padding: 4px !important;
         }

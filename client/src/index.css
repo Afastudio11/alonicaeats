@@ -124,66 +124,32 @@
     @apply bg-white rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.06)];
   }
 
-  /* Print specific styles */
+  /* Print specific styles - FIXED VERSION */
   @media print {
-    /* Default: hide everything */
-    body * {
-      visibility: hidden;
+    /* Hide navigation and buttons during print */
+    .print-hide {
+      display: none !important;
     }
     
-    /* Show kitchen ticket when printing from kitchen */
-    .kitchen-ticket, .kitchen-ticket * {
-      visibility: visible;
-    }
-    
+    /* Kitchen ticket styles - normal flow layout */
     .kitchen-ticket {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100% !important; /* Use full printable area defined by @page */
+      position: static !important;
+      width: 100%;
       margin: 0;
-      padding: 8px; /* Reduced padding for thermal paper */
-      font-size: 12px !important; /* Smaller font for thermal printer */
+      padding: 8px;
+      font-size: 12px !important;
       line-height: 1.2 !important;
-      font-family: 'Courier New', monospace !important; /* Monospace font for thermal printer */
-    }
-    
-    /* Compact layout for narrower thermal printers */
-    .thermal-compact-mode .kitchen-ticket {
-      font-size: 10px !important;
-      padding: 4px !important;
-    }
-
-    /* Show customer receipt when printing from success page */
-    .customer-receipt, .customer-receipt * {
-      visibility: visible;
-    }
-    
-    .customer-receipt {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100% !important; /* Use full printable area defined by @page */
-      margin: 0;
-      padding: 8px; /* Reduced padding for thermal paper */
+      font-family: 'Courier New', monospace !important;
       background: white !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      font-size: 11px !important; /* Smaller font for thermal printer */
-      line-height: 1.3 !important;
-      font-family: 'Courier New', monospace !important; /* Monospace font for thermal printer */
-    }
-
-    /* Admin receipt styles - separate from customer receipt */
-    .admin-receipt, .admin-receipt * {
-      visibility: visible;
+      page-break-inside: avoid;
     }
     
-    .admin-receipt {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100% !important;
+    /* Customer receipt styles - normal flow layout */
+    .customer-receipt {
+      position: static !important;
+      width: 100%;
       margin: 0;
       padding: 8px;
       background: white !important;
@@ -192,17 +158,38 @@
       font-size: 11px !important;
       line-height: 1.3 !important;
       font-family: 'Courier New', monospace !important;
+      page-break-inside: avoid;
+    }
+
+    /* Admin receipt styles - normal flow layout */
+    .admin-receipt {
+      position: static !important;
+      width: 100%;
+      margin: 0;
+      padding: 8px;
+      background: white !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      font-size: 11px !important;
+      line-height: 1.3 !important;
+      font-family: 'Courier New', monospace !important;
+      page-break-inside: avoid;
     }
     
     /* Compact layout for narrower thermal printers */
+    .thermal-compact-mode .kitchen-ticket {
+      font-size: 10px !important;
+      padding: 4px !important;
+    }
+    
     .thermal-compact-mode .customer-receipt {
       font-size: 9px !important;
       padding: 4px !important;
     }
     
-    /* Hide navigation and buttons during print */
-    .print-hide {
-      display: none !important;
+    .thermal-compact-mode .admin-receipt {
+      font-size: 9px !important;
+      padding: 4px !important;
     }
     
     /* Thermal printer paper sizes - optimized for restaurant cashier systems */
@@ -230,6 +217,7 @@
       justify-content: space-between;
       align-items: flex-start;
       overflow: hidden;
+      page-break-inside: avoid; /* Prevent items from being split across pages */
     }
     
     .receipt-item-name {
