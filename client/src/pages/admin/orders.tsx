@@ -1,14 +1,17 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye } from "lucide-react";
+import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
-import type { Order } from "@shared/schema";
+import type { Order, OrderItem } from "@shared/schema";
 
 export default function OrdersSection() {
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -235,6 +238,7 @@ export default function OrdersSection() {
                     <Button
                       size="sm"
                       variant="outline"
+                      onClick={() => setViewingOrder(order)}
                       data-testid={`button-view-${order.id}`}
                     >
                       <Eye className="h-4 w-4" />
@@ -254,6 +258,98 @@ export default function OrdersSection() {
           </div>
         )}
       </div>
+
+      {/* Order Details Modal */}
+      <Dialog open={!!viewingOrder} onOpenChange={() => setViewingOrder(null)}>
+        <DialogContent className="max-w-2xl" data-testid="modal-order-details">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Order Details - #{viewingOrder?.id.slice(-6).toUpperCase()}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setViewingOrder(null)}
+                data-testid="button-close-order-details"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          {viewingOrder && (
+            <div className="space-y-6">
+              {/* Customer & Order Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Customer</h3>
+                  <p className="text-lg font-medium" data-testid="order-detail-customer">{viewingOrder.customerName}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Table</h3>
+                  <p className="text-lg font-medium" data-testid="order-detail-table">{viewingOrder.tableNumber}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Status</h3>
+                  <Badge className={getOrderStatusColor(viewingOrder.status)} data-testid="order-detail-status">
+                    {ORDER_STATUSES[viewingOrder.status as keyof typeof ORDER_STATUSES] || viewingOrder.status}
+                  </Badge>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase">Payment</h3>
+                  <p className="text-lg font-medium" data-testid="order-detail-payment">{viewingOrder.paymentMethod.toUpperCase()}</p>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div>
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase mb-3">Items Ordered</h3>
+                <div className="space-y-3">
+                  {Array.isArray(viewingOrder.items) ? viewingOrder.items.map((item: any, index: number) => (
+                    <div key={index} className="flex justify-between items-center p-3 bg-muted rounded-lg" data-testid={`order-item-${index}`}>
+                      <div>
+                        <h4 className="font-medium">{item.name}</h4>
+                        <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
+                        {item.notes && (
+                          <p className="text-sm text-muted-foreground italic">Notes: {item.notes}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatCurrency(item.price)}</p>
+                        <p className="text-sm text-muted-foreground">x {item.quantity}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-muted-foreground">No items found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              <div className="border-t pt-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span data-testid="order-detail-subtotal">{formatCurrency(viewingOrder.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Discount:</span>
+                    <span data-testid="order-detail-discount">{formatCurrency(viewingOrder.discount)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-semibold border-t pt-2">
+                    <span>Total:</span>
+                    <span data-testid="order-detail-total">{formatCurrency(viewingOrder.total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="text-sm text-muted-foreground border-t pt-4">
+                <p>Ordered: {formatDate(new Date(viewingOrder.createdAt))}</p>
+                <p>Last Updated: {formatDate(new Date(viewingOrder.updatedAt))}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
