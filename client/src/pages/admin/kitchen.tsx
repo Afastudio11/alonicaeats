@@ -57,10 +57,6 @@ export default function KitchenSection() {
 
   const handleStartCooking = (order: Order) => {
     updateStatusMutation.mutate({ orderId: order.id, status: 'preparing' });
-    // Auto-print kitchen ticket when starting to cook
-    setTimeout(() => {
-      printKitchenTicket(order);
-    }, 500);
   };
 
   const handleMarkReady = (orderId: string) => {
