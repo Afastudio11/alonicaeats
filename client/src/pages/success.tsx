@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Check, Printer, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
 import type { Order } from "@shared/schema";
 
 interface ReceiptData extends Order {
@@ -37,7 +38,7 @@ export default function SuccessPage() {
   };
 
   const handlePrintReceipt = () => {
-    window.print();
+    printWithThermalSettings(getThermalPreference());
   };
 
   if (!receiptData) {
@@ -173,10 +174,10 @@ export default function SuccessPage() {
 
           {/* Order Items */}
           <div className="space-y-4 border-b border-border pb-6 mb-6">
-            <h3 className="font-semibold text-foreground">Detail Pesanan</h3>
+            <h3 className="font-semibold text-foreground thermal-compact">Detail Pesanan</h3>
             {items.map((item: any, index: number) => (
-              <div key={index} className="receipt-item flex justify-between items-start" data-testid={`receipt-item-${index}`}>
-                <div className="flex-1">
+              <div key={index} className="receipt-item thermal-compact" data-testid={`receipt-item-${index}`}>
+                <div className="receipt-item-name">
                   <p className="font-medium text-foreground" data-testid={`text-item-name-${index}`}>{item.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {item.quantity} x {formatCurrency(item.price)}
@@ -187,28 +188,29 @@ export default function SuccessPage() {
                     </p>
                   )}
                 </div>
-                <p className="font-medium text-foreground" data-testid={`text-item-total-${index}`}>
+                <div className="receipt-item-price" data-testid={`text-item-total-${index}`}>
                   {formatCurrency(item.price * item.quantity)}
-                </p>
+                </div>
               </div>
             ))}
           </div>
 
           {/* Order Summary */}
-          <div className="space-y-3 border-b border-border pb-6 mb-6">
-            <div className="flex justify-between text-sm">
+          <div className="space-y-3 pb-6 mb-6">
+            <div className="thermal-divider"></div>
+            <div className="thermal-grid">
               <span className="text-muted-foreground">Subtotal</span>
               <span className="font-medium" data-testid="text-subtotal">{formatCurrency(receiptData.subtotal)}</span>
             </div>
             {receiptData.discount > 0 && (
-              <div className="flex justify-between text-sm">
+              <div className="thermal-grid">
                 <span className="text-muted-foreground">Diskon</span>
                 <span className="font-medium text-red-600" data-testid="text-discount">-{formatCurrency(receiptData.discount)}</span>
               </div>
             )}
-            <div className="receipt-total flex justify-between text-lg font-bold">
-              <span>Total</span>
-              <span data-testid="text-total">{formatCurrency(receiptData.total)}</span>
+            <div className="thermal-divider"></div>
+            <div className="receipt-total thermal-center">
+              <div>Total: {formatCurrency(receiptData.total)}</div>
             </div>
           </div>
 

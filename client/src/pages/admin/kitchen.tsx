@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
+import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
 import type { Order, OrderItem } from "@shared/schema";
 
 export default function KitchenSection() {
@@ -156,9 +157,9 @@ export default function KitchenSection() {
 
   const printKitchenTicket = (order: Order) => {
     setPrintingOrder(order);
-    // Use browser's print functionality
+    // Use thermal printer with user preference
     setTimeout(() => {
-      window.print();
+      printWithThermalSettings(getThermalPreference());
       setPrintingOrder(null);
     }, 100);
   };
@@ -411,23 +412,23 @@ function KitchenTicket({ order }: KitchenTicketProps) {
       <div className="text-center mb-4">
         <h1 className="text-lg font-bold">ALONICA KITCHEN</h1>
         <h2 className="text-md font-semibold">KITCHEN ORDER TICKET</h2>
-        <div className="border-t border-dashed border-gray-400 my-2"></div>
+        <div className="thermal-divider"></div>
       </div>
 
       <div className="mb-4">
-        <div className="flex justify-between">
+        <div className="thermal-grid">
           <span>Order ID:</span>
           <span className="font-semibold">{order.id.slice(-8)}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="thermal-grid">
           <span>Customer:</span>
           <span className="font-semibold">{order.customerName}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="thermal-grid">
           <span>Table:</span>
           <span className="font-semibold">{order.tableNumber}</span>
         </div>
-        <div className="flex justify-between">
+        <div className="thermal-grid">
           <span>Time:</span>
           <span>{formatDate(new Date(order.createdAt))}</span>
         </div>
@@ -436,15 +437,14 @@ function KitchenTicket({ order }: KitchenTicketProps) {
       <div className="border-t border-dashed border-gray-400 my-2"></div>
 
       <div className="mb-4">
-        <h3 className="font-semibold mb-2">ITEMS TO PREPARE:</h3>
+        <h3 className="font-semibold mb-2 thermal-center">ITEMS TO PREPARE:</h3>
         {orderItems.map((item, index) => (
-          <div key={index} className="mb-3">
-            <div className="flex justify-between font-semibold">
-              <span>{item.quantity}x</span>
-              <span className="flex-1 ml-2">{item.name}</span>
+          <div key={index} className="thermal-compact">
+            <div className="thermal-grid">
+              <span className="font-semibold">{item.quantity}x {item.name}</span>
             </div>
             {item.notes && (
-              <div className="text-xs text-gray-600 ml-4">
+              <div className="text-xs text-gray-600 thermal-compact">
                 ** {item.notes} **
               </div>
             )}
@@ -452,16 +452,16 @@ function KitchenTicket({ order }: KitchenTicketProps) {
         ))}
       </div>
 
-      <div className="border-t border-dashed border-gray-400 my-2"></div>
+      <div className="thermal-divider"></div>
 
-      <div className="text-center text-xs">
+      <div className="thermal-center text-xs thermal-compact">
         <p>STATUS: {order.status.toUpperCase()}</p>
         <p>Printed: {new Date().toLocaleString()}</p>
       </div>
 
-      <div className="border-t border-dashed border-gray-400 my-2"></div>
+      <div className="thermal-divider"></div>
       
-      <div className="text-center text-xs">
+      <div className="thermal-center text-xs thermal-compact">
         <p>** KITCHEN COPY **</p>
         <p>Please prepare items as ordered</p>
       </div>
