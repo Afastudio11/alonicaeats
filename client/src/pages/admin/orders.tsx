@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export default function OrdersSection() {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -93,20 +94,49 @@ export default function OrdersSection() {
     updateStatusMutation.mutate({ orderId, status });
   };
 
-  // Sort and filter orders based on statusFilter
-  const filteredAndSortedOrders = orders
-    .filter(order => statusFilter === "all" || order.status === statusFilter)
-    .sort((a, b) => {
-      // Sort by status priority: pending -> preparing -> ready -> completed
-      const statusOrder = { pending: 0, preparing: 1, ready: 2, completed: 3 };
-      const aOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 4;
-      const bOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 4;
-      
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      
-      // If same status, sort by creation date (newest first)
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+  // Helper function to check if order date matches filter
+  const isOrderInDateRange = (order: Order, filter: string): boolean => {
+    const orderDate = new Date(order.createdAt);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    switch (filter) {
+      case "today":
+        return orderDate.toDateString() === today.toDateString();
+      case "yesterday":
+        return orderDate.toDateString() === yesterday.toDateString();
+      case "7days":
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        return orderDate >= sevenDaysAgo;
+      case "30days":
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return orderDate >= thirtyDaysAgo;
+      case "all":
+      default:
+        return true;
+    }
+  };
+
+  // Sort and filter orders based on statusFilter and dateFilter (memoized for performance)
+  const filteredAndSortedOrders = useMemo(() => {
+    return orders
+      .filter(order => statusFilter === "all" || order.status === statusFilter)
+      .filter(order => isOrderInDateRange(order, dateFilter))
+      .sort((a, b) => {
+        // Sort by status priority: pending -> preparing -> ready -> completed
+        const statusOrder = { pending: 0, preparing: 1, ready: 2, completed: 3 };
+        const aOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 4;
+        const bOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 4;
+        
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        
+        // If same status, sort by creation date (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [orders, statusFilter, dateFilter]);
 
   const handlePrintReceipt = (order: Order) => {
     setViewingReceipt(order);
@@ -206,6 +236,19 @@ export default function OrdersSection() {
                 <SelectItem value="preparing">Sedang Dimasak</SelectItem>
                 <SelectItem value="ready">Siap</SelectItem>
                 <SelectItem value="completed">Selesai</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-date-filter">
+                <SelectValue placeholder="Filter berdasarkan tanggal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tanggal</SelectItem>
+                <SelectItem value="today">Hari Ini</SelectItem>
+                <SelectItem value="yesterday">Kemarin</SelectItem>
+                <SelectItem value="7days">7 Hari Terakhir</SelectItem>
+                <SelectItem value="30days">30 Hari Terakhir</SelectItem>
               </SelectContent>
             </Select>
           </div>
