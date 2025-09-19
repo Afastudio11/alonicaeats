@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import AdminSidebar from "@/components/admin/sidebar";
 import OrdersSection from "./orders";
+import KitchenSection from "./kitchen";
 import CashierSection from "./cashier";
 import MenuSection from "./menu";
 import CategoriesSection from "./categories";
@@ -48,6 +49,8 @@ export default function AdminDashboard() {
     switch (section) {
       case 'orders':
         return <OrdersSection />;
+      case 'kitchen':
+        return <KitchenSection />;
       case 'cashier':
         return <CashierSection />;
       case 'menu':

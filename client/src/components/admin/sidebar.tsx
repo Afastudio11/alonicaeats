@@ -8,7 +8,8 @@ import {
   Settings, 
   Receipt,
   LogOut,
-  X
+  X,
+  ChefHat
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +22,7 @@ interface AdminSidebarProps {
 
 const SIDEBAR_ITEMS = [
   { key: 'orders', label: 'Orders', icon: ClipboardList, path: '/admin/orders' },
+  { key: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/admin/kitchen' },
   { key: 'cashier', label: 'Kasir Manual', icon: Receipt, path: '/admin/cashier' },
   { key: 'menu', label: 'Custom Menu', icon: Utensils, path: '/admin/menu' },
   { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
