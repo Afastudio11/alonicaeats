@@ -17,32 +17,61 @@ export function injectThermalCSS(paperSize: ThermalPaperSize): HTMLStyleElement 
       @media print {
         @page {
           size: 58mm auto;
-          margin: 1mm 2mm; /* Smaller margins for 58mm */
+          margin: 2mm;
         }
         
-        /* Hide everything except receipt */
-        body * {
+        /* Hide everything first */
+        html, body, body * {
           visibility: hidden !important;
+          position: static !important;
         }
-        .customer-receipt, .customer-receipt * {
-          visibility: visible !important;
-        }
+        
+        /* Show only receipt content */
         .customer-receipt {
+          visibility: visible !important;
           position: absolute !important;
           left: 0 !important;
           top: 0 !important;
-          width: 100% !important;
+          width: 54mm !important;
+          font-size: 9px !important;
+          line-height: 1.2 !important;
+          padding: 2mm !important;
+          margin: 0 !important;
+          background: white !important;
+          color: black !important;
         }
         
-        .kitchen-ticket, .customer-receipt, .admin-receipt {
+        .customer-receipt * {
+          visibility: visible !important;
+          font-size: inherit !important;
+          color: black !important;
+          background: transparent !important;
+        }
+        
+        /* Hide dialog elements */
+        .print-hide, [role="dialog"], .fixed, .absolute {
+          display: none !important;
+        }
+        
+        /* Receipt-specific styling */
+        .customer-receipt h2 {
+          font-size: 12px !important;
+          font-weight: bold !important;
+          margin: 0 0 2px 0 !important;
+        }
+        
+        .customer-receipt h3 {
           font-size: 10px !important;
-          padding: 4px !important;
+          font-weight: bold !important;
+          margin: 2px 0 !important;
         }
-        .receipt-header {
-          font-size: 11px !important;
+        
+        .customer-receipt .text-sm {
+          font-size: 8px !important;
         }
-        .receipt-total {
-          font-size: 11px !important;
+        
+        .customer-receipt .text-xs {
+          font-size: 7px !important;
         }
       }
     `;
@@ -52,21 +81,61 @@ export function injectThermalCSS(paperSize: ThermalPaperSize): HTMLStyleElement 
       @media print {
         @page {
           size: 80mm auto;
-          margin: 2mm 3mm;
+          margin: 3mm;
         }
         
-        /* Hide everything except receipt */
-        body * {
+        /* Hide everything first */
+        html, body, body * {
           visibility: hidden !important;
+          position: static !important;
         }
-        .customer-receipt, .customer-receipt * {
-          visibility: visible !important;
-        }
+        
+        /* Show only receipt content */
         .customer-receipt {
+          visibility: visible !important;
           position: absolute !important;
           left: 0 !important;
           top: 0 !important;
-          width: 100% !important;
+          width: 74mm !important;
+          font-size: 11px !important;
+          line-height: 1.3 !important;
+          padding: 3mm !important;
+          margin: 0 !important;
+          background: white !important;
+          color: black !important;
+        }
+        
+        .customer-receipt * {
+          visibility: visible !important;
+          font-size: inherit !important;
+          color: black !important;
+          background: transparent !important;
+        }
+        
+        /* Hide dialog elements */
+        .print-hide, [role="dialog"], .fixed, .absolute {
+          display: none !important;
+        }
+        
+        /* Receipt-specific styling */
+        .customer-receipt h2 {
+          font-size: 14px !important;
+          font-weight: bold !important;
+          margin: 0 0 3px 0 !important;
+        }
+        
+        .customer-receipt h3 {
+          font-size: 12px !important;
+          font-weight: bold !important;
+          margin: 3px 0 !important;
+        }
+        
+        .customer-receipt .text-sm {
+          font-size: 10px !important;
+        }
+        
+        .customer-receipt .text-xs {
+          font-size: 9px !important;
         }
       }
     `;
