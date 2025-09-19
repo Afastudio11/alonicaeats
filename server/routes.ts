@@ -450,15 +450,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the file to validate its content type
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(rawPath);
+      
+      // Double-check the normalized path points to uploads directory
+      if (!normalizedPath.startsWith('/objects/uploads/')) {
+        return res.status(400).json({ error: "Invalid upload path" });
+      }
+      
       let objectFile;
       try {
-        const normalizedPath = objectStorageService.normalizeObjectEntityPath(rawPath);
-        
-        // Double-check the normalized path points to uploads directory
-        if (!normalizedPath.startsWith('/objects/uploads/')) {
-          return res.status(400).json({ error: "Invalid upload path" });
-        }
-        
         objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
       } catch (error) {
         return res.status(404).json({ error: "Uploaded file not found" });
