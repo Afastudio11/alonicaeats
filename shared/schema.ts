@@ -66,6 +66,21 @@ export const menuItemIngredients = pgTable("menu_item_ingredients", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Store profile - for customizing receipt and restaurant info
+export const storeProfile = pgTable("store_profile", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  restaurantName: text("restaurant_name").notNull().default("Alonica"),
+  address: text("address").notNull().default("Jl. Kuliner Rasa No. 123"),
+  phone: text("phone").notNull().default("(021) 555-0123"),
+  email: text("email"),
+  website: text("website"),
+  description: text("description"),
+  logo: text("logo"), // URL to logo image
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -97,6 +112,12 @@ export const insertMenuItemIngredientSchema = createInsertSchema(menuItemIngredi
   createdAt: true,
 });
 
+export const insertStoreProfileSchema = createInsertSchema(storeProfile).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -115,6 +136,9 @@ export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
 
 export type MenuItemIngredient = typeof menuItemIngredients.$inferSelect;
 export type InsertMenuItemIngredient = z.infer<typeof insertMenuItemIngredientSchema>;
+
+export type StoreProfile = typeof storeProfile.$inferSelect;
+export type InsertStoreProfile = z.infer<typeof insertStoreProfileSchema>;
 
 // Cart item type for frontend
 export interface CartItem {

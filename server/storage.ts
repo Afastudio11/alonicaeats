@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients } from "@shared/schema";
+import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -44,10 +44,16 @@ export interface IStorage {
   validateStockAvailability(orderItems: { itemId: string; quantity: number }[]): Promise<StockDeductionResult>;
   deductStock(orderItems: { itemId: string; quantity: number }[]): Promise<StockDeductionResult>;
   getLowStockItems(): Promise<InventoryItem[]>;
+
+  // Store Profile
+  getStoreProfile(): Promise<StoreProfile | undefined>;
+  createStoreProfile(profile: InsertStoreProfile): Promise<StoreProfile>;
+  updateStoreProfile(id: string, profile: Partial<InsertStoreProfile>): Promise<StoreProfile | undefined>;
 }
 
 // Legacy MemStorage class (no longer used, kept for reference)
 // Note: This class doesn't implement the full IStorage interface anymore
+/*
 export class MemStorage {
   private users: Map<string, User>;
   private menuItems: Map<string, MenuItem>;
@@ -303,6 +309,7 @@ export class MemStorage {
     return updated;
   }
 }
+*/
 
 // Database Storage Implementation
 export class DatabaseStorage implements IStorage {
@@ -700,6 +707,40 @@ export class DatabaseStorage implements IStorage {
     ];
 
     await db.insert(menuItemIngredients).values(ingredientMappings);
+    
+    // Seed default store profile
+    await db.insert(storeProfile).values({
+      restaurantName: "Alonica",
+      address: "Jl. Kuliner Rasa No. 123",
+      phone: "(021) 555-0123",
+      email: "info@alonica.com",
+      description: "Restaurant dengan cita rasa Indonesia yang autentik",
+      isActive: true
+    });
+  }
+
+  // Store Profile methods
+  async getStoreProfile(): Promise<StoreProfile | undefined> {
+    const [profile] = await db.select().from(storeProfile).where(eq(storeProfile.isActive, true)).limit(1);
+    return profile || undefined;
+  }
+
+  async createStoreProfile(profile: InsertStoreProfile): Promise<StoreProfile> {
+    // Deactivate any existing profiles
+    await db.update(storeProfile).set({ isActive: false }).where(eq(storeProfile.isActive, true));
+    
+    // Create new active profile
+    const [newProfile] = await db.insert(storeProfile).values({ ...profile, isActive: true }).returning();
+    return newProfile;
+  }
+
+  async updateStoreProfile(id: string, profile: Partial<InsertStoreProfile>): Promise<StoreProfile | undefined> {
+    const [updated] = await db
+      .update(storeProfile)
+      .set({ ...profile, updatedAt: new Date() })
+      .where(eq(storeProfile.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 
