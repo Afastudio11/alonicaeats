@@ -1,0 +1,275 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { TrendingUp, TrendingDown, BarChart3, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils";
+import type { Order } from "@shared/schema";
+
+const TIME_PERIODS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' }
+];
+
+export default function AnalyticsSection() {
+  const [selectedPeriod, setSelectedPeriod] = useState('daily');
+
+  const { data: orders = [], isLoading } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+  });
+
+  // Calculate analytics based on orders
+  const analytics = calculateAnalytics(orders, selectedPeriod);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex space-x-1 bg-muted rounded-xl p-1">
+          {TIME_PERIODS.map((period) => (
+            <div key={period.value} className="h-10 w-20 bg-muted rounded animate-pulse"></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="alonica-card p-6 animate-pulse">
+              <div className="h-16 bg-muted rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Time Period Tabs */}
+      <div className="flex space-x-1 bg-muted rounded-xl p-1 w-fit">
+        {TIME_PERIODS.map((period) => (
+          <Button
+            key={period.value}
+            variant={selectedPeriod === period.value ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setSelectedPeriod(period.value)}
+            className={selectedPeriod === period.value ? "bg-white text-primary" : ""}
+            data-testid={`button-period-${period.value}`}
+          >
+            {period.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="alonica-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-total-revenue">
+              {formatCurrency(analytics.totalRevenue)}
+            </div>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span data-testid="stat-revenue-growth">+{analytics.revenueGrowth}%</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="alonica-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-total-orders-analytics">
+              {analytics.totalOrders}
+            </div>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span data-testid="stat-orders-growth">+{analytics.ordersGrowth}%</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="alonica-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Order Value</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-avg-order-value">
+              {formatCurrency(analytics.averageOrderValue)}
+            </div>
+            <div className="flex items-center text-xs text-red-600 mt-1">
+              <TrendingDown className="h-3 w-3 mr-1" />
+              <span data-testid="stat-aov-change">-{analytics.aovChange}%</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="alonica-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Peak Hour</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="stat-peak-hour">
+              {analytics.peakHour}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1" data-testid="stat-peak-orders">
+              {analytics.peakHourOrders} orders
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Placeholder */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="alonica-card">
+          <CardHeader>
+            <CardTitle>Daily Sales Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 bg-muted rounded-xl flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <BarChart3 className="h-12 w-12 mx-auto mb-2" />
+                <p>Chart implementation would go here</p>
+                <p className="text-sm">Use Chart.js or Recharts for visualization</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="alonica-card">
+          <CardHeader>
+            <CardTitle>Hourly Orders Pattern</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 bg-muted rounded-xl flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <BarChart3 className="h-12 w-12 mx-auto mb-2" />
+                <p>Chart implementation would go here</p>
+                <p className="text-sm">Line chart showing hourly order patterns</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Insights */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="alonica-card">
+          <CardHeader>
+            <CardTitle>Top Menu Items</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {analytics.topItems.map((item, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-sm text-foreground">{item.name}</span>
+                  <span className="text-sm font-medium text-primary">{item.orders} orders</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="alonica-card">
+          <CardHeader>
+            <CardTitle>Payment Methods</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-foreground">Cash</span>
+                <span className="text-sm font-medium text-primary">{analytics.paymentMethods.cash}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-foreground">QRIS</span>
+                <span className="text-sm font-medium text-primary">{analytics.paymentMethods.qris}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function calculateAnalytics(orders: Order[], period: string) {
+  // Filter orders based on period
+  const now = new Date();
+  const filteredOrders = orders.filter(order => {
+    const orderDate = new Date(order.createdAt);
+    switch (period) {
+      case 'daily':
+        return orderDate.toDateString() === now.toDateString();
+      case 'weekly':
+        const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+        return orderDate >= weekStart;
+      case 'monthly':
+        return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+      default:
+        return true;
+    }
+  });
+
+  const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.total, 0);
+  const totalOrders = filteredOrders.length;
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  // Calculate hourly distribution
+  const hourlyOrders = new Array(24).fill(0);
+  filteredOrders.forEach(order => {
+    const hour = new Date(order.createdAt).getHours();
+    hourlyOrders[hour]++;
+  });
+
+  const peakHourIndex = hourlyOrders.indexOf(Math.max(...hourlyOrders));
+  const peakHour = `${peakHourIndex.toString().padStart(2, '0')}:00`;
+  const peakHourOrders = hourlyOrders[peakHourIndex];
+
+  // Calculate top items
+  const itemCounts: Record<string, { name: string; orders: number }> = {};
+  filteredOrders.forEach(order => {
+    if (Array.isArray(order.items)) {
+      order.items.forEach((item: any) => {
+        if (itemCounts[item.name]) {
+          itemCounts[item.name].orders += item.quantity;
+        } else {
+          itemCounts[item.name] = { name: item.name, orders: item.quantity };
+        }
+      });
+    }
+  });
+
+  const topItems = Object.values(itemCounts)
+    .sort((a, b) => b.orders - a.orders)
+    .slice(0, 5);
+
+  // Calculate payment method distribution
+  const cashOrders = filteredOrders.filter(order => order.paymentMethod === 'cash').length;
+  const qrisOrders = filteredOrders.filter(order => order.paymentMethod === 'qris').length;
+  const total = cashOrders + qrisOrders;
+
+  const paymentMethods = {
+    cash: total > 0 ? Math.round((cashOrders / total) * 100) : 0,
+    qris: total > 0 ? Math.round((qrisOrders / total) * 100) : 0
+  };
+
+  return {
+    totalRevenue,
+    totalOrders,
+    averageOrderValue,
+    peakHour,
+    peakHourOrders,
+    topItems,
+    paymentMethods,
+    // Mock growth percentages for demo
+    revenueGrowth: 12.5,
+    ordersGrowth: 8.2,
+    aovChange: 2.1
+  };
+}
