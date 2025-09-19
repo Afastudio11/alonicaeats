@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Copy, Trash2, Upload } from "lucide-react";
+import { Plus, Edit, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -9,12 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ObjectUploader } from "@/components/ObjectUploader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItem, InsertMenuItem, Category } from "@shared/schema";
-import type { UploadResult } from "@uppy/core";
 
 export default function MenuSection() {
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -313,76 +311,9 @@ function MenuItemForm({
     price: initialData?.price || 0,
     categoryId: initialData?.categoryId || categories[0]?.id || '',
     description: initialData?.description || '',
-    image: initialData?.image || '',
+    image: '',
     isAvailable: initialData?.isAvailable ?? true
   });
-
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>(initialData?.image || '');
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Upload handlers
-  const handleGetUploadParameters = async () => {
-    const response = await apiRequest('POST', '/api/objects/upload');
-    const data = await response.json();
-    return {
-      method: 'PUT' as const,
-      url: data.uploadURL,
-    };
-  };
-
-  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    try {
-      if (result.successful && result.successful.length > 0) {
-        const uploadedFile = result.successful[0];
-        const rawImageURL = uploadedFile.uploadURL;
-        
-        // Finalize upload and set ACL policy
-        const finalizeResponse = await apiRequest('POST', '/api/objects/finalize', {
-          rawPath: rawImageURL,
-        });
-        
-        if (!finalizeResponse.ok) {
-          throw new Error('Failed to finalize upload');
-        }
-        
-        const { path: finalizedPath } = await finalizeResponse.json();
-        
-        // If we're editing an existing item, update its image
-        if (initialData?.id) {
-          const updateResponse = await apiRequest('PUT', `/api/menu/${initialData.id}/image`, {
-            imageURL: finalizedPath,
-          });
-          
-          if (updateResponse.ok) {
-            queryClient.invalidateQueries({ queryKey: ['/api/menu'] });
-            const updatedItem = await updateResponse.json();
-            setUploadedImageUrl(updatedItem.image);
-            setFormData(prev => ({ ...prev, image: updatedItem.image }));
-            toast({
-              title: "Upload berhasil",
-              description: "Foto menu telah diupload",
-            });
-          }
-        } else {
-          // For new items, use the finalized path
-          setUploadedImageUrl(finalizedPath);
-          setFormData(prev => ({ ...prev, image: finalizedPath }));
-          toast({
-            title: "Upload berhasil",
-            description: "Foto menu telah diupload",
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: "Upload gagal",
-        description: "Silakan coba lagi",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -441,49 +372,6 @@ function MenuItemForm({
         />
       </div>
 
-      <div>
-        <Label>Menu Image</Label>
-        <div className="space-y-3">
-          {/* Current image preview */}
-          {uploadedImageUrl && (
-            <div className="relative">
-              <img 
-                src={uploadedImageUrl.startsWith('/objects/') ? uploadedImageUrl : uploadedImageUrl} 
-                alt="Current menu image"
-                className="w-32 h-32 object-cover rounded-lg border"
-              />
-            </div>
-          )}
-          
-          {/* Upload button */}
-          <ObjectUploader
-            maxNumberOfFiles={1}
-            maxFileSize={5242880} // 5MB
-            onGetUploadParameters={handleGetUploadParameters}
-            onComplete={handleUploadComplete}
-            buttonClassName="w-full"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {uploadedImageUrl ? 'Ganti Foto' : 'Upload Foto'}
-          </ObjectUploader>
-          
-          {/* Manual URL input as fallback */}
-          <div className="text-sm text-muted-foreground">
-            Atau masukkan URL gambar:
-          </div>
-          <Input
-            type="url"
-            value={formData.image || ''}
-            onChange={(e) => {
-              const url = e.target.value;
-              setFormData(prev => ({ ...prev, image: url }));
-              setUploadedImageUrl(url);
-            }}
-            placeholder="https://example.com/image.jpg"
-            data-testid="input-menu-image-url"
-          />
-        </div>
-      </div>
 
       <div className="flex items-center space-x-2">
         <Switch
