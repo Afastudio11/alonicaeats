@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, users, menuItems, orders, inventoryItems } from "@shared/schema";
+import { type User, type InsertUser, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StockDeductionResult, users, menuItems, orders, inventoryItems, menuItemIngredients } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -27,9 +27,21 @@ export interface IStorage {
   getInventoryItem(id: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
   updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
+
+  // Menu Item Ingredients
+  getMenuItemIngredients(menuItemId: string): Promise<MenuItemIngredient[]>;
+  createMenuItemIngredient(ingredient: InsertMenuItemIngredient): Promise<MenuItemIngredient>;
+  deleteMenuItemIngredient(id: string): Promise<boolean>;
+
+  // Stock Management
+  validateStockAvailability(orderItems: { itemId: string; quantity: number }[]): Promise<StockDeductionResult>;
+  deductStock(orderItems: { itemId: string; quantity: number }[]): Promise<StockDeductionResult>;
+  getLowStockItems(): Promise<InventoryItem[]>;
 }
 
-export class MemStorage implements IStorage {
+// Legacy MemStorage class (no longer used, kept for reference)
+// Note: This class doesn't implement the full IStorage interface anymore
+export class MemStorage {
   private users: Map<string, User>;
   private menuItems: Map<string, MenuItem>;
   private orders: Map<string, Order>;
@@ -355,6 +367,23 @@ export class DatabaseStorage implements IStorage {
       .set({ status, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning();
+    
+    // If order is completed, deduct stock automatically
+    if (updated && status === 'completed') {
+      try {
+        const orderItems = Array.isArray(updated.items) ? updated.items : [];
+        const stockResult = await this.deductStock(orderItems.map((item: any) => ({
+          itemId: item.itemId,
+          quantity: item.quantity
+        })));
+        
+        console.log('Stock deduction result:', stockResult);
+      } catch (error) {
+        console.error('Failed to deduct stock for completed order:', error);
+        // Don't fail the order completion if stock deduction fails
+      }
+    }
+    
     return updated || undefined;
   }
 
@@ -381,6 +410,115 @@ export class DatabaseStorage implements IStorage {
       .where(eq(inventoryItems.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Menu Item Ingredients methods
+  async getMenuItemIngredients(menuItemId: string): Promise<MenuItemIngredient[]> {
+    const ingredients = await db
+      .select()
+      .from(menuItemIngredients)
+      .where(eq(menuItemIngredients.menuItemId, menuItemId));
+    return ingredients;
+  }
+
+  async createMenuItemIngredient(ingredient: InsertMenuItemIngredient): Promise<MenuItemIngredient> {
+    const [created] = await db.insert(menuItemIngredients).values(ingredient).returning();
+    return created;
+  }
+
+  async deleteMenuItemIngredient(id: string): Promise<boolean> {
+    const result = await db.delete(menuItemIngredients).where(eq(menuItemIngredients.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Stock Management methods
+  async validateStockAvailability(orderItems: { itemId: string; quantity: number }[]): Promise<StockDeductionResult> {
+    const insufficientStock: StockDeductionResult['insufficientStock'] = [];
+    const deductions: StockDeductionResult['deductions'] = [];
+
+    for (const orderItem of orderItems) {
+      // Get ingredients needed for this menu item
+      const ingredients = await this.getMenuItemIngredients(orderItem.itemId);
+      
+      for (const ingredient of ingredients) {
+        const requiredQuantity = ingredient.quantityNeeded * orderItem.quantity;
+        
+        // Check current stock
+        const inventoryItem = await this.getInventoryItem(ingredient.inventoryItemId);
+        if (!inventoryItem) continue;
+        
+        if (inventoryItem.currentStock < requiredQuantity) {
+          insufficientStock.push({
+            inventoryItemId: inventoryItem.id,
+            inventoryItemName: inventoryItem.name,
+            required: requiredQuantity,
+            available: inventoryItem.currentStock
+          });
+        } else {
+          deductions.push({
+            inventoryItemId: inventoryItem.id,
+            inventoryItemName: inventoryItem.name,
+            deducted: requiredQuantity,
+            newStock: inventoryItem.currentStock - requiredQuantity
+          });
+        }
+      }
+    }
+
+    return {
+      success: insufficientStock.length === 0,
+      insufficientStock: insufficientStock.length > 0 ? insufficientStock : undefined,
+      deductions
+    };
+  }
+
+  async deductStock(orderItems: { itemId: string; quantity: number }[]): Promise<StockDeductionResult> {
+    // First validate stock availability
+    const validation = await this.validateStockAvailability(orderItems);
+    if (!validation.success) {
+      return validation;
+    }
+
+    // Perform actual stock deduction
+    const deductions: StockDeductionResult['deductions'] = [];
+
+    for (const orderItem of orderItems) {
+      const ingredients = await this.getMenuItemIngredients(orderItem.itemId);
+      
+      for (const ingredient of ingredients) {
+        const deductQuantity = ingredient.quantityNeeded * orderItem.quantity;
+        
+        const [updated] = await db
+          .update(inventoryItems)
+          .set({ 
+            currentStock: sql`${inventoryItems.currentStock} - ${deductQuantity}` 
+          })
+          .where(eq(inventoryItems.id, ingredient.inventoryItemId))
+          .returning();
+        
+        if (updated) {
+          deductions.push({
+            inventoryItemId: updated.id,
+            inventoryItemName: updated.name,
+            deducted: deductQuantity,
+            newStock: updated.currentStock
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      deductions
+    };
+  }
+
+  async getLowStockItems(): Promise<InventoryItem[]> {
+    const items = await db
+      .select()
+      .from(inventoryItems)
+      .where(sql`${inventoryItems.currentStock} <= ${inventoryItems.minStock}`);
+    return items;
   }
 
   // Seed initial data
@@ -500,7 +638,24 @@ export class DatabaseStorage implements IStorage {
       }
     ];
 
-    await db.insert(inventoryItems).values(inventoryData);
+    const createdInventoryItems = await db.insert(inventoryItems).values(inventoryData).returning();
+
+    // Seed menu item ingredients (recipes)
+    const ingredientMappings = [
+      // Nasi Goreng ingredients
+      { menuItemId: createdMenuItems[0].id, inventoryItemId: createdInventoryItems[0].id, quantityNeeded: 200, unit: "gram" }, // Beras
+      { menuItemId: createdMenuItems[0].id, inventoryItemId: createdInventoryItems[1].id, quantityNeeded: 50, unit: "gram" }, // Telur
+      { menuItemId: createdMenuItems[0].id, inventoryItemId: createdInventoryItems[2].id, quantityNeeded: 20, unit: "ml" }, // Minyak
+      
+      // Mie Kering ingredients
+      { menuItemId: createdMenuItems[1].id, inventoryItemId: createdInventoryItems[1].id, quantityNeeded: 50, unit: "gram" }, // Telur
+      { menuItemId: createdMenuItems[1].id, inventoryItemId: createdInventoryItems[2].id, quantityNeeded: 15, unit: "ml" }, // Minyak
+      
+      // Coffee and tea typically don't use tracked inventory for simplicity
+      // In a real system, you'd track coffee beans, tea leaves, milk, etc.
+    ];
+
+    await db.insert(menuItemIngredients).values(ingredientMappings);
   }
 }
 

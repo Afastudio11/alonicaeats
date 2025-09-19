@@ -48,6 +48,16 @@ export const inventoryItems = pgTable("inventory_items", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+// Menu item ingredients - maps menu items to required inventory items
+export const menuItemIngredients = pgTable("menu_item_ingredients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  menuItemId: varchar("menu_item_id").notNull().references(() => menuItems.id, { onDelete: "cascade" }),
+  inventoryItemId: varchar("inventory_item_id").notNull().references(() => inventoryItems.id, { onDelete: "cascade" }),
+  quantityNeeded: integer("quantity_needed").notNull(), // amount of inventory item needed per menu item
+  unit: text("unit").notNull(), // unit for this ingredient (should match inventory item unit)
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -69,6 +79,11 @@ export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit
   createdAt: true,
 });
 
+export const insertMenuItemIngredientSchema = createInsertSchema(menuItemIngredients).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -81,6 +96,9 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+
+export type MenuItemIngredient = typeof menuItemIngredients.$inferSelect;
+export type InsertMenuItemIngredient = z.infer<typeof insertMenuItemIngredientSchema>;
 
 // Cart item type for frontend
 export interface CartItem {
@@ -99,4 +117,21 @@ export interface OrderItem {
   price: number;
   quantity: number;
   notes?: string;
+}
+
+// Stock deduction result
+export interface StockDeductionResult {
+  success: boolean;
+  insufficientStock?: {
+    inventoryItemId: string;
+    inventoryItemName: string;
+    required: number;
+    available: number;
+  }[];
+  deductions?: {
+    inventoryItemId: string;
+    inventoryItemName: string;
+    deducted: number;
+    newStock: number;
+  }[];
 }

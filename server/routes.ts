@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema } from "@shared/schema";
+import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication
@@ -145,6 +145,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(item);
     } catch (error) {
       res.status(400).json({ message: "Invalid data" });
+    }
+  });
+
+  // Low stock alerts
+  app.get("/api/inventory/low-stock", async (req, res) => {
+    try {
+      const lowStockItems = await storage.getLowStockItems();
+      res.json(lowStockItems);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Menu Item Ingredients
+  app.get("/api/menu/:id/ingredients", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const ingredients = await storage.getMenuItemIngredients(id);
+      res.json(ingredients);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/menu/:id/ingredients", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertMenuItemIngredientSchema.parse({
+        ...req.body,
+        menuItemId: id
+      });
+      const ingredient = await storage.createMenuItemIngredient(validatedData);
+      res.status(201).json(ingredient);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid ingredient data" });
+    }
+  });
+
+  app.delete("/api/menu/ingredients/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteMenuItemIngredient(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Ingredient not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Stock validation and management
+  app.post("/api/orders/validate-stock", async (req, res) => {
+    try {
+      const { items } = req.body;
+      
+      if (!Array.isArray(items)) {
+        return res.status(400).json({ message: "Items must be an array" });
+      }
+      
+      const result = await storage.validateStockAvailability(items);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
