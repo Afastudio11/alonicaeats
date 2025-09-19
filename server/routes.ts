@@ -420,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentStatus: 'paid' as const, // Cash payments are immediately paid
           cashReceived: cashReceived || total,
           change: change || 0,
-          status: 'preparing' as const // Cash orders go straight to kitchen
+          status: 'pending' as const // All orders start as pending and appear in "Pesanan Baru"
         };
 
         const order = await storage.createOrder(orderData);

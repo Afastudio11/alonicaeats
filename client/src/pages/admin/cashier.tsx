@@ -592,7 +592,7 @@ export default function CashierSection() {
           </DialogHeader>
           
           {paymentData && (
-            <div className="receipt-content customer-receipt space-y-4 print:text-black print:bg-white" data-testid="receipt-content">
+            <div className="receipt-content admin-receipt space-y-4 print:text-black print:bg-white" data-testid="receipt-content">
               {/* Restaurant Header */}
               <div className="text-center border-b pb-4">
                 <h2 className="font-playfair text-xl font-bold">Alonica Restaurant</h2>
