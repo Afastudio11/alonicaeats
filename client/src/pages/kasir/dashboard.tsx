@@ -1,11 +1,11 @@
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import KasirSidebar from "@/components/kasir/sidebar";
-import KasirOrdersSection from "./orders";
-import KasirKitchenSection from "./kitchen";
-import KasirCashierSection from "./cashier";
-import CustomerSection from "./customer";
-import KasirInventorySection from "./inventory";
+import OrdersSection from "@/pages/admin/orders";
+import KitchenSection from "@/pages/admin/kitchen";
+import CashierSection from "@/pages/admin/cashier";
+import InventorySection from "@/pages/admin/inventory";
+import CustomerSection from "@/pages/kasir/customer";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -50,17 +50,17 @@ export default function KasirDashboard() {
   const renderSection = () => {
     switch (section) {
       case 'orders':
-        return <KasirOrdersSection />;
+        return <OrdersSection />;
       case 'kitchen':
-        return <KasirKitchenSection />;
+        return <KitchenSection />;
       case 'cashier':
-        return <KasirCashierSection />;
+        return <CashierSection />;
       case 'customer':
         return <CustomerSection />;
       case 'inventory':
-        return <KasirInventorySection />;
+        return <InventorySection />;
       default:
-        return <KasirOrdersSection />;
+        return <OrdersSection />;
     }
   };
 
