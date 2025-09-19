@@ -1,17 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X } from "lucide-react";
+import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
+import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
 import type { Order, OrderItem } from "@shared/schema";
 
 export default function OrdersSection() {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<Order | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -89,6 +93,34 @@ export default function OrdersSection() {
     updateStatusMutation.mutate({ orderId, status });
   };
 
+  // Sort and filter orders based on statusFilter
+  const filteredAndSortedOrders = orders
+    .filter(order => statusFilter === "all" || order.status === statusFilter)
+    .sort((a, b) => {
+      // Sort by status priority: pending -> preparing -> ready -> completed
+      const statusOrder = { pending: 0, preparing: 1, ready: 2, completed: 3 };
+      const aOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 4;
+      const bOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 4;
+      
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      
+      // If same status, sort by creation date (newest first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+  const handlePrintReceipt = (order: Order) => {
+    setViewingReceipt(order);
+  };
+
+  // Print receipt when modal opens - better timing than setTimeout
+  useEffect(() => {
+    if (viewingReceipt) {
+      requestAnimationFrame(() => {
+        printWithThermalSettings(getThermalPreference());
+      });
+    }
+  }, [viewingReceipt]);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -162,7 +194,21 @@ export default function OrdersSection() {
       {/* Recent Orders Table */}
       <div className="alonica-card overflow-hidden">
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Recent Orders</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-foreground">Recent Orders</h2>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="preparing">Sedang Dimasak</SelectItem>
+                <SelectItem value="ready">Siap</SelectItem>
+                <SelectItem value="completed">Selesai</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Button 
             onClick={() => refetch()}
             disabled={isLoading}
@@ -205,7 +251,7 @@ export default function OrdersSection() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-border">
-              {orders.map((order) => (
+              {filteredAndSortedOrders.map((order) => (
                 <tr key={order.id} data-testid={`row-order-${order.id}`}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground font-mono">
                     #{order.id.slice(-6).toUpperCase()}
@@ -275,6 +321,15 @@ export default function OrdersSection() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handlePrintReceipt(order)}
+                      className="bg-green-50 hover:bg-green-100 text-green-700"
+                      data-testid={`button-receipt-${order.id}`}
+                    >
+                      <Receipt className="h-4 w-4" />
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -282,10 +337,10 @@ export default function OrdersSection() {
           </table>
         </div>
 
-        {orders.length === 0 && (
+        {filteredAndSortedOrders.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground" data-testid="text-no-orders">
-              Belum ada pesanan
+              {orders.length === 0 ? "Belum ada pesanan" : "Tidak ada pesanan dengan filter ini"}
             </p>
           </div>
         )}
@@ -306,6 +361,9 @@ export default function OrdersSection() {
                 <X className="h-4 w-4" />
               </Button>
             </DialogTitle>
+            <DialogDescription>
+              Lihat detail lengkap pesanan termasuk items, payment info dan timeline.
+            </DialogDescription>
           </DialogHeader>
           {viewingOrder && (
             <div className="space-y-6">
@@ -380,6 +438,138 @@ export default function OrdersSection() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Modal */}
+      <Dialog open={!!viewingReceipt} onOpenChange={() => setViewingReceipt(null)}>
+        <DialogContent className="max-w-md print:max-w-none print:shadow-none">
+          <DialogHeader className="print-hide">
+            <DialogTitle className="flex items-center space-x-2">
+              <Receipt className="h-5 w-5" />
+              <span>Receipt - #{viewingReceipt?.id.slice(-6).toUpperCase()}</span>
+            </DialogTitle>
+            <DialogDescription>
+              Receipt pesanan yang bisa dicetak dengan thermal printer.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingReceipt && (
+            <div className="customer-receipt space-y-4 print:text-black print:bg-white">
+              {/* Restaurant Header */}
+              <div className="text-center border-b pb-4">
+                <h2 className="font-playfair text-xl font-bold">Alonica Restaurant</h2>
+                <p className="text-sm text-muted-foreground">
+                  Jl. Ratulangi No.14, Bantaeng<br />
+                  Telp: 0515-4545
+                </p>
+              </div>
+              
+              {/* Order Info */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Tanggal:</span>
+                  <span>{formatDate(new Date(viewingReceipt.createdAt))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Waktu:</span>
+                  <span>{new Date(viewingReceipt.createdAt).toLocaleTimeString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Customer:</span>
+                  <span>{viewingReceipt.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Meja:</span>
+                  <span>{viewingReceipt.tableNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Order ID:</span>
+                  <span className="text-xs">#{viewingReceipt.id.slice(-8).toUpperCase()}</span>
+                </div>
+              </div>
+              
+              {/* Items */}
+              <div className="border-t border-b py-4">
+                <h3 className="font-semibold mb-3">Detail Pesanan:</h3>
+                <div className="space-y-2">
+                  {(Array.isArray(viewingReceipt.items) ? viewingReceipt.items : []).map((item: any, index: number) => (
+                    <div key={index} className="receipt-item text-sm">
+                      <div className="receipt-item-name">
+                        <p className="font-medium">{item?.name || 'N/A'}</p>
+                        <p className="text-muted-foreground">
+                          {item.quantity}x {formatCurrency(item.price)}
+                        </p>
+                        {item.notes && (
+                          <p className="text-xs text-muted-foreground italic">
+                            Catatan: {item.notes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="receipt-item-price">
+                        {formatCurrency((item.price || 0) * (item.quantity || 1))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Total */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between font-semibold">
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(viewingReceipt.subtotal || 0)}</span>
+                </div>
+                {(viewingReceipt.discount || 0) > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Diskon:</span>
+                    <span>-{formatCurrency(viewingReceipt.discount || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span>{formatCurrency(viewingReceipt.total)}</span>
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="text-center space-y-2">
+                <div>
+                  <p className="text-muted-foreground text-sm">Metode Pembayaran</p>
+                  <p className="font-medium capitalize">
+                    {viewingReceipt.paymentMethod === 'qris' ? 'QRIS' : 'Cash'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-sm">Status</p>
+                  <p className="font-medium text-primary capitalize">
+                    {ORDER_STATUSES[viewingReceipt.status as keyof typeof ORDER_STATUSES] || viewingReceipt.status}
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="text-center mt-6 pt-4 border-t border-border">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Terima kasih telah berkunjung!
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Alonica Restaurant - Cita Rasa Nusantara
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Print Button */}
+          <div className="mt-4 print-hide">
+            <Button
+              onClick={() => printWithThermalSettings(getThermalPreference())}
+              className="w-full flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Print Receipt
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
