@@ -493,7 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Set ACL policy to make object public and owned by the admin user
-      const normalizedPath = await objectStorageService.trySetObjectEntityAclPolicy(rawPath, {
+      const finalizedPath = await objectStorageService.trySetObjectEntityAclPolicy(normalizedPath, {
         owner: user.id,
         visibility: 'public'
       });
