@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, BarChart3, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import type { Order } from "@shared/schema";
 
 const TIME_PERIODS = [
@@ -125,19 +126,26 @@ export default function AnalyticsSection() {
         </Card>
       </div>
 
-      {/* Charts Placeholder */}
+      {/* REAL CHARTS WITH LIVE DATA */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="alonica-card">
           <CardHeader>
             <CardTitle>Daily Sales Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 bg-muted rounded-xl flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2" />
-                <p>Chart implementation would go here</p>
-                <p className="text-sm">Use Chart.js or Recharts for visualization</p>
-              </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.dailySalesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{fontSize: 12}} />
+                  <YAxis tick={{fontSize: 12}} tickFormatter={(value) => formatCurrency(value).replace('Rp. ', '')} />
+                  <Tooltip 
+                    formatter={(value) => [formatCurrency(value as number), 'Revenue']}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Bar dataKey="revenue" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
@@ -147,12 +155,26 @@ export default function AnalyticsSection() {
             <CardTitle>Hourly Orders Pattern</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 bg-muted rounded-xl flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2" />
-                <p>Chart implementation would go here</p>
-                <p className="text-sm">Line chart showing hourly order patterns</p>
-              </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics.hourlyOrdersData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="hour" tick={{fontSize: 12}} />
+                  <YAxis tick={{fontSize: 12}} />
+                  <Tooltip 
+                    formatter={(value) => [`${value} orders`, 'Orders']}
+                    labelFormatter={(label) => `Hour: ${label}:00`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="orders" 
+                    stroke="#dc2626" 
+                    strokeWidth={3}
+                    dot={{ fill: '#dc2626', r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
@@ -259,6 +281,34 @@ function calculateAnalytics(orders: Order[], period: string) {
     qris: total > 0 ? Math.round((qrisOrders / total) * 100) : 0
   };
 
+  // Generate chart data for Daily Sales Trend
+  const dailySalesData = [];
+  const days = period === 'monthly' ? 30 : (period === 'weekly' ? 7 : 1);
+  
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+    
+    const dayOrders = filteredOrders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      return orderDate.toDateString() === date.toDateString();
+    });
+    
+    const revenue = dayOrders.reduce((sum, order) => sum + order.total, 0);
+    dailySalesData.push({ date: dateStr, revenue });
+  }
+
+  // Generate chart data for Hourly Orders Pattern
+  const hourlyOrdersData = [];
+  for (let hour = 0; hour < 24; hour++) {
+    const hourStr = hour.toString().padStart(2, '0');
+    hourlyOrdersData.push({
+      hour: hourStr,
+      orders: hourlyOrders[hour] || 0
+    });
+  }
+
   return {
     totalRevenue,
     totalOrders,
@@ -267,6 +317,8 @@ function calculateAnalytics(orders: Order[], period: string) {
     peakHourOrders,
     topItems,
     paymentMethods,
+    dailySalesData,
+    hourlyOrdersData,
     // Mock growth percentages for demo
     revenueGrowth: 12.5,
     ordersGrowth: 8.2,

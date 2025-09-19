@@ -40,7 +40,7 @@ export default function KitchenSection() {
         if (!old) return old;
         return old.map(order => 
           order.id === orderId 
-            ? { ...order, status, updatedAt: new Date().toISOString() }
+            ? { ...order, status, updatedAt: new Date() }
             : order
         );
       });
@@ -97,7 +97,7 @@ export default function KitchenSection() {
         if (!old) return old;
         return old.map(order => 
           order.id === orderId 
-            ? { ...order, status: 'completed', updatedAt: new Date().toISOString() }
+            ? { ...order, status: 'completed', updatedAt: new Date() }
             : order
         );
       });
