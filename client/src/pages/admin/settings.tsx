@@ -26,43 +26,57 @@ export default function SettingsSection() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: Partial<InsertStoreProfile>) => {
-      console.log('Attempting to save store profile:', data);
-      console.log('Current store profile ID:', storeProfile?.id);
-      
+      // Validate required fields
+      if (!data.restaurantName?.trim()) {
+        throw new Error('Nama restaurant harus diisi');
+      }
+
       try {
         if (storeProfile?.id) {
           // Update existing profile
-          console.log('Updating existing profile with ID:', storeProfile.id);
           const response = await apiRequest('PUT', `/api/store-profile/${storeProfile.id}`, data);
-          const result = await response.json();
-          console.log('Update response:', result);
-          return result;
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+          }
+          return await response.json();
         } else {
           // Create new profile
-          console.log('Creating new profile');
           const response = await apiRequest('POST', '/api/store-profile', data);
-          const result = await response.json();
-          console.log('Create response:', result);
-          return result;
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+          }
+          return await response.json();
         }
       } catch (error) {
-        console.error('Store profile save error:', error);
-        throw error;
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error('Terjadi kesalahan saat menyimpan profile');
       }
     },
-    onSuccess: () => {
+    onSuccess: (savedProfile) => {
       queryClient.invalidateQueries({ queryKey: ['/api/store-profile'] });
+      
+      // Update form data with saved profile to ensure consistency
+      setFormData({
+        restaurantName: savedProfile.restaurantName || "",
+        address: savedProfile.address || "",
+        phone: savedProfile.phone || "",
+        email: savedProfile.email || "",
+        description: savedProfile.description || ""
+      });
+      
       toast({
         title: "Profile berhasil disimpan",
-        description: "Informasi toko telah diperbarui",
+        description: "Informasi toko telah diperbarui dan receipt header ter-update otomatis",
       });
     },
-    onError: (error: any) => {
-      console.error('Mutation error:', error);
-      const errorMessage = error?.message || 'Unknown error';
+    onError: (error: Error) => {
       toast({
         title: "Gagal menyimpan profile",
-        description: `Error: ${errorMessage}`,
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -90,7 +104,27 @@ export default function SettingsSection() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate(formData);
+    
+    // Basic validation
+    if (!formData.restaurantName?.trim()) {
+      toast({
+        title: "Validasi gagal",
+        description: "Nama restaurant harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Filter out empty strings for optional fields  
+    const filteredData = {
+      restaurantName: formData.restaurantName.trim(),
+      address: formData.address?.trim() || "",
+      phone: formData.phone?.trim() || "",
+      email: formData.email?.trim() || "",
+      description: formData.description?.trim() || ""
+    };
+
+    updateProfileMutation.mutate(filteredData);
   };
 
   if (isLoading) {

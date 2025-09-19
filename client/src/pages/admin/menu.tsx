@@ -206,8 +206,8 @@ export default function MenuSection() {
               <div className="flex-1 p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground" data-testid={`text-menu-name-${item.id}`}>
-                      {item.name}
+                    <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2" data-testid={`text-menu-name-${item.id}`}>
+                      {item.name.length > 50 ? `${item.name.substring(0, 50)}...` : item.name}
                     </h3>
                     <Badge 
                       variant="secondary" 
@@ -217,8 +217,8 @@ export default function MenuSection() {
                       {getCategoryName(item.categoryId)}
                     </Badge>
                     {item.description && (
-                      <p className="text-sm text-muted-foreground mt-2" data-testid={`text-description-${item.id}`}>
-                        {item.description}
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`text-description-${item.id}`}>
+                        {item.description.length > 80 ? `${item.description.substring(0, 80)}...` : item.description}
                       </p>
                     )}
                     <p className="text-lg font-bold text-primary mt-2" data-testid={`text-menu-price-${item.id}`}>

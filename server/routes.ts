@@ -371,9 +371,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public customer order creation endpoint (QRIS only)
   app.post("/api/orders", async (req, res) => {
     try {
-      const { customerName, tableNumber, items, paymentMethod, cashReceived, change } = req.body;
+      const { customerName, tableNumber, items } = req.body;
       
       if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Customer name, table number, and items are required" });
@@ -400,76 +401,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Validate request using Zod schema
+      const validatedOrder = insertOrderSchema.parse({
+        customerName,
+        tableNumber,
+        items,
+        subtotal,
+        total: subtotal, // Server calculates total
+        paymentMethod: 'qris', // Force QRIS for public endpoint
+        paymentStatus: 'pending'
+      });
+
       const total = subtotal; // No discounts for now
-      const requestedPaymentMethod = paymentMethod || 'qris'; // Default to QRIS for customer orders
       
-      // Handle different payment methods
+      // Public endpoint only supports QRIS with Midtrans - no cash payments allowed
       let orderData;
       let responsePayload;
       
-      if (requestedPaymentMethod === 'cash') {
-        // Admin cash payment - no Midtrans needed
-        orderData = {
-          customerName,
-          tableNumber,
-          items,
-          subtotal,
-          discount: 0,
-          total,
-          paymentMethod: 'cash' as const,
-          paymentStatus: 'paid' as const, // Cash payments are immediately paid
-          cashReceived: cashReceived || total,
-          change: change || 0,
-          status: 'pending' as const // All orders start as pending and appear in "Pesanan Baru"
-        };
-
-        const order = await storage.createOrder(orderData);
+      if (midtransService) {
+        // Real Midtrans QRIS payment integration
+        const midtransOrderId = `ALONICA-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
         
-        responsePayload = {
-          order,
-          payment: {
-            method: 'cash',
-            received: cashReceived,
-            change: change,
-            status: 'paid'
+        try {
+          // Create Midtrans QRIS payment
+          const midtransPayment = await midtransService.createQRISPayment({
+            orderId: midtransOrderId,
+            grossAmount: total,
+            customerDetails: {
+              name: customerName,
+              phone: undefined // We don't collect phone in the current flow
+            },
+            itemDetails: itemDetails
+          });
+          
+          if (!midtransPayment.success) {
+            throw new Error(midtransPayment.error || 'Failed to create Midtrans payment');
           }
-        };
+          
+          // Create order with Midtrans payment data
+          orderData = {
+            customerName,
+            tableNumber,
+            items,
+            subtotal,
+            discount: 0,
+            total,
+            paymentMethod: 'qris' as const,
+            paymentStatus: 'pending' as const,
+            midtransOrderId: midtransOrderId,
+            midtransTransactionId: midtransPayment.transactionId,
+            qrisUrl: midtransPayment.qrisUrl,
+            qrisString: midtransPayment.qrisString,
+            paymentExpiredAt: midtransPayment.expiryTime ? new Date(midtransPayment.expiryTime) : new Date(Date.now() + 15 * 60 * 1000),
+            status: 'pending' as const
+          };
+
+          const order = await storage.createOrder(orderData);
+          
+          responsePayload = {
+            order,
+            payment: {
+              qrisUrl: midtransPayment.qrisUrl,
+              qrisString: midtransPayment.qrisString,
+              expiryTime: midtransPayment.expiryTime || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+              transactionId: midtransPayment.transactionId,
+              midtransOrderId: midtransOrderId,
+              // snapToken: midtransPayment.snapToken // Not available in QRIS response
+            }
+          };
+        } catch (midtransError) {
+          console.error('Midtrans payment creation error:', midtransError);
+          
+          // Return error immediately - do NOT create order without valid payment
+          return res.status(503).json({ 
+            message: "Payment service temporarily unavailable. Please try again later.",
+            error: "PAYMENT_SERVICE_ERROR"
+          });
+        }
       } else {
-        // Customer QRIS payment - use static QRIS (no Midtrans API call)
-        const mockOrderId = `ALONICA-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-        
-        orderData = {
-          customerName,
-          tableNumber,
-          items,
-          subtotal,
-          discount: 0,
-          total,
-          paymentMethod: 'qris' as const,
-          paymentStatus: 'pending' as const, // QRIS payments start as pending
-          midtransOrderId: mockOrderId, // Keep for compatibility
-          paymentExpiredAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
-          status: 'pending' as const
-        };
-
-        const order = await storage.createOrder(orderData);
-        
-        responsePayload = {
-          order,
-          payment: {
-            qrisUrl: null, // Static QRIS will be handled by frontend
-            qrisString: null,
-            expiryTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-            transactionId: 'static-qris',
-            midtransOrderId: mockOrderId
-          }
-        };
+        // Fallback: If Midtrans service unavailable, return error (no mock payments in production)
+        return res.status(503).json({ 
+          message: "Payment service temporarily unavailable. Please try again later." 
+        });
       }
 
       res.status(201).json(responsePayload);
     } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid order data", details: error.message });
+      }
       console.error('Order creation error:', error);
       res.status(500).json({ message: "Failed to create order" });
+    }
+  });
+
+  // Separate admin-only endpoint for cash payments
+  app.post("/api/orders/cash", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { customerName, tableNumber, items, cashReceived, change } = req.body;
+      
+      if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Customer name, table number, and items are required" });
+      }
+
+      // Calculate total server-side by fetching actual menu item prices
+      let subtotal = 0;
+      
+      for (const orderItem of items) {
+        const menuItem = await storage.getMenuItem(orderItem.itemId);
+        if (!menuItem || !menuItem.isAvailable) {
+          return res.status(400).json({ message: `Menu item ${orderItem.itemId} not found or unavailable` });
+        }
+        
+        const itemTotal = menuItem.price * orderItem.quantity;
+        subtotal += itemTotal;
+      }
+
+      const total = subtotal;
+
+      // Validate cash payment data
+      const validatedOrder = insertOrderSchema.parse({
+        customerName,
+        tableNumber,
+        items,
+        subtotal,
+        total,
+        paymentMethod: 'cash',
+        paymentStatus: 'paid' // Cash payments are immediately paid
+      });
+
+      const orderData = {
+        customerName,
+        tableNumber,
+        items,
+        subtotal,
+        discount: 0,
+        total,
+        paymentMethod: 'cash' as const,
+        paymentStatus: 'paid' as const,
+        status: 'pending' as const
+      };
+
+      const order = await storage.createOrder(orderData);
+      
+      const responsePayload = {
+        order,
+        payment: {
+          method: 'cash',
+          received: cashReceived || total,
+          change: change || 0,
+          status: 'paid'
+        }
+      };
+
+      res.status(201).json(responsePayload);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid order data", details: error.message });
+      }
+      console.error('Cash order creation error:', error);
+      res.status(500).json({ message: "Failed to create cash order" });
     }
   });
 

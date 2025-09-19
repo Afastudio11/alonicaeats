@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
-import { SAMPLE_QRIS_CODE } from "@/lib/constants";
 import type { OrderItem } from "@shared/schema";
 
 interface PaymentResponse {
@@ -18,6 +17,7 @@ interface PaymentResponse {
     expiryTime: string;
     transactionId: string;
     midtransOrderId: string;
+    snapToken?: string;
   };
 }
 
@@ -39,70 +39,88 @@ export default function PaymentPage() {
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      // For now, create simple order without Midtrans integration
+      // Create order with Midtrans QRIS integration
       const orderPayload = {
         ...orderData,
         paymentMethod: 'qris',
-        // Simple order creation - will be processed manually
+        useMidtrans: true // Flag to use real Midtrans integration
       };
       
       const response = await apiRequest('POST', '/api/orders', orderPayload);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: PaymentResponse) => {
       // Store order details for receipt generation
       const receiptData = {
-        ...data,
+        ...data.order,
         orderDate: new Date().toISOString(),
         paymentMethod: 'qris'
       };
       localStorage.setItem('alonica-receipt', JSON.stringify(receiptData));
       
-      // Set mock payment data for static QRIS display
-      const mockPaymentData = {
-        order: data,
-        payment: {
-          qrisUrl: null,
-          qrisString: null,
-          expiryTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
-          transactionId: 'static-qris',
-          midtransOrderId: `ALONICA-${Date.now()}`
-        }
-      };
-      
-      setOrderId(data.id);
-      setPaymentData(mockPaymentData);
+      setOrderId(data.order.id);
+      setPaymentData(data);
       setPaymentStatus('pending');
       
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
     },
-    onError: (error: any) => {
-      console.error('Order creation error:', error);
+    onError: (error: Error) => {
       toast({
-        title: "Gagal membuat pesanan",
-        description: "Silakan coba lagi",
+        title: "Gagal membuat pembayaran",
+        description: error.message,
         variant: "destructive",
       });
       setPaymentStatus('failed');
     }
   });
 
-  // Simulate payment completion after showing QR for some time
+  // Real-time payment status checking
+  const { data: paymentStatusData } = useQuery<PaymentStatus>({
+    queryKey: ['/api/orders', orderId, 'payment-status'],
+    enabled: !!orderId && paymentStatus === 'pending',
+    refetchInterval: 2000, // Check every 2 seconds
+    gcTime: 0, // Don't cache
+    staleTime: 0,
+  });
+
+  // Handle payment status updates
   useEffect(() => {
-    if (paymentStatus === 'pending' && paymentData) {
-      // Auto-complete after 10 seconds for demo (since no real payment integration)
-      const timer = setTimeout(() => {
+    if (paymentStatusData && orderId) {
+      const newStatus = paymentStatusData.paymentStatus;
+      
+      if (newStatus === 'paid') {
+        setPaymentStatus('paid');
         clearCart();
         toast({
           title: "Pembayaran berhasil!",
           description: "Terima kasih, pesanan Anda sedang diproses",
         });
-        setLocation("/success");
-      }, 10000); // 10 seconds
-
-      return () => clearTimeout(timer);
+        
+        // Navigate to success page after brief delay
+        setTimeout(() => {
+          setLocation("/success");
+        }, 2000);
+      } else if (newStatus === 'failed') {
+        setPaymentStatus('failed');
+        toast({
+          title: "Pembayaran gagal",
+          description: "Silakan coba lagi atau hubungi kasir",
+          variant: "destructive",
+        });
+      } else if (newStatus === 'expired') {
+        setPaymentStatus('expired');
+        toast({
+          title: "Pembayaran kedaluwarsa",
+          description: "Waktu pembayaran telah habis",
+          variant: "destructive",
+        });
+      }
     }
-  }, [paymentStatus, paymentData, clearCart, setLocation, toast]);
+  }, [paymentStatusData, orderId, clearCart, setLocation, toast]);
 
   const handleCreateOrder = async () => {
     if (cartItems.length === 0) {
@@ -212,23 +230,37 @@ export default function PaymentPage() {
               </p>
             </div>
 
-            {/* Use static QRIS code for now */}
-            <img 
-              src={SAMPLE_QRIS_CODE} 
-              alt="QRIS Payment Code" 
-              className="w-48 h-48 mx-auto mb-4 rounded-xl border"
-              data-testid="img-qris-code"
-            />
+            {/* Real Midtrans QRIS code or fallback */}
+            {paymentData.payment.qrisUrl ? (
+              <img 
+                src={paymentData.payment.qrisUrl} 
+                alt="QRIS Payment Code" 
+                className="w-48 h-48 mx-auto mb-4 rounded-xl border"
+                data-testid="img-qris-code"
+              />
+            ) : paymentData.payment.qrisString ? (
+              <div className="w-48 h-48 mx-auto mb-4 rounded-xl border bg-white flex items-center justify-center">
+                <p className="text-xs text-center p-2 font-mono break-all">
+                  {paymentData.payment.qrisString}
+                </p>
+              </div>
+            ) : (
+              <div className="w-48 h-48 mx-auto mb-4 rounded-xl border bg-muted flex items-center justify-center">
+                <p className="text-sm text-muted-foreground text-center">
+                  QR Code akan muncul setelah pembayaran dibuat
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Order ID: {paymentData.payment.midtransOrderId}</p>
               <p className="font-semibold text-lg text-primary">
                 Total: {formatCurrency(total)}
               </p>
-              <p className="text-orange-500 font-medium">
+              <div className="text-orange-500 font-medium">
                 <Clock className="h-4 w-4 inline mr-1" />
-                Pembayaran otomatis selesai dalam 10 detik
-              </p>
+                Kedaluwarsa: {formatTimeRemaining(paymentData.payment.expiryTime)}
+              </div>
             </div>
           </div>
 
