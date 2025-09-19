@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
-import type { MenuItem, Category, InsertOrder } from "@shared/schema";
+import type { MenuItem, Category, InsertOrder, Order } from "@shared/schema";
 
 interface CartItem {
   id: string;
@@ -18,6 +19,20 @@ interface CartItem {
   price: number;
   quantity: number;
   notes: string;
+}
+
+interface PaymentData {
+  cashAmount: number;
+  change: number;
+  order: Order & {
+    items: Array<{
+      itemId: string;
+      name: string;
+      price: number;
+      quantity: number;
+      notes: string;
+    }>;
+  };
 }
 
 export default function CashierSection() {
@@ -29,6 +44,12 @@ export default function CashierSection() {
   const [tableNumber, setTableNumber] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  
+  // Payment & receipt state
+  const [showPaymentCalculator, setShowPaymentCalculator] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [cashAmount, setCashAmount] = useState("");
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
 
   // Load menu items and categories
   const { data: menuItems = [] } = useQuery<MenuItem[]>({
@@ -120,6 +141,82 @@ export default function CashierSection() {
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal; // No tax or discount for now
+  
+  // Payment calculation
+  const cashAmountNumber = parseFloat(cashAmount) || 0;
+  const change = cashAmountNumber >= total ? cashAmountNumber - total : 0;
+  
+  // Handle payment calculation
+  const handlePaymentCalculation = async () => {
+    if (cashAmountNumber < total) {
+      toast({
+        title: "Uang tidak cukup",
+        description: "Jumlah uang yang diberikan kurang dari total pesanan",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const orderData: InsertOrder = {
+      customerName: customerName.trim(),
+      tableNumber: tableNumber.trim(),
+      items: cart.map(item => ({
+        itemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        notes: item.notes || ""
+      })),
+      subtotal,
+      discount: 0,
+      total,
+      paymentMethod: "cash",
+      status: "pending"
+    };
+    
+    try {
+      const response = await apiRequest('POST', '/api/orders', orderData);
+      const createdOrder = await response.json();
+      
+      setPaymentData({
+        cashAmount: cashAmountNumber,
+        change,
+        order: createdOrder
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      setShowPaymentCalculator(false);
+      setShowReceipt(true);
+      
+      toast({
+        title: "Pesanan berhasil dibuat",
+        description: "Pesanan telah disimpan ke sistem",
+      });
+    } catch (error) {
+      toast({
+        title: "Gagal membuat pesanan",
+        description: "Silakan coba lagi",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Reset all forms
+  const resetAllForms = () => {
+    setCustomerName("");
+    setTableNumber("");
+    setCart([]);
+    setNotes({});
+    setCashAmount("");
+    setPaymentData(null);
+    setShowPaymentCalculator(false);
+    setShowReceipt(false);
+  };
+  
+  // Print receipt
+  const handlePrintReceipt = () => {
+    window.print();
+  };
 
   // Submit order
   const handleSubmitOrder = () => {
@@ -167,7 +264,8 @@ export default function CashierSection() {
       status: "pending"
     };
 
-    createOrderMutation.mutate(orderData);
+    setShowPaymentCalculator(true);
+    // We'll create the order after payment is calculated
   };
 
   return (
@@ -199,7 +297,7 @@ export default function CashierSection() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue={categories[0]?.id || ""} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full" style={{gridTemplateColumns: `repeat(${categories.length}, 1fr)`}}>
                   {categories.map((category) => (
                     <TabsTrigger key={category.id} value={category.id} data-testid={`tab-${category.name.toLowerCase()}`}>
                       {category.name}
@@ -386,7 +484,8 @@ export default function CashierSection() {
                     className="w-full"
                     data-testid="button-submit-order"
                   >
-                    {createOrderMutation.isPending ? "Memproses..." : "Buat Pesanan"}
+                    <Calculator className="h-4 w-4 mr-2" />
+                    {createOrderMutation.isPending ? "Memproses..." : "Hitung Pembayaran"}
                   </Button>
                 </>
               )}
@@ -394,6 +493,205 @@ export default function CashierSection() {
           </Card>
         </div>
       </div>
+
+      {/* Payment Calculator Dialog */}
+      <Dialog open={showPaymentCalculator} onOpenChange={setShowPaymentCalculator}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Calculator className="h-5 w-5" />
+              <span>Kalkulator Pembayaran</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between text-sm mb-2">
+                <span>Customer:</span>
+                <span className="font-medium">{customerName}</span>
+              </div>
+              <div className="flex justify-between text-sm mb-2">
+                <span>Meja:</span>
+                <span className="font-medium">{tableNumber}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold border-t pt-2">
+                <span>Total Pesanan:</span>
+                <span className="text-primary">{formatCurrency(total)}</span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="cashAmount">Uang yang Diberikan</Label>
+              <Input
+                id="cashAmount"
+                type="number"
+                value={cashAmount}
+                onChange={(e) => setCashAmount(e.target.value)}
+                placeholder="Masukkan jumlah uang"
+                className="text-lg text-center"
+                data-testid="input-cash-amount"
+              />
+            </div>
+            
+            {cashAmountNumber > 0 && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Uang Diterima:</span>
+                  <span className="font-medium">{formatCurrency(cashAmountNumber)}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Total Pesanan:</span>
+                  <span className="font-medium">{formatCurrency(total)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <span>Kembalian:</span>
+                  <span className={`${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(change)}
+                  </span>
+                </div>
+                {change < 0 && (
+                  <p className="text-red-600 text-sm mt-2">
+                    Uang kurang {formatCurrency(Math.abs(change))}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPaymentCalculator(false)}
+              data-testid="button-cancel-payment"
+            >
+              Batal
+            </Button>
+            <Button 
+              onClick={handlePaymentCalculation}
+              disabled={cashAmountNumber < total}
+              data-testid="button-confirm-payment"
+            >
+              Konfirmasi Pembayaran
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog */}
+      <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+        <DialogContent className="max-w-md print:max-w-none print:shadow-none">
+          <DialogHeader className="print:hidden">
+            <DialogTitle className="flex items-center space-x-2">
+              <Receipt className="h-5 w-5" />
+              <span>Struk Pembayaran</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {paymentData && (
+            <div className="receipt-content space-y-4 print:text-black print:bg-white" data-testid="receipt-content">
+              {/* Restaurant Header */}
+              <div className="text-center border-b pb-4">
+                <h2 className="font-playfair text-xl font-bold">Alonica Restaurant</h2>
+                <p className="text-sm text-muted-foreground">
+                  Jl. Ratulangi No.14, Bantaeng<br />
+                  Telp: 0515-4545
+                </p>
+              </div>
+              
+              {/* Order Info */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Tanggal:</span>
+                  <span>{new Date().toLocaleDateString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Waktu:</span>
+                  <span>{new Date().toLocaleTimeString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Customer:</span>
+                  <span>{paymentData.order.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Meja:</span>
+                  <span>{paymentData.order.tableNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Order ID:</span>
+                  <span className="text-xs">{paymentData.order.id.substring(0, 8)}</span>
+                </div>
+              </div>
+              
+              {/* Items */}
+              <div className="border-t border-b py-4">
+                <h3 className="font-semibold mb-3">Detail Pesanan:</h3>
+                <div className="space-y-2">
+                  {paymentData.order.items.map((item: any, index: number) => (
+                    <div key={index} className="text-sm">
+                      <div className="flex justify-between">
+                        <span>{item.name}</span>
+                        <span>{formatCurrency(item.price)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground text-xs">
+                        <span>  {item.quantity}x {formatCurrency(item.price)}</span>
+                        <span>{formatCurrency(item.price * item.quantity)}</span>
+                      </div>
+                      {item.notes && (
+                        <div className="text-xs text-muted-foreground">
+                          Catatan: {item.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Payment Summary */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(paymentData.order.subtotal)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg border-t pt-2">
+                  <span>Total:</span>
+                  <span>{formatCurrency(paymentData.order.total)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Uang Diterima:</span>
+                  <span>{formatCurrency(paymentData.cashAmount)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Kembalian:</span>
+                  <span>{formatCurrency(paymentData.change)}</span>
+                </div>
+              </div>
+              
+              {/* Footer */}
+              <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                <p>Terima kasih atas kunjungan Anda!</p>
+                <p>Silakan kembali lagi</p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="print:hidden">
+            <Button 
+              variant="outline" 
+              onClick={resetAllForms}
+              data-testid="button-new-order"
+            >
+              Pesanan Baru
+            </Button>
+            <Button 
+              onClick={handlePrintReceipt}
+              data-testid="button-print-receipt"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Struk
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
