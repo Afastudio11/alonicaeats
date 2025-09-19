@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { randomBytes } from "crypto";
 import { storage } from "./storage";
-import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema } from "@shared/schema";
+import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema } from "@shared/schema";
 
 // Simple in-memory session storage (production should use database or Redis)
 const activeSessions = new Map<string, { userId: string; username: string; role: string; expires: Date }>();
@@ -350,6 +350,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Store Profile (admin access required)
+  app.get("/api/store-profile", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const profile = await storage.getStoreProfile();
+      res.json(profile || null);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/store-profile", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertStoreProfileSchema.parse(req.body);
+      const profile = await storage.createStoreProfile(validatedData);
+      res.status(201).json(profile);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid store profile data" });
+    }
+  });
+
+  app.put("/api/store-profile/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertStoreProfileSchema.partial().parse(req.body);
+      const profile = await storage.updateStoreProfile(id, validatedData);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Store profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid store profile data" });
     }
   });
 

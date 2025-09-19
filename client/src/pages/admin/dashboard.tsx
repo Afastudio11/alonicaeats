@@ -6,6 +6,7 @@ import MenuSection from "./menu";
 import CategoriesSection from "./categories";
 import AnalyticsSection from "./analytics";
 import InventorySection from "./inventory";
+import SettingsSection from "./settings";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -54,6 +55,8 @@ export default function AdminDashboard() {
         return <AnalyticsSection />;
       case 'inventory':
         return <InventorySection />;
+      case 'settings':
+        return <SettingsSection />;
       default:
         return <OrdersSection />;
     }
