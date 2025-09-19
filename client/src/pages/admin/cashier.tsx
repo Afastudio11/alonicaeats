@@ -613,15 +613,15 @@ export default function CashierSection() {
                 </div>
                 <div className="flex justify-between">
                   <span>Customer:</span>
-                  <span>{paymentData.order.customerName}</span>
+                  <span>{paymentData.order?.customerName || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Meja:</span>
-                  <span>{paymentData.order.tableNumber}</span>
+                  <span>{paymentData.order?.tableNumber || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Order ID:</span>
-                  <span className="text-xs">{paymentData.order.id.substring(0, 8)}</span>
+                  <span className="text-xs">{paymentData.order?.id?.substring(0, 8) || 'N/A'}</span>
                 </div>
               </div>
               
@@ -629,7 +629,7 @@ export default function CashierSection() {
               <div className="border-t border-b py-4">
                 <h3 className="font-semibold mb-3">Detail Pesanan:</h3>
                 <div className="space-y-2">
-                  {paymentData.order.items.map((item: any, index: number) => (
+                  {(paymentData.order?.items || []).map((item: any, index: number) => (
                     <div key={index} className="text-sm">
                       <div className="flex justify-between">
                         <span>{item.name}</span>
@@ -653,11 +653,11 @@ export default function CashierSection() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal:</span>
-                  <span>{formatCurrency(paymentData.order.subtotal)}</span>
+                  <span>{formatCurrency(paymentData.order?.subtotal || 0)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t pt-2">
                   <span>Total:</span>
-                  <span>{formatCurrency(paymentData.order.total)}</span>
+                  <span>{formatCurrency(paymentData.order?.total || 0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Uang Diterima:</span>

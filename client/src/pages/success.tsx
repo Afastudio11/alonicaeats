@@ -140,7 +140,7 @@ export default function SuccessPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Order ID</p>
-                <p className="font-medium" data-testid="text-order-id">#{receiptData.id.slice(-8).toUpperCase()}</p>
+                <p className="font-medium" data-testid="text-order-id">#{receiptData.id?.slice(-8).toUpperCase() || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Tanggal</p>
