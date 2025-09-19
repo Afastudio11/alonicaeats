@@ -22,8 +22,20 @@ export default function PaymentPage() {
       const response = await apiRequest('POST', '/api/orders', orderData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (createdOrder, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      
+      // Store order details for receipt generation
+      const receiptData = {
+        ...createdOrder,
+        orderDate: new Date().toISOString(),
+        customerData: {
+          name: variables.customerName,
+          table: variables.tableNumber
+        }
+      };
+      localStorage.setItem('alonica-receipt', JSON.stringify(receiptData));
+      
       clearCart();
       setLocation("/success");
     },
