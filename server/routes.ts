@@ -380,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Orders (admin required for viewing orders, public access for creating orders)
-  app.get("/api/orders", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/orders", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const orders = await storage.getOrders();
       res.json(orders);
@@ -514,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Separate admin-only endpoint for cash payments
-  app.post("/api/orders/cash", requireAuth, requireAdmin, async (req, res) => {
+  app.post("/api/orders/cash", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const { customerName, tableNumber, items, cashReceived, change } = req.body;
       
@@ -582,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/orders/:id/status", requireAuth, requireAdmin, async (req, res) => {
+  app.patch("/api/orders/:id/status", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -686,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Inventory (admin access required for all operations)
-  app.get("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/inventory", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const items = await storage.getInventoryItems();
       res.json(items);
@@ -695,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/inventory", requireAuth, requireAdmin, async (req, res) => {
+  app.post("/api/inventory", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const validatedData = insertInventoryItemSchema.parse(req.body);
       const item = await storage.createInventoryItem(validatedData);
@@ -705,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/inventory/:id", requireAuth, requireAdmin, async (req, res) => {
+  app.put("/api/inventory/:id", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertInventoryItemSchema.partial().parse(req.body);
@@ -722,7 +722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Low stock alerts (admin access required)
-  app.get("/api/inventory/low-stock", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/inventory/low-stock", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const lowStockItems = await storage.getLowStockItems();
       res.json(lowStockItems);
