@@ -140,9 +140,13 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 100%;
+      width: 80mm; /* Fixed width for thermal paper */
+      max-width: 80mm;
       margin: 0;
-      padding: 20px;
+      padding: 8px; /* Reduced padding for thermal paper */
+      font-size: 12px; /* Smaller font for thermal printer */
+      line-height: 1.2;
+      font-family: 'Courier New', monospace; /* Monospace font for thermal printer */
     }
 
     /* Show customer receipt when printing from success page */
@@ -154,13 +158,16 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 100%;
+      width: 80mm; /* Fixed width for thermal paper */
+      max-width: 80mm;
       margin: 0;
-      padding: 20px;
+      padding: 8px; /* Reduced padding for thermal paper */
       background: white !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      max-width: none !important;
+      font-size: 11px; /* Smaller font for thermal printer */
+      line-height: 1.3;
+      font-family: 'Courier New', monospace; /* Monospace font for thermal printer */
     }
     
     /* Hide navigation and buttons during print */
@@ -168,29 +175,82 @@
       display: none !important;
     }
     
-    /* Ensure clean print layout */
+    /* Thermal printer paper sizes - optimized for restaurant cashier systems */
     @page {
-      margin: 15mm;
-      size: A4;
+      margin: 2mm 3mm; /* Minimal margins for thermal paper */
+      size: 80mm auto; /* 80mm width (standard), auto height for continuous thermal paper */
     }
     
-    /* Receipt specific print styles */
+    /* Alternative page size for 58mm thermal printers */
+    @page :first {
+      size: 58mm auto; /* 58mm width for smaller thermal printers */
+    }
+    
+    /* Thermal printer optimized receipt styles */
     .receipt-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 8px; /* Reduced for thermal paper */
+      font-size: 13px;
+      font-weight: bold;
     }
     
     .receipt-item {
-      border-bottom: 1px solid #eee;
-      padding: 8px 0;
+      border-bottom: 1px dashed #333; /* Dashed lines work better on thermal */
+      padding: 3px 0; /* Reduced padding for compact layout */
+      font-size: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      overflow: hidden;
+    }
+    
+    .receipt-item-name {
+      flex-grow: 1;
+      max-width: 60%; /* Limit name width to prevent overflow */
+      font-size: 10px;
+      line-height: 1.2;
+      word-wrap: break-word;
+    }
+    
+    .receipt-item-price {
+      font-weight: bold;
+      font-size: 10px;
+      text-align: right;
+      min-width: 30%; /* Ensure price alignment */
     }
     
     .receipt-total {
       font-weight: bold;
-      font-size: 18px;
+      font-size: 12px; /* Slightly larger for total */
       border-top: 2px solid #333;
-      padding-top: 10px;
-      margin-top: 10px;
+      padding-top: 4px;
+      margin-top: 4px;
+      text-align: center;
+    }
+    
+    /* Thermal printer specific elements */
+    .thermal-divider {
+      border-top: 1px dashed #333;
+      margin: 4px 0;
+      height: 1px;
+    }
+    
+    .thermal-center {
+      text-align: center;
+    }
+    
+    /* Compact grid for thermal paper */
+    .thermal-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px;
+      font-size: 10px;
+    }
+    
+    /* Hide large margins/paddings on thermal */
+    .thermal-compact {
+      margin: 2px 0 !important;
+      padding: 2px 0 !important;
     }
   }
 
