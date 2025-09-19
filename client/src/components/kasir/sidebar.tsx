@@ -46,7 +46,7 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
                 <CreditCard className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="font-playfair text-lg font-bold text-foreground">Kasir</h1>
+                <h1 className="font-playfair text-lg font-bold text-foreground">Alonica Kasir</h1>
                 <p className="text-xs text-muted-foreground">Alonica Restaurant</p>
               </div>
             </div>

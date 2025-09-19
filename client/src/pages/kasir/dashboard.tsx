@@ -59,6 +59,15 @@ export default function KasirDashboard() {
         return <CustomerSection />;
       case 'inventory':
         return <InventorySection />;
+      // Block analytics and settings access for kasir
+      case 'analytics':
+      case 'settings':
+        return (
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold text-foreground mb-2">Access Denied</h2>
+            <p className="text-muted-foreground">This page is only available for admin users.</p>
+          </div>
+        );
       default:
         return <OrdersSection />;
     }
