@@ -1,10 +1,11 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { randomBytes } from "crypto";
+import rateLimit from 'express-rate-limit';
 import { storage } from "./storage";
 import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
+import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
 
 // Image file signature validation
 const IMAGE_SIGNATURES = {
@@ -33,13 +34,6 @@ function detectImageMimeType(buffer: Buffer): string | null {
   return null;
 }
 
-// Simple in-memory session storage (production should use database or Redis)
-const activeSessions = new Map<string, { userId: string; username: string; role: string; expires: Date }>();
-
-// Generate cryptographically secure session token
-function generateSessionToken(): string {
-  return randomBytes(32).toString('base64url');
-}
 
 // Auth middleware to protect admin routes
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -75,19 +69,85 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoint for Docker
+  // Rate limiting middleware
+  const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { message: "Too many requests, please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // limit each IP to 5 login attempts per windowMs
+    message: { message: "Too many login attempts, please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const objectLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 30, // limit each IP to 30 object requests per minute
+    message: { message: "Too many file requests, please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Health check endpoint for Docker (before rate limiting)
   app.get("/api/health", (req, res) => {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
+  // Apply rate limiting to all other API routes
+  app.use('/api', generalLimiter);
+
   // Authentication
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      
       const user = await storage.getUserByUsername(username);
       
-      if (!user || user.password !== password) {
+      if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Check if password is hashed or plaintext and verify accordingly
+      let isValidPassword = false;
+      let needsRehashing = false;
+      
+      if (user.password.match(/^\$2[aby]\$/)) {
+        // Password is already hashed with bcrypt
+        isValidPassword = await verifyPassword(password, user.password);
+      } else {
+        // Legacy plaintext password - check directly and mark for rehashing
+        if (user.password === password) {
+          isValidPassword = true;
+          needsRehashing = true;
+        }
+      }
+      
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // If password needs rehashing, do it now (just-in-time migration)
+      if (needsRehashing) {
+        try {
+          const hashedPassword = await hashPassword(password);
+          
+          // Persist the hashed password to database
+          await storage.updateUserPassword(user.id, hashedPassword);
+          console.log(`✅ Successfully migrated password for user: ${user.username}`);
+        } catch (error) {
+          console.error(`❌ Failed to hash and persist password for user ${user.username}:`, error);
+          // Continue with login even if migration fails - user can still authenticate
+        }
       }
       
       // Generate session token
@@ -511,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint to serve public objects from object storage
-  app.get("/public-objects/:filePath(*)", async (req, res) => {
+  app.get("/public-objects/:filePath(*)", objectLimiter, async (req, res) => {
     const filePath = req.params.filePath;
     const objectStorageService = new ObjectStorageService();
     try {
@@ -527,7 +587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint to serve private objects (uploaded images) with ACL enforcement
-  app.get("/objects/:objectPath(*)", async (req, res) => {
+  app.get("/objects/:objectPath(*)", objectLimiter, async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);

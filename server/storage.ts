@@ -8,6 +8,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined>;
 
   // Categories
   getCategories(): Promise<Category[]>;
@@ -327,6 +328,15 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated || undefined;
   }
 
   // Category methods
