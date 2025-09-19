@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
+import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
 import type { MenuItem, Category, InsertOrder, Order } from "@shared/schema";
 
 interface CartItem {
@@ -157,7 +158,7 @@ export default function CashierSection() {
       return;
     }
     
-    const orderData: InsertOrder = {
+    const orderData = {
       customerName: customerName.trim(),
       tableNumber: tableNumber.trim(),
       items: cart.map(item => ({
@@ -171,6 +172,8 @@ export default function CashierSection() {
       discount: 0,
       total,
       paymentMethod: "cash",
+      cashReceived: cashAmountNumber,
+      change: change,
       status: "pending"
     };
     
@@ -215,7 +218,7 @@ export default function CashierSection() {
   
   // Print receipt
   const handlePrintReceipt = () => {
-    window.print();
+    printWithThermalSettings(getThermalPreference());
   };
 
   // Submit order

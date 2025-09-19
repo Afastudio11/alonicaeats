@@ -373,11 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/orders", async (req, res) => {
     try {
-      if (!midtransService) {
-        return res.status(500).json({ message: "Payment service not available. Please configure Midtrans API keys." });
-      }
-
-      const { customerName, tableNumber, items } = req.body;
+      const { customerName, tableNumber, items, paymentMethod, cashReceived, change } = req.body;
       
       if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Customer name, table number, and items are required" });
@@ -405,59 +401,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const total = subtotal; // No discounts for now
+      const requestedPaymentMethod = paymentMethod || 'qris'; // Default to QRIS for customer orders
       
-      // Generate unique Midtrans order ID
-      const midtransOrderId = `ALONICA-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+      // Handle different payment methods
+      let orderData;
+      let responsePayload;
       
-      // Create QRIS payment with Midtrans
-      const paymentResult = await midtransService.createQRISPayment({
-        orderId: midtransOrderId,
-        grossAmount: total,
-        customerDetails: {
-          name: customerName,
-          phone: '' // Optional for now
-        },
-        itemDetails
-      });
+      if (requestedPaymentMethod === 'cash') {
+        // Admin cash payment - no Midtrans needed
+        orderData = {
+          customerName,
+          tableNumber,
+          items,
+          subtotal,
+          discount: 0,
+          total,
+          paymentMethod: 'cash' as const,
+          paymentStatus: 'paid' as const, // Cash payments are immediately paid
+          cashReceived: cashReceived || total,
+          change: change || 0,
+          status: 'preparing' as const // Cash orders go straight to kitchen
+        };
 
-      if (!paymentResult.success) {
-        return res.status(500).json({ 
-          message: "Failed to create payment", 
-          error: paymentResult.error 
-        });
+        const order = await storage.createOrder(orderData);
+        
+        responsePayload = {
+          order,
+          payment: {
+            method: 'cash',
+            received: cashReceived,
+            change: change,
+            status: 'paid'
+          }
+        };
+      } else {
+        // Customer QRIS payment - use static QRIS (no Midtrans API call)
+        const mockOrderId = `ALONICA-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+        
+        orderData = {
+          customerName,
+          tableNumber,
+          items,
+          subtotal,
+          discount: 0,
+          total,
+          paymentMethod: 'qris' as const,
+          paymentStatus: 'pending' as const, // QRIS payments start as pending
+          midtransOrderId: mockOrderId, // Keep for compatibility
+          paymentExpiredAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+          status: 'pending' as const
+        };
+
+        const order = await storage.createOrder(orderData);
+        
+        responsePayload = {
+          order,
+          payment: {
+            qrisUrl: null, // Static QRIS will be handled by frontend
+            qrisString: null,
+            expiryTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            transactionId: 'static-qris',
+            midtransOrderId: mockOrderId
+          }
+        };
       }
 
-      // Create order with payment information
-      const orderData = {
-        customerName,
-        tableNumber,
-        items,
-        subtotal,
-        discount: 0,
-        total,
-        paymentMethod: 'qris' as const,
-        paymentStatus: 'pending' as const,
-        midtransOrderId,
-        midtransTransactionId: paymentResult.transactionId,
-        midtransTransactionStatus: paymentResult.transactionStatus,
-        qrisUrl: paymentResult.qrisUrl,
-        qrisString: paymentResult.qrisString,
-        paymentExpiredAt: paymentResult.expiryTime ? new Date(paymentResult.expiryTime) : new Date(Date.now() + 15 * 60 * 1000), // 15 minutes default
-        status: 'pending' as const
-      };
-
-      const order = await storage.createOrder(orderData);
-      
-      res.status(201).json({
-        order,
-        payment: {
-          qrisUrl: paymentResult.qrisUrl, // URL for direct access (may be null)
-          qrisString: paymentResult.qrisString, // Raw QR string for QR generation (may be null)
-          expiryTime: paymentResult.expiryTime,
-          transactionId: paymentResult.transactionId,
-          midtransOrderId
-        }
-      });
+      res.status(201).json(responsePayload);
     } catch (error) {
       console.error('Order creation error:', error);
       res.status(500).json({ message: "Failed to create order" });
