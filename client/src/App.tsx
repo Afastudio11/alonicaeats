@@ -12,6 +12,7 @@ import CartPage from "@/pages/cart";
 import PaymentPage from "@/pages/payment";
 import SuccessPage from "@/pages/success";
 import AdminDashboard from "@/pages/admin/dashboard";
+import KasirDashboard from "@/pages/kasir/dashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/payment" component={PaymentPage} />
       <Route path="/success" component={SuccessPage} />
       <Route path="/admin/:section?" component={AdminDashboard} />
+      <Route path="/kasir/:section?" component={KasirDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
