@@ -417,6 +417,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const objectStorageService = new ObjectStorageService();
       
+      // Get the file to validate its content type
+      let objectFile;
+      try {
+        const normalizedPath = objectStorageService.normalizeObjectEntityPath(rawPath);
+        objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
+      } catch (error) {
+        return res.status(404).json({ error: "Uploaded file not found" });
+      }
+      
+      // Validate MIME type server-side
+      const [metadata] = await objectFile.getMetadata();
+      const contentType = metadata.contentType;
+      
+      if (!contentType || !contentType.startsWith('image/')) {
+        // Delete the invalid file
+        try {
+          await objectFile.delete();
+        } catch (deleteError) {
+          console.error("Error deleting invalid file:", deleteError);
+        }
+        return res.status(400).json({ error: "Only image files are allowed" });
+      }
+      
       // Set ACL policy to make object public and owned by the admin user
       const normalizedPath = await objectStorageService.trySetObjectEntityAclPolicy(rawPath, {
         owner: user.id,
