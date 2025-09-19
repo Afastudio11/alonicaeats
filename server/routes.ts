@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema } from "@shared/schema";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 // Simple in-memory session storage (production should use database or Redis)
 const activeSessions = new Map<string, { userId: string; username: string; role: string; expires: Date }>();
@@ -386,6 +387,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(profile);
     } catch (error) {
       res.status(400).json({ message: "Invalid store profile data" });
+    }
+  });
+
+  // Object Storage Routes for Image Upload
+  
+  // Endpoint to get upload URL for object entity
+  app.post("/api/objects/upload", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Endpoint to serve public objects from object storage
+  app.get("/public-objects/:filePath(*)", async (req, res) => {
+    const filePath = req.params.filePath;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      objectStorageService.downloadObject(file, res);
+    } catch (error) {
+      console.error("Error searching for public object:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Endpoint to serve private objects (uploaded images)
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Endpoint to update menu item image after upload
+  app.put("/api/menu/:id/image", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { imageURL } = req.body;
+      
+      if (!imageURL) {
+        return res.status(400).json({ error: "imageURL is required" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(imageURL);
+      
+      // Update menu item with new image path
+      const existingItem = await storage.getMenuItem(id);
+      if (!existingItem) {
+        return res.status(404).json({ error: "Menu item not found" });
+      }
+
+      const updatedItem = await storage.updateMenuItem(id, { image: objectPath });
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Error updating menu image:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
