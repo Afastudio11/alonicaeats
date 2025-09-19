@@ -45,7 +45,7 @@ export default function OrdersSection() {
         if (!old) return old;
         return old.map(order => 
           order.id === orderId 
-            ? { ...order, status, updatedAt: new Date().toISOString() }
+            ? { ...order, status, updatedAt: new Date() }
             : order
         );
       });
