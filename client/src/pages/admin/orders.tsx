@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
-import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
+import { printReceipt } from "@/utils/thermal-print";
 import type { Order, OrderItem } from "@shared/schema";
 
 export default function OrdersSection() {
@@ -139,17 +139,12 @@ export default function OrdersSection() {
   }, [orders, statusFilter, dateFilter]);
 
   const handlePrintReceipt = (order: Order) => {
-    setViewingReceipt(order);
+    printReceipt(order);
   };
 
-  // Print receipt when modal opens - better timing than setTimeout
-  useEffect(() => {
-    if (viewingReceipt) {
-      requestAnimationFrame(() => {
-        printWithThermalSettings(getThermalPreference());
-      });
-    }
-  }, [viewingReceipt]);
+  const handleViewReceipt = (order: Order) => {
+    setViewingReceipt(order);
+  };
 
   if (isLoading) {
     return (
@@ -613,7 +608,7 @@ export default function OrdersSection() {
           {/* Print Button */}
           <div className="mt-4 print-hide">
             <Button
-              onClick={() => printWithThermalSettings(getThermalPreference())}
+              onClick={() => printReceipt(viewingReceipt)}
               className="w-full flex items-center gap-2"
             >
               <Printer className="h-4 w-4" />

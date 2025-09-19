@@ -1,190 +1,224 @@
 /**
- * Thermal printer utility functions
- * Handles dynamic paper size switching for different thermal printer widths
+ * Simple thermal receipt printing utility
+ * No complex CSS - just open new window and print plain HTML
  */
 
+// Escape HTML to prevent injection
+function escapeHTML(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Format currency
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(amount);
+}
+
+// Format date
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date);
+}
+
+// Build simple HTML receipt
+function buildReceiptHTML(order: any): string {
+  const orderDate = new Date(order.createdAt);
+  const orderTime = orderDate.toLocaleTimeString('id-ID');
+  
+  let itemsHTML = '';
+  if (order.items && Array.isArray(order.items)) {
+    order.items.forEach((item: any) => {
+      const itemTotal = (item.price || 0) * (item.quantity || 0);
+      itemsHTML += `
+        <div class="item">
+          <div style="display: flex; justify-content: space-between;">
+            <span>${escapeHTML(item.name || 'Item')}</span>
+            <span>${formatCurrency(itemTotal)}</span>
+          </div>
+          <div style="font-size: 10px; color: #666;">
+            ${item.quantity || 0}x ${formatCurrency(item.price || 0)}
+          </div>
+          ${item.notes ? `<div style="font-size: 9px; color: #888; font-style: italic;">Catatan: ${escapeHTML(item.notes)}</div>` : ''}
+        </div>
+      `;
+    });
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Receipt #${order.id?.slice(-6)?.toUpperCase() || 'ORDER'}</title>
+        <style>
+          body {
+            margin: 0;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.3;
+            color: #000;
+            background: #fff;
+            width: 240px;
+            max-width: 300px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 1px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+          }
+          .restaurant-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+          }
+          .item {
+            margin-bottom: 6px;
+          }
+          .separator {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+          }
+          .total {
+            font-weight: bold;
+            font-size: 14px;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="restaurant-name">Alonica Restaurant</div>
+          <div>Jl. Ratulangi No.14, Bantaeng</div>
+          <div>Telp: 0515-4545</div>
+        </div>
+        
+        <div class="row">
+          <span>Tanggal:</span>
+          <span>${formatDate(orderDate)}</span>
+        </div>
+        <div class="row">
+          <span>Waktu:</span>
+          <span>${orderTime}</span>
+        </div>
+        <div class="row">
+          <span>Customer:</span>
+          <span>${escapeHTML(order.customerName || 'N/A')}</span>
+        </div>
+        <div class="row">
+          <span>Meja:</span>
+          <span>${escapeHTML(order.tableNumber || 'N/A')}</span>
+        </div>
+        <div class="row">
+          <span>Order ID:</span>
+          <span>#${escapeHTML(order.id?.slice(-8)?.toUpperCase() || 'N/A')}</span>
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div style="font-weight: bold; margin-bottom: 8px;">Detail Pesanan:</div>
+        ${itemsHTML}
+        
+        <div class="separator"></div>
+        
+        <div class="row">
+          <span>Subtotal:</span>
+          <span>${formatCurrency(order.subtotal || 0)}</span>
+        </div>
+        
+        <div class="row total">
+          <span>Total:</span>
+          <span>${formatCurrency(order.total || 0)}</span>
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div class="row">
+          <span>Metode Pembayaran:</span>
+          <span>${order.paymentMethod === 'cash' ? 'TUNAI' : 'QRIS'}</span>
+        </div>
+        
+        <div class="row">
+          <span>Status:</span>
+          <span>${order.status === 'completed' ? 'Selesai' : order.status === 'ready' ? 'Siap' : order.status === 'preparing' ? 'Diproses' : 'Pending'}</span>
+        </div>
+        
+        <div class="footer">
+          <div>Terima kasih telah berkunjung!</div>
+          <div>Alonica Restaurant - Cita Rasa Nusantara</div>
+        </div>
+        
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() {
+              window.close();
+            }, 500);
+          };
+        </script>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Simple receipt printing - open new window and print
+ */
+export function printReceipt(order: any): void {
+  try {
+    const receiptHTML = buildReceiptHTML(order);
+    const printWindow = window.open('', '_blank', 'width=300,height=600,scrollbars=yes');
+    
+    if (!printWindow) {
+      alert('Print blocked! Please allow popups for this site.');
+      return;
+    }
+    
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+  } catch (error) {
+    console.error('Print error:', error);
+    alert('Error saat print. Silakan coba lagi.');
+  }
+}
+
+// Legacy functions for compatibility (deprecated)
 export type ThermalPaperSize = '58mm' | '80mm';
 
-/**
- * Inject thermal printer CSS rules dynamically before printing
- */
-export function injectThermalCSS(paperSize: ThermalPaperSize): HTMLStyleElement {
-  const style = document.createElement('style');
-  style.id = 'thermal-print-css';
-  
-  if (paperSize === '58mm') {
-    style.textContent = `
-      @media print {
-        @page {
-          size: 58mm auto;
-          margin: 2mm;
-        }
-        
-        /* Hide everything first */
-        html, body, body * {
-          visibility: hidden !important;
-          position: static !important;
-        }
-        
-        /* Show only receipt content */
-        .customer-receipt {
-          visibility: visible !important;
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 54mm !important;
-          font-size: 9px !important;
-          line-height: 1.2 !important;
-          padding: 2mm !important;
-          margin: 0 !important;
-          background: white !important;
-          color: black !important;
-        }
-        
-        .customer-receipt * {
-          visibility: visible !important;
-          font-size: inherit !important;
-          color: black !important;
-          background: transparent !important;
-        }
-        
-        /* Hide dialog elements */
-        .print-hide, [role="dialog"], .fixed, .absolute {
-          display: none !important;
-        }
-        
-        /* Receipt-specific styling */
-        .customer-receipt h2 {
-          font-size: 12px !important;
-          font-weight: bold !important;
-          margin: 0 0 2px 0 !important;
-        }
-        
-        .customer-receipt h3 {
-          font-size: 10px !important;
-          font-weight: bold !important;
-          margin: 2px 0 !important;
-        }
-        
-        .customer-receipt .text-sm {
-          font-size: 8px !important;
-        }
-        
-        .customer-receipt .text-xs {
-          font-size: 7px !important;
-        }
-      }
-    `;
-  } else {
-    // 80mm is default, but we can still inject it explicitly
-    style.textContent = `
-      @media print {
-        @page {
-          size: 80mm auto;
-          margin: 3mm;
-        }
-        
-        /* Hide everything first */
-        html, body, body * {
-          visibility: hidden !important;
-          position: static !important;
-        }
-        
-        /* Show only receipt content */
-        .customer-receipt {
-          visibility: visible !important;
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 74mm !important;
-          font-size: 11px !important;
-          line-height: 1.3 !important;
-          padding: 3mm !important;
-          margin: 0 !important;
-          background: white !important;
-          color: black !important;
-        }
-        
-        .customer-receipt * {
-          visibility: visible !important;
-          font-size: inherit !important;
-          color: black !important;
-          background: transparent !important;
-        }
-        
-        /* Hide dialog elements */
-        .print-hide, [role="dialog"], .fixed, .absolute {
-          display: none !important;
-        }
-        
-        /* Receipt-specific styling */
-        .customer-receipt h2 {
-          font-size: 14px !important;
-          font-weight: bold !important;
-          margin: 0 0 3px 0 !important;
-        }
-        
-        .customer-receipt h3 {
-          font-size: 12px !important;
-          font-weight: bold !important;
-          margin: 3px 0 !important;
-        }
-        
-        .customer-receipt .text-sm {
-          font-size: 10px !important;
-        }
-        
-        .customer-receipt .text-xs {
-          font-size: 9px !important;
-        }
-      }
-    `;
-  }
-  
-  document.head.appendChild(style);
-  return style;
-}
-
-/**
- * Remove thermal printer CSS injection
- */
-export function removeThermalCSS(): void {
-  const existingStyle = document.getElementById('thermal-print-css');
-  if (existingStyle) {
-    existingStyle.remove();
-  }
-}
-
-/**
- * Print with thermal printer settings
- */
-export function printWithThermalSettings(paperSize: ThermalPaperSize = '80mm'): void {
-  // Clean up any existing thermal CSS
-  removeThermalCSS();
-  
-  // Inject new thermal CSS
-  injectThermalCSS(paperSize);
-  
-  // Print
-  window.print();
-  
-  // Clean up after printing
-  setTimeout(() => {
-    removeThermalCSS();
-  }, 1000);
-}
-
-/**
- * Get user's saved thermal printer preference
- */
 export function getThermalPreference(): ThermalPaperSize {
   const saved = localStorage.getItem('alonica-thermal-size');
   return saved === '58mm' ? '58mm' : '80mm';
 }
 
-/**
- * Save user's thermal printer preference
- */
 export function saveThermalPreference(paperSize: ThermalPaperSize): void {
   localStorage.setItem('alonica-thermal-size', paperSize);
+}
+
+// Redirect old function to new simple print
+export function printWithThermalSettings(_paperSize?: ThermalPaperSize): void {
+  alert('Please use the new simple print system.');
 }
