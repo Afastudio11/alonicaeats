@@ -21,8 +21,6 @@ async function createDefaultAdmin() {
         console.log('✅ Admin password is already hashed');
         return;
       } else {
-        console.log('🔄 Admin password is not hashed. Migrating...');
-        
         console.log('🔄 Migrating existing admin password...');
         
         // Hash existing plaintext password and persist it
