@@ -276,7 +276,7 @@ export default function OrdersSection() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Table
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-1/4">
                   Items
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -305,11 +305,18 @@ export default function OrdersSection() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                     {order.tableNumber}
                   </td>
-                  <td className="px-6 py-4 text-sm text-foreground">
-                    {Array.isArray(order.items) 
-                      ? order.items.map((item: any) => item.name).join(', ')
-                      : 'No items'
-                    }
+                  <td className="px-6 py-4 text-sm text-foreground w-1/4">
+                    <div className="space-y-1 max-w-xs">
+                      {Array.isArray(order.items) && order.items.length > 0
+                        ? order.items.map((item: any, index: number) => (
+                            <div key={index} className="flex justify-between items-center text-xs">
+                              <span className="truncate flex-1 pr-2">{item.name}</span>
+                              <span className="text-muted-foreground whitespace-nowrap">x{item.quantity}</span>
+                            </div>
+                          ))
+                        : <span className="text-muted-foreground">No items</span>
+                      }
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground font-semibold">
                     {formatCurrency(order.total)}

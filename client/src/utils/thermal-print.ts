@@ -19,6 +19,21 @@ export function injectThermalCSS(paperSize: ThermalPaperSize): HTMLStyleElement 
           size: 58mm auto;
           margin: 1mm 2mm; /* Smaller margins for 58mm */
         }
+        
+        /* Hide everything except receipt */
+        body * {
+          visibility: hidden !important;
+        }
+        .customer-receipt, .customer-receipt * {
+          visibility: visible !important;
+        }
+        .customer-receipt {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+        }
+        
         .kitchen-ticket, .customer-receipt, .admin-receipt {
           font-size: 10px !important;
           padding: 4px !important;
@@ -38,6 +53,20 @@ export function injectThermalCSS(paperSize: ThermalPaperSize): HTMLStyleElement 
         @page {
           size: 80mm auto;
           margin: 2mm 3mm;
+        }
+        
+        /* Hide everything except receipt */
+        body * {
+          visibility: hidden !important;
+        }
+        .customer-receipt, .customer-receipt * {
+          visibility: visible !important;
+        }
+        .customer-receipt {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
         }
       }
     `;
