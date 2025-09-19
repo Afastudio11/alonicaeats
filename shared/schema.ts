@@ -37,7 +37,14 @@ export const orders = pgTable("orders", {
   subtotal: integer("subtotal").notNull(),
   discount: integer("discount").notNull().default(0),
   total: integer("total").notNull(),
-  paymentMethod: text("payment_method").notNull(), // 'cash' or 'qris'
+  paymentMethod: text("payment_method").notNull().default("qris"), // only 'qris' now
+  paymentStatus: text("payment_status").notNull().default("pending"), // 'pending', 'paid', 'failed', 'expired'
+  midtransOrderId: text("midtrans_order_id"), // Midtrans order ID
+  midtransTransactionId: text("midtrans_transaction_id"), // Midtrans transaction ID
+  midtransTransactionStatus: text("midtrans_transaction_status"), // Midtrans status
+  qrisUrl: text("qris_url"), // QRIS payment URL from Midtrans
+  paymentExpiredAt: timestamp("payment_expired_at"), // Payment expiry time
+  paidAt: timestamp("paid_at"), // When payment was completed
   status: text("status").notNull().default("pending"), // 'pending', 'preparing', 'ready', 'completed'
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
