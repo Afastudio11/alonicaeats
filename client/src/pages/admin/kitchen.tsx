@@ -92,23 +92,32 @@ export default function KitchenSection() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <ChefHat className="h-8 w-8 text-primary" />
-          <h2 className="text-2xl font-bold text-foreground">Dapur</h2>
+      {/* Hidden print ticket - only visible during printing */}
+      {printingOrder && (
+        <div className="hidden print:block print:fixed print:inset-0 print:bg-white print:z-50">
+          <KitchenTicket order={printingOrder} />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          className="flex items-center gap-2"
-          data-testid="button-refresh-orders"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
+      )}
+
+      {/* Main content - hidden during printing when ticket is showing */}
+      <div className={printingOrder ? "print:hidden" : ""}>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <ChefHat className="h-8 w-8 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">Dapur</h2>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="flex items-center gap-2"
+            data-testid="button-refresh-orders"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
 
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -199,15 +208,7 @@ export default function KitchenSection() {
           )}
         </div>
       </div>
-
-      {/* Print Modal */}
-      {printingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 print:bg-white print:relative print:inset-auto">
-          <div className="print:shadow-none print:max-w-none print:w-full">
-            <KitchenTicket order={printingOrder} />
-          </div>
-        </div>
-      )}
+      </div> {/* Close main content div */}
     </div>
   );
 }
@@ -319,7 +320,7 @@ function KitchenTicket({ order }: KitchenTicketProps) {
   const orderItems = order.items as OrderItem[];
   
   return (
-    <div className="bg-white p-6 max-w-sm mx-auto font-mono text-sm print:shadow-none">
+    <div className="kitchen-ticket bg-white p-6 max-w-sm mx-auto font-mono text-sm">
       <div className="text-center mb-4">
         <h1 className="text-lg font-bold">ALONICA KITCHEN</h1>
         <h2 className="text-md font-semibold">KITCHEN ORDER TICKET</h2>
