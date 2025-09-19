@@ -4,7 +4,34 @@ import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { ObjectPermission } from "./objectAcl";
+import { ObjectPermission, canAccessObject } from "./objectAcl";
+
+// Image file signature validation
+const IMAGE_SIGNATURES = {
+  'image/png': [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/gif': [0x47, 0x49, 0x46, 0x38], // GIF8
+  'image/webp': [0x52, 0x49, 0x46, 0x46], // RIFF (first 4 bytes, followed by WEBP)
+};
+
+function detectImageMimeType(buffer: Buffer): string | null {
+  for (const [mimeType, signature] of Object.entries(IMAGE_SIGNATURES)) {
+    if (mimeType === 'image/webp') {
+      // For WebP, check for RIFF at start and WEBP at offset 8
+      if (buffer.length >= 12 && 
+          signature.every((byte, i) => buffer[i] === byte) &&
+          buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+        return mimeType;
+      }
+    } else {
+      if (buffer.length >= signature.length && 
+          signature.every((byte, i) => buffer[i] === byte)) {
+        return mimeType;
+      }
+    }
+  }
+  return null;
+}
 
 // Simple in-memory session storage (production should use database or Redis)
 const activeSessions = new Map<string, { userId: string; username: string; role: string; expires: Date }>();
@@ -417,20 +444,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const objectStorageService = new ObjectStorageService();
       
+      // Validate that the raw path is from our expected upload location
+      if (!rawPath.includes('/uploads/')) {
+        return res.status(400).json({ error: "Invalid upload path" });
+      }
+      
       // Get the file to validate its content type
       let objectFile;
       try {
         const normalizedPath = objectStorageService.normalizeObjectEntityPath(rawPath);
+        
+        // Double-check the normalized path points to uploads directory
+        if (!normalizedPath.startsWith('/objects/uploads/')) {
+          return res.status(400).json({ error: "Invalid upload path" });
+        }
+        
         objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
       } catch (error) {
         return res.status(404).json({ error: "Uploaded file not found" });
       }
       
-      // Validate MIME type server-side
-      const [metadata] = await objectFile.getMetadata();
-      const contentType = metadata.contentType;
+      // Validate file signature server-side (don't trust client-provided Content-Type)
+      const stream = objectFile.createReadStream({ start: 0, end: 15 }); // Read first 16 bytes
+      const chunks: Buffer[] = [];
       
-      if (!contentType || !contentType.startsWith('image/')) {
+      await new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('end', resolve);
+        stream.on('error', reject);
+      });
+      
+      const fileHeader = Buffer.concat(chunks);
+      const detectedMimeType = detectImageMimeType(fileHeader);
+      
+      if (!detectedMimeType) {
         // Delete the invalid file
         try {
           await objectFile.delete();
@@ -439,6 +486,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return res.status(400).json({ error: "Only image files are allowed" });
       }
+      
+      // Set the correct Content-Type based on file signature detection
+      await objectFile.setMetadata({
+        contentType: detectedMimeType
+      });
       
       // Set ACL policy to make object public and owned by the admin user
       const normalizedPath = await objectStorageService.trySetObjectEntityAclPolicy(rawPath, {
@@ -487,18 +539,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Check ACL permissions before serving
-      const hasAccess = await objectStorageService.canAccessObjectEntity({
+      // Check ACL permissions before serving using the imported canAccessObject function
+      const hasAccess = await canAccessObject({
         userId,
         objectFile,
         requestedPermission: ObjectPermission.READ
       });
       
       if (!hasAccess) {
+        // If not authenticated and access denied, return 401 to prompt login
+        if (!userId) {
+          return res.status(401).json({ error: "Authentication required" });
+        }
+        // If authenticated but not authorized, return 403
         return res.status(403).json({ error: "Access denied" });
       }
       
-      // Set appropriate cache headers based on object visibility
+      // Set appropriate cache headers based on authentication state
       const cacheTtl = userId ? 300 : 86400; // 5 minutes for private, 1 day for public
       objectStorageService.downloadObject(objectFile, res, cacheTtl);
     } catch (error) {
