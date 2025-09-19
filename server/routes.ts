@@ -77,6 +77,24 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Kasir role check middleware
+function requireKasir(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user;
+  if (user?.role !== 'kasir') {
+    return res.status(403).json({ message: "Kasir access required" });
+  }
+  next();
+}
+
+// Admin or Kasir role check middleware (for shared resources)
+function requireAdminOrKasir(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user;
+  if (user?.role !== 'admin' && user?.role !== 'kasir') {
+    return res.status(403).json({ message: "Admin or Kasir access required" });
+  }
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Rate limiting middleware
   const generalLimiter = rateLimit({
