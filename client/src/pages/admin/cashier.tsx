@@ -178,7 +178,7 @@ export default function CashierSection() {
     };
     
     try {
-      const response = await apiRequest('POST', '/api/orders', orderData);
+      const response = await apiRequest('POST', '/api/orders/cash', orderData);
       const result = await response.json();
       const createdOrder = result.order; // Extract actual order object
       
