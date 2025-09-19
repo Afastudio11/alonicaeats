@@ -168,7 +168,7 @@ export default function SuccessPage() {
             </div>
             <div>
               <p className="text-muted-foreground text-sm">Atas Nama</p>
-              <p className="font-medium" data-testid="text-customer-name">{receiptData.customerData.name}</p>
+              <p className="font-medium" data-testid="text-customer-name">{receiptData.customerData?.name || receiptData.customerName || 'N/A'}</p>
             </div>
           </div>
 
@@ -178,7 +178,7 @@ export default function SuccessPage() {
             {items.map((item: any, index: number) => (
               <div key={index} className="receipt-item thermal-compact" data-testid={`receipt-item-${index}`}>
                 <div className="receipt-item-name">
-                  <p className="font-medium text-foreground" data-testid={`text-item-name-${index}`}>{item.name}</p>
+                  <p className="font-medium text-foreground" data-testid={`text-item-name-${index}`}>{item?.name || 'N/A'}</p>
                   <p className="text-sm text-muted-foreground">
                     {item.quantity} x {formatCurrency(item.price)}
                   </p>
