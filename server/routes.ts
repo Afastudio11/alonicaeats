@@ -108,7 +108,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
-  // Apply rate limiting to all other API routes
+  // Midtrans webhook endpoint (before rate limiting to avoid blocking payment notifications)
+  app.post("/api/payments/midtrans/webhook", async (req, res) => {
+    try {
+      if (!midtransService) {
+        return res.status(500).json({ message: "Payment service not available" });
+      }
+
+      // Process webhook notification
+      const notificationData = midtransService.processWebhookNotification(req.body);
+      
+      // Find order by Midtrans order ID
+      const order = await storage.getOrderByMidtransOrderId(notificationData.orderId);
+      
+      if (!order) {
+        console.warn(`Webhook received for unknown order: ${notificationData.orderId}`);
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Update payment status
+      await storage.updateOrderPayment(order.id, {
+        paymentStatus: notificationData.paymentStatus,
+        midtransTransactionStatus: notificationData.transactionStatus,
+        paidAt: notificationData.paymentStatus === 'paid' ? new Date() : undefined
+      });
+
+      // Update order status when payment is confirmed
+      if (notificationData.paymentStatus === 'paid' && order.status === 'pending') {
+        await storage.updateOrderStatus(order.id, 'preparing');
+      }
+
+      console.log(`Payment ${notificationData.paymentStatus} for order ${order.id}`);
+      
+      // Return 200 to Midtrans to acknowledge successful processing
+      res.status(200).json({ message: "Webhook processed successfully" });
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+      
+      // Return 500 for processing errors to allow Midtrans retries
+      // Only return 200 for signature validation errors to prevent retry storms
+      if (error instanceof Error && error.message.includes('Invalid signature')) {
+        console.warn('Invalid webhook signature, returning 200 to prevent retries');
+        res.status(200).json({ message: "Invalid signature" });
+      } else {
+        res.status(500).json({ message: "Webhook processing failed" });
+      }
+    }
+  });
+
+  // Apply rate limiting to all other API routes (excluding webhook)
   app.use('/api', generalLimiter);
 
   // Authentication
@@ -393,6 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         midtransTransactionId: paymentResult.transactionId,
         midtransTransactionStatus: paymentResult.transactionStatus,
         qrisUrl: paymentResult.qrisUrl,
+        qrisString: paymentResult.qrisString,
         paymentExpiredAt: paymentResult.expiryTime ? new Date(paymentResult.expiryTime) : new Date(Date.now() + 15 * 60 * 1000), // 15 minutes default
         status: 'pending' as const
       };
@@ -402,7 +451,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json({
         order,
         payment: {
-          qrisUrl: paymentResult.qrisUrl,
+          qrisUrl: paymentResult.qrisUrl, // URL for direct access (may be null)
+          qrisString: paymentResult.qrisString, // Raw QR string for QR generation (may be null)
           expiryTime: paymentResult.expiryTime,
           transactionId: paymentResult.transactionId,
           midtransOrderId
@@ -445,9 +495,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      // If payment is still pending and we have a transaction ID, check with Midtrans
-      if (order.paymentStatus === 'pending' && order.midtransTransactionId && midtransService) {
-        const statusResult = await midtransService.getTransactionStatus(order.midtransTransactionId);
+      // If payment is still pending and we have a Midtrans order ID, check with Midtrans
+      if (order.paymentStatus === 'pending' && order.midtransOrderId && midtransService) {
+        const statusResult = await midtransService.getTransactionStatus(order.midtransOrderId);
         
         if (statusResult.success) {
           // Update payment status based on Midtrans response
@@ -501,46 +551,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Midtrans webhook endpoint (no auth required, uses signature verification)
-  app.post("/api/payments/midtrans/webhook", async (req, res) => {
-    try {
-      if (!midtransService) {
-        return res.status(500).json({ message: "Payment service not available" });
-      }
-
-      // Process webhook notification
-      const notificationData = midtransService.processWebhookNotification(req.body);
-      
-      // Find order by Midtrans order ID
-      const order = await storage.getOrderByMidtransOrderId(notificationData.orderId);
-      
-      if (!order) {
-        console.warn(`Webhook received for unknown order: ${notificationData.orderId}`);
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      // Update payment status
-      await storage.updateOrderPayment(order.id, {
-        paymentStatus: notificationData.paymentStatus,
-        midtransTransactionStatus: notificationData.transactionStatus,
-        paidAt: notificationData.paymentStatus === 'paid' ? new Date() : undefined
-      });
-
-      // Update order status when payment is confirmed
-      if (notificationData.paymentStatus === 'paid' && order.status === 'pending') {
-        await storage.updateOrderStatus(order.id, 'preparing');
-      }
-
-      console.log(`Payment ${notificationData.paymentStatus} for order ${order.id}`);
-      
-      // Always return 200 to Midtrans to acknowledge receipt
-      res.status(200).json({ message: "Webhook processed successfully" });
-    } catch (error) {
-      console.error('Webhook processing error:', error);
-      // Still return 200 to prevent Midtrans from retrying
-      res.status(200).json({ message: "Webhook received" });
-    }
-  });
 
   // Get Midtrans client configuration for frontend
   app.get("/api/payments/config", async (req, res) => {

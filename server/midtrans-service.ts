@@ -70,13 +70,40 @@ export class MidtransService {
 
     try {
       const chargeResponse = await this.coreApi.charge(transaction);
+      // Extract QRIS QR code - separate URL vs string to avoid frontend confusion
+      let qrisUrl = null;
+      let qrisString = null;
+      
+      if (chargeResponse.actions) {
+        const qrAction = chargeResponse.actions.find((action: any) => 
+          action.name === 'qr_code' || action.name === 'generate-qr-code'
+        );
+        if (qrAction?.url) {
+          qrisUrl = qrAction.url;
+        }
+      }
+      
+      // Store qr_string separately if available
+      if (chargeResponse.qr_string) {
+        qrisString = chargeResponse.qr_string;
+      }
+
+      // Parse expiry time properly - Midtrans uses "YYYY-MM-DD HH:mm:ss" format
+      let expiryTime = null;
+      if (chargeResponse.expiry_time) {
+        // Convert Midtrans time format to ISO string
+        const expiryStr = chargeResponse.expiry_time.replace(' ', 'T') + '+07:00'; // WIB timezone
+        expiryTime = new Date(expiryStr).toISOString();
+      }
+
       return {
         success: true,
         orderId: params.orderId,
         transactionId: chargeResponse.transaction_id,
         transactionStatus: chargeResponse.transaction_status,
-        qrisUrl: chargeResponse.actions?.find((action: any) => action.name === 'generate-qr-code')?.url,
-        expiryTime: chargeResponse.expiry_time,
+        qrisUrl, // URL for direct access (may be null)
+        qrisString, // Raw QR string for QR generation (may be null)
+        expiryTime,
         grossAmount: chargeResponse.gross_amount
       };
     } catch (error) {

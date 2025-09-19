@@ -43,6 +43,7 @@ export const orders = pgTable("orders", {
   midtransTransactionId: text("midtrans_transaction_id"), // Midtrans transaction ID
   midtransTransactionStatus: text("midtrans_transaction_status"), // Midtrans status
   qrisUrl: text("qris_url"), // QRIS payment URL from Midtrans
+  qrisString: text("qris_string"), // QRIS raw string for QR generation
   paymentExpiredAt: timestamp("payment_expired_at"), // Payment expiry time
   paidAt: timestamp("paid_at"), // When payment was completed
   status: text("status").notNull().default("pending"), // 'pending', 'preparing', 'ready', 'completed'

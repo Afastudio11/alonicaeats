@@ -35,6 +35,7 @@ export interface IStorage {
     midtransTransactionId?: string;
     midtransTransactionStatus?: string;
     qrisUrl?: string;
+    qrisString?: string;
     paymentExpiredAt?: Date;
     paidAt?: Date;
   }): Promise<Order | undefined>;
