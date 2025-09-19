@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Edit, Copy, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -317,21 +317,68 @@ function MenuItemForm({
     isAvailable: initialData?.isAvailable ?? true
   });
 
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>(initialData?.image || '');
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Backup form data to localStorage to prevent data loss
+  useEffect(() => {
+    if (!initialData) { // Only backup for new items, not edits
+      const backupKey = 'menu-form-backup';
+      const backupData = localStorage.getItem(backupKey);
+      
+      if (backupData && formData.name === '' && formData.description === '' && formData.price === 0) {
+        try {
+          const parsed = JSON.parse(backupData);
+          setFormData(parsed);
+        } catch (error) {
+          console.error('Failed to restore form backup:', error);
+        }
+      }
+    }
+  }, []);
+
+  // Save form data to localStorage on changes
+  useEffect(() => {
+    if (!initialData) { // Only backup for new items
+      const backupKey = 'menu-form-backup';
+      localStorage.setItem(backupKey, JSON.stringify(formData));
+    }
+  }, [formData, initialData]);
+
   // Upload handlers
   const handleGetUploadParameters = async () => {
-    const response = await apiRequest('POST', '/api/objects/upload');
-    const data = await response.json();
-    return {
-      method: 'PUT' as const,
-      url: data.uploadURL,
-    };
+    try {
+      const response = await apiRequest('POST', '/api/objects/upload');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Upload URL request failed: ${response.status} ${response.statusText}. ${errorData.error || errorData.message || 'Unknown error'}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.uploadURL) {
+        throw new Error('No upload URL received from server');
+      }
+      
+      return {
+        method: 'PUT' as const,
+        url: data.uploadURL,
+      };
+    } catch (error) {
+      console.error('Error getting upload parameters:', error);
+      toast({
+        title: "Upload gagal",
+        description: error instanceof Error ? error.message : "Tidak bisa mendapatkan URL upload",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    setIsUploading(true);
     try {
       if (result.successful && result.successful.length > 0) {
         const uploadedFile = result.successful[0];
@@ -357,7 +404,6 @@ function MenuItemForm({
           if (updateResponse.ok) {
             queryClient.invalidateQueries({ queryKey: ['/api/menu'] });
             const updatedItem = await updateResponse.json();
-            setUploadedImageUrl(updatedItem.image);
             setFormData(prev => ({ ...prev, image: updatedItem.image }));
             toast({
               title: "Upload berhasil",
@@ -366,10 +412,9 @@ function MenuItemForm({
           }
         } else {
           // For new items, use the finalized path
-          setUploadedImageUrl(finalizedPath);
           setFormData(prev => ({ ...prev, image: finalizedPath }));
           toast({
-            title: "Upload berhasil",
+            title: "Upload berhasil", 
             description: "Foto menu telah diupload",
           });
         }
@@ -381,12 +426,19 @@ function MenuItemForm({
         description: "Silakan coba lagi",
         variant: "destructive",
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
+    
+    // Clear backup after successful submit
+    if (!initialData) {
+      localStorage.removeItem('menu-form-backup');
+    }
   };
 
   return (
@@ -445,17 +497,17 @@ function MenuItemForm({
         <Label>Menu Image</Label>
         <div className="space-y-3">
           {/* Current image preview */}
-          {uploadedImageUrl && (
+          {formData.image && (
             <div className="relative">
               <img 
-                src={uploadedImageUrl.startsWith('/objects/') ? uploadedImageUrl : uploadedImageUrl} 
+                src={formData.image.startsWith('/objects/') ? formData.image : formData.image} 
                 alt="Current menu image"
                 className="w-32 h-32 object-cover rounded-lg border"
               />
             </div>
           )}
           
-          {/* Upload button only - no manual URL input */}
+          {/* Upload button with loading state */}
           <ObjectUploader
             maxNumberOfFiles={1}
             maxFileSize={5242880} // 5MB
@@ -464,8 +516,14 @@ function MenuItemForm({
             buttonClassName="w-full"
           >
             <Upload className="h-4 w-4 mr-2" />
-            {uploadedImageUrl ? 'Ganti Foto' : 'Upload Foto'}
+            {isUploading ? 'Uploading...' : (formData.image ? 'Ganti Foto' : 'Upload Foto')}
           </ObjectUploader>
+          
+          {isUploading && (
+            <p className="text-sm text-muted-foreground text-center">
+              Sedang mengupload foto... Form data akan tetap tersimpan.
+            </p>
+          )}
         </div>
       </div>
 
