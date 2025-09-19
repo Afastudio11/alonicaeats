@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import AdminSidebar from "@/components/admin/sidebar";
 import OrdersSection from "./orders";
 import MenuSection from "./menu";
+import CategoriesSection from "./categories";
 import AnalyticsSection from "./analytics";
 import InventorySection from "./inventory";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,8 @@ export default function AdminDashboard() {
         return <OrdersSection />;
       case 'menu':
         return <MenuSection />;
+      case 'categories':
+        return <CategoriesSection />;
       case 'analytics':
         return <AnalyticsSection />;
       case 'inventory':

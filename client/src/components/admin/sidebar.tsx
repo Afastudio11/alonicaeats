@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { 
   ClipboardList, 
   Utensils, 
+  Tags,
   BarChart3, 
   Package, 
   Settings, 
@@ -20,6 +21,7 @@ interface AdminSidebarProps {
 const SIDEBAR_ITEMS = [
   { key: 'orders', label: 'Orders', icon: ClipboardList, path: '/admin/orders' },
   { key: 'menu', label: 'Custom Menu', icon: Utensils, path: '/admin/menu' },
+  { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
   { key: 'inventory', label: 'Inventory', icon: Package, path: '/admin/inventory' },
   { key: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },

@@ -12,14 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
-import { MENU_CATEGORIES } from "@/lib/constants";
-import type { MenuItem, InsertMenuItem } from "@shared/schema";
-
-const MENU_CATEGORY_FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'food', label: 'Main Course' },
-  { value: 'drink', label: 'Beverages' },
-];
+import type { MenuItem, InsertMenuItem, Category } from "@shared/schema";
 
 export default function MenuSection() {
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -28,9 +21,24 @@ export default function MenuSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: menuItems = [], isLoading } = useQuery<MenuItem[]>({
+  const { data: menuItems = [], isLoading: menuLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/menu"],
   });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  const isLoading = menuLoading || categoriesLoading;
+
+  // Create dynamic filter options
+  const MENU_CATEGORY_FILTERS = [
+    { value: 'all', label: 'All' },
+    ...categories.map(category => ({
+      value: category.id,
+      label: category.name
+    }))
+  ];
 
   const createItemMutation = useMutation({
     mutationFn: async (item: InsertMenuItem) => {
@@ -97,8 +105,14 @@ export default function MenuSection() {
   });
 
   const filteredItems = menuItems.filter(item => 
-    categoryFilter === 'all' || item.category === categoryFilter
+    categoryFilter === 'all' || item.categoryId === categoryFilter
   );
+
+  // Helper function to get category name from categoryId
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category?.name || 'Unknown Category';
+  };
 
   const handleToggleAvailability = (item: MenuItem) => {
     updateItemMutation.mutate({
@@ -111,7 +125,7 @@ export default function MenuSection() {
     const duplicateItem: InsertMenuItem = {
       name: `${item.name} (Copy)`,
       price: item.price,
-      category: item.category,
+      categoryId: item.categoryId,
       description: item.description,
       image: item.image,
       isAvailable: item.isAvailable
@@ -156,6 +170,7 @@ export default function MenuSection() {
             <MenuItemForm
               onSubmit={(item) => createItemMutation.mutate(item)}
               isLoading={createItemMutation.isPending}
+              categories={categories}
             />
           </DialogContent>
         </Dialog>
@@ -197,7 +212,7 @@ export default function MenuSection() {
                       className="mt-1"
                       data-testid={`badge-category-${item.id}`}
                     >
-                      {MENU_CATEGORIES[item.category as keyof typeof MENU_CATEGORIES]}
+                      {getCategoryName(item.categoryId)}
                     </Badge>
                     {item.description && (
                       <p className="text-sm text-muted-foreground mt-2" data-testid={`text-description-${item.id}`}>
@@ -271,6 +286,7 @@ export default function MenuSection() {
               initialData={editingItem}
               onSubmit={(item) => updateItemMutation.mutate({ id: editingItem.id, item })}
               isLoading={updateItemMutation.isPending}
+              categories={categories}
             />
           )}
         </DialogContent>
@@ -282,16 +298,18 @@ export default function MenuSection() {
 function MenuItemForm({ 
   initialData, 
   onSubmit, 
-  isLoading 
+  isLoading,
+  categories 
 }: { 
   initialData?: MenuItem; 
   onSubmit: (item: InsertMenuItem) => void; 
   isLoading: boolean;
+  categories: Category[];
 }) {
   const [formData, setFormData] = useState<InsertMenuItem>({
     name: initialData?.name || '',
     price: initialData?.price || 0,
-    category: initialData?.category || 'food',
+    categoryId: initialData?.categoryId || categories[0]?.id || '',
     description: initialData?.description || '',
     image: initialData?.image || '',
     isAvailable: initialData?.isAvailable ?? true
@@ -330,15 +348,16 @@ function MenuItemForm({
       <div>
         <Label htmlFor="category">Category</Label>
         <Select 
-          value={formData.category} 
-          onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+          value={formData.categoryId} 
+          onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
         >
           <SelectTrigger data-testid="select-menu-category">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="food">Food</SelectItem>
-            <SelectItem value="drink">Drink</SelectItem>
+            {categories.map(category => (
+              <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

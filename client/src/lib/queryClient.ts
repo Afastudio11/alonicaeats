@@ -11,10 +11,22 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  customHeaders?: Record<string, string>,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(data ? { "Content-Type": "application/json" } : {}),
+    ...customHeaders,
+  };
+
+  // Auto-inject auth header for admin routes if token exists
+  const token = localStorage.getItem('alonica-token');
+  if (token && (url.includes('/api/categories') || url.includes('/api/menu') || url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/auth/logout'))) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,7 +41,17 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const headers: Record<string, string> = {};
+
+    // Auto-inject auth header for admin routes if token exists
+    const token = localStorage.getItem('alonica-token');
+    if (token && (url.includes('/api/orders') || url.includes('/api/inventory'))) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, {
+      headers,
       credentials: "include",
     });
 

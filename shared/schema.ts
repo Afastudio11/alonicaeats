@@ -10,11 +10,19 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("admin"),
 });
 
+export const categories = pgTable("categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const menuItems = pgTable("menu_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   price: integer("price").notNull(), // in rupiah
-  category: text("category").notNull(), // 'food' or 'drink'
+  categoryId: varchar("category_id").notNull().references(() => categories.id),
   description: text("description"),
   image: text("image"),
   isAvailable: boolean("is_available").notNull().default(true),
@@ -63,6 +71,11 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
 
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertMenuItemSchema = createInsertSchema(menuItems).omit({
   id: true,
   createdAt: true,
@@ -87,6 +100,9 @@ export const insertMenuItemIngredientSchema = createInsertSchema(menuItemIngredi
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
 
 export type MenuItem = typeof menuItems.$inferSelect;
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;

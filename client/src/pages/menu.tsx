@@ -9,8 +9,7 @@ import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/layout/navbar";
 import { formatCurrency } from "@/lib/utils";
-import { MENU_CATEGORIES } from "@/lib/constants";
-import type { MenuItem } from "@shared/schema";
+import type { MenuItem, Category } from "@shared/schema";
 
 export default function MenuPage() {
   const [, setLocation] = useLocation();
@@ -18,17 +17,26 @@ export default function MenuPage() {
   const { addToCart, totalItems } = useCart();
   const { toast } = useToast();
 
-  const { data: menuItems = [], isLoading } = useQuery<MenuItem[]>({
+  const { data: menuItems = [], isLoading: menuLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/menu"],
   });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  const isLoading = menuLoading || categoriesLoading;
 
   const filteredItems = menuItems.filter(item =>
     item.isAvailable &&
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const foodItems = filteredItems.filter(item => item.category === 'food');
-  const drinkItems = filteredItems.filter(item => item.category === 'drink');
+  // Group items by category
+  const itemsByCategory = categories.map(category => ({
+    category,
+    items: filteredItems.filter(item => item.categoryId === category.id)
+  })).filter(group => group.items.length > 0);
 
   const handleAddToCart = (item: MenuItem) => {
     addToCart({
@@ -94,14 +102,14 @@ export default function MenuPage() {
 
       {/* Menu Content */}
       <div className="px-6">
-        {/* Makanan Section */}
-        {foodItems.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-xl font-semibold text-foreground mb-4" data-testid="text-section-food">
-              {MENU_CATEGORIES.food}
+        {/* Dynamic Category Sections */}
+        {itemsByCategory.map((group, index) => (
+          <section key={group.category.id} className={index < itemsByCategory.length - 1 ? "mb-8" : ""}>
+            <h2 className="text-xl font-semibold text-foreground mb-4" data-testid={`text-section-${group.category.id}`}>
+              {group.category.name}
             </h2>
             <div className="grid grid-cols-2 gap-4">
-              {foodItems.map((item) => (
+              {group.items.map((item) => (
                 <MenuItemCard 
                   key={item.id} 
                   item={item} 
@@ -110,25 +118,7 @@ export default function MenuPage() {
               ))}
             </div>
           </section>
-        )}
-
-        {/* Minuman Section */}
-        {drinkItems.length > 0 && (
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4" data-testid="text-section-drinks">
-              {MENU_CATEGORIES.drink}
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {drinkItems.map((item) => (
-                <MenuItemCard 
-                  key={item.id} 
-                  item={item} 
-                  onAddToCart={handleAddToCart} 
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        ))}
 
         {filteredItems.length === 0 && (
           <div className="text-center py-12">

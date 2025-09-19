@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StockDeductionResult, users, menuItems, orders, inventoryItems, menuItemIngredients } from "@shared/schema";
+import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -8,6 +8,13 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+
+  // Categories
+  getCategories(): Promise<Category[]>;
+  getCategory(id: string): Promise<Category | undefined>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: string, category: Partial<InsertCategory>): Promise<Category | undefined>;
+  deleteCategory(id: string): Promise<boolean>;
 
   // Menu Items
   getMenuItems(): Promise<MenuItem[]>;
@@ -315,6 +322,36 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // Category methods
+  async getCategories(): Promise<Category[]> {
+    const categoryList = await db.select().from(categories).orderBy(categories.name);
+    return categoryList;
+  }
+
+  async getCategory(id: string): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    return category || undefined;
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const [newCategory] = await db.insert(categories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateCategory(id: string, category: Partial<InsertCategory>): Promise<Category | undefined> {
+    const [updated] = await db
+      .update(categories)
+      .set(category)
+      .where(eq(categories.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteCategory(id: string): Promise<boolean> {
+    const result = await db.delete(categories).where(eq(categories.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
   // Menu methods
   async getMenuItems(): Promise<MenuItem[]> {
     const items = await db.select().from(menuItems);
@@ -534,12 +571,19 @@ export class DatabaseStorage implements IStorage {
       role: "admin"
     });
 
-    // Seed menu items
+    // First, seed categories
+    const categoryData = [
+      { name: "Makanan", description: "Kategori untuk semua jenis makanan" },
+      { name: "Minuman", description: "Kategori untuk semua jenis minuman" }
+    ];
+    const createdCategories = await db.insert(categories).values(categoryData).returning();
+
+    // Seed menu items with categoryId references
     const menuData = [
       {
         name: "Nasi Goreng",
         price: 25000,
-        category: "food",
+        categoryId: createdCategories[0].id, // Makanan
         description: "Indonesian fried rice with egg and vegetables",
         image: "https://images.unsplash.com/photo-1563379091775-3c9c9da11d05?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300",
         isAvailable: true
@@ -547,7 +591,7 @@ export class DatabaseStorage implements IStorage {
       {
         name: "Mie Kering",
         price: 35000,
-        category: "food",
+        categoryId: createdCategories[0].id, // Makanan
         description: "Indonesian dry noodles with vegetables",
         image: "https://images.unsplash.com/photo-1612781204159-90c8e5e3e13e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300",
         isAvailable: true
@@ -555,7 +599,7 @@ export class DatabaseStorage implements IStorage {
       {
         name: "Kopi Susu Alonica",
         price: 21000,
-        category: "drink",
+        categoryId: createdCategories[1].id, // Minuman
         description: "Indonesian milk coffee with beautiful latte art",
         image: "https://images.unsplash.com/photo-1541167760496-1628856ab772?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300",
         isAvailable: true
@@ -563,7 +607,7 @@ export class DatabaseStorage implements IStorage {
       {
         name: "Matcha Green Tea",
         price: 21000,
-        category: "drink",
+        categoryId: createdCategories[1].id, // Minuman
         description: "Matcha green tea latte with foam art",
         image: "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300",
         isAvailable: true

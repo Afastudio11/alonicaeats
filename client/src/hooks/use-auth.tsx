@@ -23,14 +23,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    // Check for saved user in localStorage
+    // Check for saved user and token in localStorage
     const savedUser = localStorage.getItem('alonica-user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('alonica-token');
+    if (savedUser && savedToken) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (error) {
         console.error('Failed to load user from localStorage:', error);
         localStorage.removeItem('alonica-user');
+        localStorage.removeItem('alonica-token');
       }
     }
     // Auth hydration is complete
@@ -45,7 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (data) => {
       setUser(data.user);
       localStorage.setItem('alonica-user', JSON.stringify(data.user));
+      localStorage.setItem('alonica-token', data.token);
       setAuthReady(true);
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem('alonica-token');
+      if (token) {
+        await apiRequest('POST', '/api/auth/logout', {}, {
+          'Authorization': `Bearer ${token}`
+        });
+      }
+    },
+    onSettled: () => {
+      setUser(null);
+      localStorage.removeItem('alonica-user');
+      localStorage.removeItem('alonica-token');
     },
   });
 
@@ -54,8 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('alonica-user');
+    logoutMutation.mutate();
   };
 
   const value = {
