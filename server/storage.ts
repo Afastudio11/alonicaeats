@@ -622,6 +622,13 @@ export class DatabaseStorage implements IStorage {
       role: "admin"
     });
 
+    // Seed kasir user  
+    await db.insert(users).values({
+      username: "kasir",
+      password: "kasir123",
+      role: "kasir"
+    });
+
     // First, seed categories
     const categoryData = [
       { name: "Makanan", description: "Kategori untuk semua jenis makanan" },
