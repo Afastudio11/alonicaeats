@@ -434,7 +434,7 @@ function calculateAnalytics(orders: Order[], period: string) {
       case 'daily':
         return orderDate.toDateString() === now.toDateString();
       case 'weekly':
-        const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+        const weekStart = new Date(now.getTime() - (now.getDay() * 24 * 60 * 60 * 1000));
         return orderDate >= weekStart;
       case 'monthly':
         return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
@@ -443,9 +443,40 @@ function calculateAnalytics(orders: Order[], period: string) {
     }
   });
 
+  // Filter previous period orders for comparison
+  const previousPeriodOrders = orders.filter(order => {
+    const orderDate = new Date(order.createdAt);
+    switch (period) {
+      case 'daily':
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return orderDate.toDateString() === yesterday.toDateString();
+      case 'weekly':
+        const prevWeekStart = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000) - (now.getDay() * 24 * 60 * 60 * 1000));
+        const prevWeekEnd = new Date(prevWeekStart.getTime() + (7 * 24 * 60 * 60 * 1000));
+        return orderDate >= prevWeekStart && orderDate < prevWeekEnd;
+      case 'monthly':
+        const prevMonth = new Date(now);
+        prevMonth.setMonth(prevMonth.getMonth() - 1);
+        return orderDate.getMonth() === prevMonth.getMonth() && orderDate.getFullYear() === prevMonth.getFullYear();
+      default:
+        return false;
+    }
+  });
+
   const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.total, 0);
   const totalOrders = filteredOrders.length;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  // Calculate previous period metrics for growth comparison
+  const prevTotalRevenue = previousPeriodOrders.reduce((sum, order) => sum + order.total, 0);
+  const prevTotalOrders = previousPeriodOrders.length;
+  const prevAverageOrderValue = prevTotalOrders > 0 ? prevTotalRevenue / prevTotalOrders : 0;
+
+  // Calculate growth percentages
+  const revenueGrowth = prevTotalRevenue > 0 ? ((totalRevenue - prevTotalRevenue) / prevTotalRevenue * 100) : 0;
+  const ordersGrowth = prevTotalOrders > 0 ? ((totalOrders - prevTotalOrders) / prevTotalOrders * 100) : 0;
+  const aovChange = prevAverageOrderValue > 0 ? Math.abs((averageOrderValue - prevAverageOrderValue) / prevAverageOrderValue * 100) : 0;
 
   // Calculate hourly distribution
   const hourlyOrders = new Array(24).fill(0);
@@ -524,9 +555,9 @@ function calculateAnalytics(orders: Order[], period: string) {
     paymentMethods,
     dailySalesData,
     hourlyOrdersData,
-    // Mock growth percentages for demo
-    revenueGrowth: 12.5,
-    ordersGrowth: 8.2,
-    aovChange: 2.1
+    // Real growth percentages based on previous period comparison
+    revenueGrowth: Math.round(revenueGrowth * 10) / 10,
+    ordersGrowth: Math.round(ordersGrowth * 10) / 10,
+    aovChange: Math.round(aovChange * 10) / 10
   };
 }

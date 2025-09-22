@@ -8,11 +8,10 @@ import { Tabs as TabsContainer, TabsContent, TabsList, TabsTrigger } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
-import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
+import { printKitchenTicket } from "@/utils/thermal-print";
 import type { Order, OrderItem, Category, MenuItem } from "@shared/schema";
 
 export default function KitchenSection() {
-  const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("kitchen");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -239,13 +238,44 @@ export default function KitchenSection() {
     }
   };
 
-  const printKitchenTicket = (order: Order, station?: "kitchen" | "bar") => {
-    setPrintingOrder({ ...order, station } as any);
-    // Use thermal printer with user preference
-    setTimeout(() => {
-      printWithThermalSettings(getThermalPreference());
-      setPrintingOrder(null);
-    }, 100);
+  const handlePrintKitchenTicket = (order: Order, station?: "kitchen" | "bar") => {
+    const orderItems = order.items as OrderItem[];
+    
+    // Filter items based on station type and enrich with menu item details
+    const filteredItems = station ? orderItems.filter(orderItem => {
+      const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+      if (!menuItem) return station === 'kitchen'; // Default to kitchen if item not found
+      
+      const category = categories.find(cat => cat.id === menuItem.categoryId);
+      const isDrink = category?.name.toLowerCase().trim().includes('minuman');
+      
+      return station === 'bar' ? isDrink : !isDrink;
+    }).map(orderItem => {
+      const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+      return {
+        ...orderItem,
+        name: menuItem?.name || orderItem.name || 'Item'
+      };
+    }) : orderItems.map(orderItem => {
+      const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+      return {
+        ...orderItem,
+        name: menuItem?.name || orderItem.name || 'Item'
+      };
+    });
+
+    // Guard against empty tickets
+    if (filteredItems.length === 0) {
+      toast({
+        title: "Tidak ada item untuk dicetak",
+        description: `Tidak ada ${station === 'bar' ? 'minuman' : 'makanan'} dalam pesanan ini`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Print the ticket with filtered items
+    printKitchenTicket(order, station, filteredItems);
   };
 
   if (isLoading) {
@@ -264,20 +294,6 @@ export default function KitchenSection() {
 
   return (
     <div className="space-y-6">
-      {/* Hidden print ticket - only visible during printing */}
-      {printingOrder && (
-        <div className="hidden print:block print:fixed print:inset-0 print:bg-white print:z-50">
-          <KitchenTicket 
-            order={printingOrder} 
-            filterType={(printingOrder as any).station}
-            menuItems={menuItems}
-            categories={categories}
-          />
-        </div>
-      )}
-
-      {/* Main content - hidden during printing when ticket is showing */}
-      <div className={printingOrder ? "print:hidden" : ""}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -363,7 +379,7 @@ export default function KitchenSection() {
                     key={order.id} 
                     order={order} 
                     onStartCooking={() => handleStartCooking(order)}
-                    onPrint={() => printKitchenTicket(order, "kitchen")}
+                    onPrint={() => handlePrintKitchenTicket(order, "kitchen")}
                     isPrimary={true}
                     filterType="kitchen"
                     menuItems={menuItems}
@@ -390,7 +406,7 @@ export default function KitchenSection() {
                     key={order.id} 
                     order={order} 
                     onMarkReady={() => handleMarkReady(order.id, "kitchen")}
-                    onPrint={() => printKitchenTicket(order, "kitchen")}
+                    onPrint={() => handlePrintKitchenTicket(order, "kitchen")}
                     isPrimary={false}
                     filterType="kitchen"
                     menuItems={menuItems}
@@ -462,7 +478,7 @@ export default function KitchenSection() {
                     key={order.id} 
                     order={order} 
                     onStartCooking={() => handleStartCooking(order)}
-                    onPrint={() => printKitchenTicket(order, "bar")}
+                    onPrint={() => handlePrintKitchenTicket(order, "bar")}
                     isPrimary={true}
                     filterType="bar"
                     menuItems={menuItems}
@@ -489,7 +505,7 @@ export default function KitchenSection() {
                     key={order.id} 
                     order={order} 
                     onMarkReady={() => handleMarkReady(order.id, "bar")}
-                    onPrint={() => printKitchenTicket(order, "bar")}
+                    onPrint={() => handlePrintKitchenTicket(order, "bar")}
                     isPrimary={false}
                     filterType="bar"
                     menuItems={menuItems}
@@ -507,7 +523,6 @@ export default function KitchenSection() {
             </div>
           </TabsContent>
         </TabsContainer>
-      </div> {/* Close main content div */}
     </div>
   );
 }
@@ -638,96 +653,3 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
   );
 }
 
-interface KitchenTicketProps {
-  order: Order;
-  filterType?: "kitchen" | "bar";
-  menuItems?: MenuItem[];
-  categories?: Category[];
-}
-
-function KitchenTicket({ order, filterType, menuItems = [], categories = [] }: KitchenTicketProps) {
-  const orderItems = order.items as OrderItem[];
-  
-  // Filter items based on the station (if filterType is provided)
-  const filteredItems = filterType ? orderItems.filter(orderItem => {
-    const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
-    if (!menuItem) return filterType === 'kitchen'; // Default to kitchen if item not found
-    
-    const category = categories.find(cat => cat.id === menuItem.categoryId);
-    const isDrink = category?.name.toLowerCase().includes('minuman');
-    
-    return filterType === 'bar' ? isDrink : !isDrink;
-  }) : orderItems;
-
-  const stationName = filterType === 'bar' ? 'BAR' : 'KITCHEN';
-  const itemsLabel = filterType === 'bar' ? 'DRINKS TO PREPARE:' : 'ITEMS TO PREPARE:';
-  const copyLabel = filterType === 'bar' ? '** BAR COPY **' : '** KITCHEN COPY **';
-  const instructions = filterType === 'bar' ? 'Please prepare drinks as ordered' : 'Please prepare items as ordered';
-  
-  return (
-    <div className="kitchen-ticket bg-white p-6 max-w-sm mx-auto font-mono text-sm">
-      <div className="text-center mb-4">
-        <h1 className="text-lg font-bold">ALONICA {stationName}</h1>
-        <h2 className="text-md font-semibold">{stationName} ORDER TICKET</h2>
-        <div className="thermal-divider"></div>
-      </div>
-
-      <div className="mb-4">
-        <div className="thermal-grid">
-          <span>Order ID:</span>
-          <span className="font-semibold">{order.id.slice(-8)}</span>
-        </div>
-        <div className="thermal-grid">
-          <span>Customer:</span>
-          <span className="font-semibold">{order.customerName}</span>
-        </div>
-        <div className="thermal-grid">
-          <span>Table:</span>
-          <span className="font-semibold">{order.tableNumber}</span>
-        </div>
-        <div className="thermal-grid">
-          <span>Time:</span>
-          <span>{formatDate(new Date(order.createdAt))}</span>
-        </div>
-        {filterType && filteredItems.length < orderItems.length && (
-          <div className="thermal-grid text-xs text-gray-600">
-            <span>Note:</span>
-            <span>{orderItems.length - filteredItems.length} item(s) for {filterType === 'bar' ? 'kitchen' : 'bar'}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-dashed border-gray-400 my-2"></div>
-
-      <div className="mb-4">
-        <h3 className="font-semibold mb-2 thermal-center">{itemsLabel}</h3>
-        {filteredItems.map((item, index) => (
-          <div key={index} className="thermal-compact">
-            <div className="thermal-grid">
-              <span className="font-semibold">{item.quantity}x {item.name}</span>
-            </div>
-            {item.notes && (
-              <div className="text-xs text-gray-600 thermal-compact">
-                ** {item.notes} **
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="thermal-divider"></div>
-
-      <div className="thermal-center text-xs thermal-compact">
-        <p>STATUS: {order.status.toUpperCase()}</p>
-        <p>Printed: {new Date().toLocaleString()}</p>
-      </div>
-
-      <div className="thermal-divider"></div>
-      
-      <div className="thermal-center text-xs thermal-compact">
-        <p>{copyLabel}</p>
-        <p>{instructions}</p>
-      </div>
-    </div>
-  );
-}
