@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,18 @@ export default function CashierSection() {
   // Open bills state
   const [showOpenBills, setShowOpenBills] = useState(false);
   const [viewingBill, setViewingBill] = useState<Order | null>(null);
+  
+  // Split bill state
+  const [showSplitBill, setShowSplitBill] = useState(false);
+  const [splitParts, setSplitParts] = useState<{id: number, items: CartItem[], customerName: string, paid?: boolean}[]>([]);
+  const [currentSplit, setCurrentSplit] = useState(1);
+  const [paymentContext, setPaymentContext] = useState<{
+    mode: 'cart' | 'split',
+    splitId?: number,
+    total: number,
+    items: CartItem[],
+    customerName?: string
+  } | null>(null);
 
   // Load menu items and categories
   const { data: menuItems = [] } = useQuery<MenuItem[]>({
@@ -205,13 +217,23 @@ export default function CashierSection() {
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = subtotal; // No tax or discount for now
   
-  // Payment calculation
+  // Payment calculation - use payment context if available
   const cashAmountNumber = parseFloat(cashAmount) || 0;
-  const change = cashAmountNumber >= total ? cashAmountNumber - total : 0;
+  const currentPaymentTotal = paymentContext ? paymentContext.total : total;
+  const change = cashAmountNumber >= currentPaymentTotal ? cashAmountNumber - currentPaymentTotal : 0;
   
   // Handle payment calculation
   const handlePaymentCalculation = async () => {
-    if (cashAmountNumber < total) {
+    if (!paymentContext) {
+      toast({
+        title: "Error pembayaran",
+        description: "Konteks pembayaran tidak ditemukan",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cashAmountNumber < paymentContext.total) {
       toast({
         title: "Uang tidak cukup",
         description: "Jumlah uang yang diberikan kurang dari total pesanan",
@@ -220,19 +242,21 @@ export default function CashierSection() {
       return;
     }
     
+    const change = cashAmountNumber - paymentContext.total;
+    
     const orderData = {
-      customerName: customerName.trim(),
+      customerName: paymentContext.customerName || customerName.trim(),
       tableNumber: tableNumber.trim(),
-      items: cart.map(item => ({
+      items: paymentContext.items.map(item => ({
         itemId: item.id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
         notes: item.notes || ""
       })),
-      subtotal,
+      subtotal: paymentContext.total,
       discount: 0,
-      total,
+      total: paymentContext.total,
       paymentMethod: "cash",
       cashReceived: cashAmountNumber,
       change: change,
@@ -251,6 +275,57 @@ export default function CashierSection() {
       });
       
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+
+      // Handle split payment success
+      if (paymentContext.mode === 'split' && paymentContext.splitId) {
+        // Decrement cart quantities by the paid split's items
+        setCart(prevCart => {
+          return prevCart.map(cartItem => {
+            const paidItem = paymentContext.items.find(item => item.id === cartItem.id);
+            if (paidItem) {
+              const newQuantity = cartItem.quantity - paidItem.quantity;
+              return newQuantity > 0 
+                ? { ...cartItem, quantity: newQuantity }
+                : null; // Mark for removal
+            }
+            return cartItem;
+          }).filter(Boolean) as CartItem[]; // Remove null items
+        });
+
+        // Mark this split as paid (do NOT modify other splits)
+        setSplitParts(prev => {
+          const updatedParts = prev.map(part => {
+            if (part.id === paymentContext.splitId) {
+              return { ...part, paid: true };
+            }
+            // Leave other splits unchanged
+            return part;
+          });
+          
+          // Check if all splits are paid
+          const unpaidParts = updatedParts.filter(part => !part.paid);
+          if (unpaidParts.length === 0) {
+            // All splits are paid, close dialog and clear everything
+            setTimeout(() => {
+              setShowSplitBill(false);
+              setSplitParts([]); // Reset split parts to empty array
+              setCart([]);
+              setCustomerName("");
+              setTableNumber("");
+            }, 100);
+          }
+          
+          return updatedParts;
+        });
+      } else {
+        // Regular cart payment - clear everything
+        setCustomerName("");
+        setTableNumber("");
+        setCart([]);
+      }
+
+      // Reset payment context
+      setPaymentContext(null);
       setShowPaymentCalculator(false);
       setShowReceipt(true);
       
@@ -315,25 +390,27 @@ export default function CashierSection() {
       return;
     }
 
-    const orderData: InsertOrder = {
-      customerName: customerName.trim(),
-      tableNumber: tableNumber.trim(),
-      items: cart.map(item => ({
-        itemId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        notes: item.notes || ""
-      })),
-      subtotal,
-      discount: 0,
+    // Additional guard: prevent cart checkout if unpaid assigned items exist
+    const unpaidAssignedCount = getUnpaidAssignedCount();
+    if (unpaidAssignedCount > 0) {
+      toast({
+        title: "Split bill aktif",
+        description: "Selesaikan semua split payment terlebih dahulu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set payment context for regular cart payment
+    setPaymentContext({
+      mode: 'cart',
       total,
-      paymentMethod: "cash", // Default to cash for manual orders
-      status: "pending"
-    };
+      items: cart,
+      customerName: customerName.trim()
+    });
 
     setShowPaymentCalculator(true);
-    // We'll create the order after payment is calculated
+    setCashAmount("");
   };
 
   // Create open bill
@@ -377,7 +454,190 @@ export default function CashierSection() {
       })),
     };
 
+    // Additional guard: prevent open bill if unpaid assigned items exist
+    const unpaidAssignedCount = getUnpaidAssignedCount();
+    if (unpaidAssignedCount > 0) {
+      toast({
+        title: "Split bill aktif",
+        description: "Selesaikan semua split payment terlebih dahulu",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createOpenBillMutation.mutate(orderData);
+  };
+
+  // Cancel split bill
+  const cancelSplitBill = () => {
+    // Check if any splits have been paid
+    const hasPaidSplits = splitParts.some(part => part.paid);
+    if (hasPaidSplits) {
+      toast({
+        title: "Tidak dapat dibatalkan",
+        description: "Ada split yang sudah dibayar, tidak bisa dibatalkan",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSplitParts([]);
+    setCurrentSplit(1);
+    setShowSplitBill(false);
+    toast({
+      title: "Split bill dibatalkan",
+      description: "Kembali ke checkout normal",
+    });
+  };
+
+  // Split bill handlers
+  const initiateSplitBill = () => {
+    if (cart.length === 0) {
+      toast({
+        title: "Cart kosong",
+        description: "Mohon tambahkan item ke cart untuk split bill",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Initialize with 2 parts
+    setSplitParts([
+      { id: 1, items: [], customerName: "", paid: false },
+      { id: 2, items: [], customerName: "", paid: false }
+    ]);
+    setCurrentSplit(1);
+    setShowSplitBill(true);
+  };
+
+  const addSplitPart = () => {
+    const newPart = { id: splitParts.length + 1, items: [], customerName: "", paid: false };
+    setSplitParts([...splitParts, newPart]);
+  };
+
+  const removeSplitPart = (partId: number) => {
+    const targetPart = splitParts.find(part => part.id === partId);
+    if (targetPart?.paid) {
+      toast({
+        title: "Split sudah dibayar",
+        description: "Tidak bisa hapus split yang sudah dibayar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (splitParts.length <= 2) return; // Minimum 2 parts
+    setSplitParts(splitParts.filter(part => part.id !== partId));
+    if (currentSplit === partId) {
+      setCurrentSplit(1);
+    }
+  };
+
+  const assignItemToSplit = (cartItem: CartItem, partId: number, quantity: number) => {
+    // Check if trying to assign to a paid split
+    const targetPart = splitParts.find(part => part.id === partId);
+    if (targetPart?.paid) {
+      toast({
+        title: "Split sudah dibayar",
+        description: "Tidak bisa assign item ke split yang sudah dibayar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentAssigned = getAssignedQuantity(cartItem.id);
+    const remainingQty = cartItem.quantity - currentAssigned;
+    
+    if (quantity > remainingQty) {
+      toast({
+        title: "Jumlah melebihi yang tersedia",
+        description: `Hanya tersisa ${remainingQty} item`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSplitParts(prev => prev.map(part => {
+      if (part.id === partId && !part.paid) {
+        const existingItemIndex = part.items.findIndex(item => item.id === cartItem.id);
+        if (existingItemIndex >= 0) {
+          // Update existing item quantity
+          const updatedItems = [...part.items];
+          updatedItems[existingItemIndex] = {
+            ...updatedItems[existingItemIndex],
+            quantity: updatedItems[existingItemIndex].quantity + quantity
+          };
+          return { ...part, items: updatedItems };
+        } else {
+          // Add new item to split
+          return {
+            ...part,
+            items: [...part.items, { ...cartItem, quantity }]
+          };
+        }
+      }
+      return part;
+    }));
+  };
+
+  const updateSplitCustomerName = (partId: number, name: string) => {
+    setSplitParts(prev => prev.map(part => 
+      part.id === partId ? { ...part, customerName: name } : part
+    ));
+  };
+
+  const calculateSplitTotal = (items: CartItem[]) => {
+    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  };
+
+  const getAssignedQuantity = (cartItemId: string) => {
+    // Count items in ALL splits (paid and unpaid) to prevent over-assignment
+    return splitParts.reduce((total, part) => {
+      const item = part.items.find(item => item.id === cartItemId);
+      return total + (item?.quantity || 0);
+    }, 0);
+  };
+
+  const getUnpaidAssignedCount = () => {
+    // Count only items assigned to unpaid splits
+    return splitParts.reduce((total, part) => {
+      if (part.paid) return total;
+      return total + part.items.reduce((partTotal, item) => partTotal + item.quantity, 0);
+    }, 0);
+  };
+
+  const handleSplitPayment = (part: {id: number, items: CartItem[], customerName: string}) => {
+    if (!part.customerName.trim()) {
+      toast({
+        title: "Nama customer diperlukan",
+        description: "Mohon masukkan nama customer untuk split ini",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (part.items.length === 0) {
+      toast({
+        title: "Tidak ada item",
+        description: "Split ini belum ada item yang di-assign",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Set payment context for this split
+    const splitTotal = calculateSplitTotal(part.items);
+    setPaymentContext({
+      mode: 'split',
+      splitId: part.id,
+      total: splitTotal,
+      items: part.items,
+      customerName: part.customerName.trim()
+    });
+
+    // Show payment calculator
+    setShowPaymentCalculator(true);
+    setCashAmount("");
   };
 
   return (
@@ -669,9 +929,26 @@ export default function CashierSection() {
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
+                    {/* Show split warning if unpaid assignments exist */}
+                    {getUnpaidAssignedCount() > 0 && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-sm text-yellow-800">
+                          <strong>Split Bill Aktif:</strong> {getUnpaidAssignedCount()} items di-assign ke unpaid splits.
+                        </p>
+                        <Button
+                          onClick={cancelSplitBill}
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 w-full"
+                        >
+                          Batal Split Bill
+                        </Button>
+                      </div>
+                    )}
+                    
                     <Button
                       onClick={handleSubmitOrder}
-                      disabled={createOrderMutation.isPending}
+                      disabled={createOrderMutation.isPending || getUnpaidAssignedCount() > 0}
                       className="w-full"
                       data-testid="button-submit-order"
                     >
@@ -681,13 +958,24 @@ export default function CashierSection() {
                     
                     <Button
                       onClick={handleCreateOpenBill}
-                      disabled={createOpenBillMutation.isPending}
+                      disabled={createOpenBillMutation.isPending || getUnpaidAssignedCount() > 0}
                       variant="outline"
                       className="w-full"
                       data-testid="button-create-open-bill"
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       {createOpenBillMutation.isPending ? "Menyimpan..." : "Simpan sebagai Open Bill"}
+                    </Button>
+                    
+                    <Button
+                      onClick={initiateSplitBill}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-split-bill"
+                      disabled={splitParts.length > 0}
+                    >
+                      <Split className="h-4 w-4 mr-2" />
+                      {splitParts.length > 0 ? "Split Bill Aktif" : "Split Bill"}
                     </Button>
                   </div>
                 </>
@@ -704,7 +992,15 @@ export default function CashierSection() {
             <DialogTitle className="flex items-center space-x-2">
               <Calculator className="h-5 w-5" />
               <span>Kalkulator Pembayaran</span>
+              {paymentContext && paymentContext.mode === 'split' && (
+                <Badge variant="secondary">Split {paymentContext.splitId}</Badge>
+              )}
             </DialogTitle>
+            {paymentContext && paymentContext.mode === 'split' && (
+              <p className="text-sm text-muted-foreground">
+                Customer: {paymentContext.customerName}
+              </p>
+            )}
           </DialogHeader>
           
           <div className="space-y-4">
@@ -969,6 +1265,211 @@ export default function CashierSection() {
             >
               <Send className="h-4 w-4 mr-2" />
               Submit ke Dapur
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Split Bill Dialog */}
+      <Dialog open={showSplitBill} onOpenChange={setShowSplitBill}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Split className="h-5 w-5" />
+              <span>Split Bill</span>
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Assign items ke masing-masing customer untuk split pembayaran
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Split Parts Management */}
+            <div className="flex items-center space-x-2">
+              <Button
+                size="sm"
+                onClick={addSplitPart}
+                variant="outline"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Tambah Split
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Total: {splitParts.length} splits
+              </span>
+            </div>
+
+            {/* Cart Items to Assign */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Items untuk di-assign</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {cart.map((item) => {
+                    const assignedQty = getAssignedQuantity(item.id);
+                    const remainingQty = item.quantity - assignedQty;
+                    
+                    return (
+                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{item.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {formatCurrency(item.price)} × {item.quantity} = {formatCurrency(item.price * item.quantity)}
+                          </p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <Badge variant={remainingQty > 0 ? "destructive" : "default"}>
+                              Tersisa: {remainingQty}
+                            </Badge>
+                            <Badge variant="secondary">
+                              Assigned: {assignedQty}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {/* Quick assign buttons */}
+                        <div className="flex space-x-2">
+                          {splitParts.map((part) => (
+                            <Button
+                              key={part.id}
+                              size="sm"
+                              variant="outline"
+                              onClick={() => assignItemToSplit(item, part.id, 1)}
+                              disabled={remainingQty <= 0}
+                              className="min-w-[60px]"
+                            >
+                              Split {part.id}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Split Parts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {splitParts.map((part) => (
+                <Card key={part.id} className={`border-l-4 ${part.paid ? 'border-l-green-500 bg-green-50' : 'border-l-blue-500'}`}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center space-x-2">
+                        <span>Split {part.id}</span>
+                        {part.paid && (
+                          <Badge className="bg-green-100 text-green-800">
+                            PAID
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      {splitParts.length > 2 && !part.paid && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeSplitPart(part.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Customer Name */}
+                      <div>
+                        <Label htmlFor={`customer-${part.id}`}>Nama Customer</Label>
+                        <Input
+                          id={`customer-${part.id}`}
+                          value={part.customerName}
+                          onChange={(e) => updateSplitCustomerName(part.id, e.target.value)}
+                          placeholder="Masukkan nama customer"
+                        />
+                      </div>
+
+                      {/* Assigned Items */}
+                      <div>
+                        <Label>Items ({part.items.length})</Label>
+                        <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
+                          {part.items.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-2">
+                              Belum ada item di-assign
+                            </p>
+                          ) : (
+                            part.items.map((item, index) => (
+                              <div key={index} className="flex justify-between text-sm">
+                                <span>{item.quantity}× {item.name}</span>
+                                <span>{formatCurrency(item.price * item.quantity)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Split Total */}
+                      <div className="bg-green-50 p-3 rounded-lg">
+                        <div className="flex justify-between font-semibold">
+                          <span>Total Split {part.id}:</span>
+                          <span className="text-green-600">
+                            {formatCurrency(calculateSplitTotal(part.items))}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Process Payment Button */}
+                      {part.paid ? (
+                        <Button
+                          disabled
+                          className="w-full"
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Receipt className="h-4 w-4 mr-2" />
+                          Sudah Dibayar
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => handleSplitPayment(part)}
+                          disabled={part.items.length === 0 || !part.customerName.trim()}
+                          className="w-full"
+                          size="sm"
+                        >
+                          <Calculator className="h-4 w-4 mr-2" />
+                          Proses Pembayaran
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <Card className="bg-gray-50">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium mb-2">Summary</h4>
+                    <p className="text-sm">Total Splits: {splitParts.length}</p>
+                    <p className="text-sm">
+                      Total Assigned: {formatCurrency(splitParts.reduce((sum, part) => 
+                        sum + calculateSplitTotal(part.items), 0
+                      ))}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Original Bill</h4>
+                    <p className="text-sm">Items: {cart.length}</p>
+                    <p className="text-sm">Total: {formatCurrency(total)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSplitBill(false)}>
+              Batal
             </Button>
           </DialogFooter>
         </DialogContent>
