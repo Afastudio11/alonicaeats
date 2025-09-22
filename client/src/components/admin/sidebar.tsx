@@ -9,7 +9,8 @@ import {
   Receipt,
   LogOut,
   X,
-  ChefHat
+  ChefHat,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,6 +25,7 @@ const SIDEBAR_ITEMS = [
   { key: 'orders', label: 'Orders', icon: ClipboardList, path: '/admin/orders' },
   { key: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/admin/kitchen' },
   { key: 'cashier', label: 'Kasir Manual', icon: Receipt, path: '/admin/cashier' },
+  { key: 'reservations', label: 'Reservasi', icon: Calendar, path: '/admin/reservations' },
   { key: 'menu', label: 'Custom Menu', icon: Utensils, path: '/admin/menu' },
   { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
