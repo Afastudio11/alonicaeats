@@ -89,6 +89,20 @@ export const storeProfile = pgTable("store_profile", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+// Reservations table for customer booking feature
+export const reservations = pgTable("reservations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerName: text("customer_name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  guestCount: integer("guest_count").notNull(),
+  reservationDate: timestamp("reservation_date").notNull(),
+  reservationTime: text("reservation_time").notNull(), // Format: "HH:mm"
+  status: text("status").notNull().default("pending"), // 'pending', 'confirmed', 'completed', 'cancelled'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -126,6 +140,12 @@ export const insertStoreProfileSchema = createInsertSchema(storeProfile).omit({
   updatedAt: true,
 });
 
+export const insertReservationSchema = createInsertSchema(reservations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -147,6 +167,9 @@ export type InsertMenuItemIngredient = z.infer<typeof insertMenuItemIngredientSc
 
 export type StoreProfile = typeof storeProfile.$inferSelect;
 export type InsertStoreProfile = z.infer<typeof insertStoreProfileSchema>;
+
+export type Reservation = typeof reservations.$inferSelect;
+export type InsertReservation = z.infer<typeof insertReservationSchema>;
 
 // Cart item type for frontend
 export interface CartItem {

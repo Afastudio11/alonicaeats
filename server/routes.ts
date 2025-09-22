@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import rateLimit from 'express-rate-limit';
 import { storage } from "./storage";
-import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, type InsertOrder } from "@shared/schema";
+import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, type InsertOrder } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
@@ -954,6 +954,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(profile);
     } catch (error) {
       res.status(400).json({ message: "Invalid store profile data" });
+    }
+  });
+
+  // Reservations (public access for creating, kasir/admin access for management)
+  app.get("/api/reservations", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const reservations = await storage.getReservations();
+      res.json(reservations);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/reservations", async (req, res) => {
+    try {
+      const validatedData = insertReservationSchema.parse(req.body);
+      const reservation = await storage.createReservation(validatedData);
+      res.status(201).json(reservation);
+    } catch (error) {
+      console.error('Reservation creation error:', error);
+      res.status(400).json({ message: "Invalid reservation data" });
+    }
+  });
+
+  app.put("/api/reservations/:id/status", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!status || !['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
+        return res.status(400).json({ message: "Valid status is required" });
+      }
+      
+      const reservation = await storage.updateReservationStatus(id, status);
+      
+      if (!reservation) {
+        return res.status(404).json({ message: "Reservation not found" });
+      }
+      
+      res.json(reservation);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid data" });
+    }
+  });
+
+  app.delete("/api/reservations/:id", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteReservation(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Reservation not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 

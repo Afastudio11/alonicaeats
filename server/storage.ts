@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile } from "@shared/schema";
+import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -60,6 +60,13 @@ export interface IStorage {
   getStoreProfile(): Promise<StoreProfile | undefined>;
   createStoreProfile(profile: InsertStoreProfile): Promise<StoreProfile>;
   updateStoreProfile(id: string, profile: Partial<InsertStoreProfile>): Promise<StoreProfile | undefined>;
+
+  // Reservations
+  getReservations(): Promise<Reservation[]>;
+  getReservation(id: string): Promise<Reservation | undefined>;
+  createReservation(reservation: InsertReservation): Promise<Reservation>;
+  updateReservationStatus(id: string, status: string): Promise<Reservation | undefined>;
+  deleteReservation(id: string): Promise<boolean>;
 }
 
 // Legacy MemStorage class (no longer used, kept for reference)
@@ -792,6 +799,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(storeProfile.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // Reservation methods
+  async getReservations(): Promise<Reservation[]> {
+    return await db.select().from(reservations).orderBy(desc(reservations.reservationDate));
+  }
+
+  async getReservation(id: string): Promise<Reservation | undefined> {
+    const [reservation] = await db.select().from(reservations).where(eq(reservations.id, id)).limit(1);
+    return reservation || undefined;
+  }
+
+  async createReservation(reservation: InsertReservation): Promise<Reservation> {
+    const [newReservation] = await db.insert(reservations).values(reservation).returning();
+    return newReservation;
+  }
+
+  async updateReservationStatus(id: string, status: string): Promise<Reservation | undefined> {
+    const [updated] = await db
+      .update(reservations)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(reservations.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteReservation(id: string): Promise<boolean> {
+    const result = await db.delete(reservations).where(eq(reservations.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
