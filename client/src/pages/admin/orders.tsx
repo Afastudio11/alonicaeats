@@ -48,7 +48,7 @@ export default function OrdersSection() {
         if (!old) return old;
         return old.map(order => 
           order.id === orderId 
-            ? { ...order, status, updatedAt: new Date() }
+            ? { ...order, orderStatus: status, updatedAt: new Date() }
             : order
         );
       });
@@ -89,8 +89,8 @@ export default function OrdersSection() {
 
   const stats = {
     totalToday: todayOrders.length,
-    completed: todayOrders.filter(order => order.status === 'completed').length,
-    pending: todayOrders.filter(order => order.status === 'pending').length,
+    completed: todayOrders.filter(order => order.orderStatus === 'served').length,
+    pending: todayOrders.filter(order => order.orderStatus === 'queued').length,
     revenue: todayOrders.reduce((sum, order) => sum + order.total, 0)
   };
 
@@ -129,13 +129,13 @@ export default function OrdersSection() {
   // Sort and filter orders based on statusFilter and dateFilter (memoized for performance)
   const filteredAndSortedOrders = useMemo(() => {
     return orders
-      .filter(order => statusFilter === "all" || order.status === statusFilter)
+      .filter(order => statusFilter === "all" || order.orderStatus === statusFilter)
       .filter(order => isOrderInDateRange(order, dateFilter))
       .sort((a, b) => {
-        // Sort by status priority: pending -> preparing -> ready -> completed
-        const statusOrder = { pending: 0, preparing: 1, ready: 2, completed: 3 };
-        const aOrder = statusOrder[a.status as keyof typeof statusOrder] ?? 4;
-        const bOrder = statusOrder[b.status as keyof typeof statusOrder] ?? 4;
+        // Sort by status priority: queued -> preparing -> ready -> served
+        const statusOrder = { queued: 0, preparing: 1, ready: 2, served: 3, cancelled: 4 };
+        const aOrder = statusOrder[a.orderStatus as keyof typeof statusOrder] ?? 5;
+        const bOrder = statusOrder[b.orderStatus as keyof typeof statusOrder] ?? 5;
         
         if (aOrder !== bOrder) return aOrder - bOrder;
         
@@ -325,17 +325,17 @@ export default function OrdersSection() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge 
-                      className={getOrderStatusColor(order.status)}
+                      className={getOrderStatusColor(order.orderStatus)}
                       data-testid={`status-${order.id}`}
                     >
-                      {ORDER_STATUSES[order.status as keyof typeof ORDER_STATUSES] || order.status}
+                      {ORDER_STATUSES[order.orderStatus as keyof typeof ORDER_STATUSES] || order.orderStatus}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                     {formatDate(new Date(order.createdAt))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                    {order.status === 'pending' && (
+                    {order.orderStatus === 'queued' && (
                       <Button
                         size="sm"
                         onClick={() => handleStatusUpdate(order.id, 'preparing')}
@@ -345,7 +345,7 @@ export default function OrdersSection() {
                         Accept
                       </Button>
                     )}
-                    {order.status === 'preparing' && (
+                    {order.orderStatus === 'preparing' && (
                       <Button
                         size="sm"
                         onClick={() => handleStatusUpdate(order.id, 'ready')}
@@ -355,11 +355,11 @@ export default function OrdersSection() {
                         Ready
                       </Button>
                     )}
-                    {order.status === 'ready' && (
+                    {order.orderStatus === 'ready' && (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleStatusUpdate(order.id, 'completed')}
+                        onClick={() => handleStatusUpdate(order.id, 'served')}
                         data-testid={`button-complete-${order.id}`}
                       >
                         Complete
@@ -431,8 +431,8 @@ export default function OrdersSection() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm text-muted-foreground uppercase">Status</h3>
-                  <Badge className={getOrderStatusColor(viewingOrder.status)} data-testid="order-detail-status">
-                    {ORDER_STATUSES[viewingOrder.status as keyof typeof ORDER_STATUSES] || viewingOrder.status}
+                  <Badge className={getOrderStatusColor(viewingOrder.orderStatus)} data-testid="order-detail-status">
+                    {ORDER_STATUSES[viewingOrder.orderStatus as keyof typeof ORDER_STATUSES] || viewingOrder.orderStatus}
                   </Badge>
                 </div>
                 <div>
@@ -595,7 +595,7 @@ export default function OrdersSection() {
                 <div>
                   <p className="text-muted-foreground text-sm">Status</p>
                   <p className="font-medium text-primary capitalize">
-                    {ORDER_STATUSES[viewingReceipt.status as keyof typeof ORDER_STATUSES] || viewingReceipt.status}
+                    {ORDER_STATUSES[viewingReceipt.orderStatus as keyof typeof ORDER_STATUSES] || viewingReceipt.orderStatus}
                   </p>
                 </div>
               </div>

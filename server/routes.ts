@@ -158,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Update order status when payment is confirmed
-      if (notificationData.paymentStatus === 'paid' && order.status === 'pending') {
+      if (notificationData.paymentStatus === 'paid' && order.orderStatus === 'queued') {
         await storage.updateOrderStatus(order.id, 'preparing');
       }
 
@@ -477,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             qrisUrl: midtransPayment.qrisUrl,
             qrisString: midtransPayment.qrisString,
             paymentExpiredAt: midtransPayment.expiryTime ? new Date(midtransPayment.expiryTime) : new Date(Date.now() + 15 * 60 * 1000),
-            status: 'pending' as const
+            orderStatus: 'queued' as const
           };
 
           const order = await storage.createOrder(orderData);
@@ -510,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             qrisUrl: null,
             qrisString: null,
             paymentExpiredAt: new Date(Date.now() + 15 * 60 * 1000),
-            status: 'pending' as const
+            orderStatus: 'queued' as const
           };
 
           const order = await storage.createOrder(orderData);
@@ -542,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           qrisUrl: null,
           qrisString: null,
           paymentExpiredAt: new Date(Date.now() + 15 * 60 * 1000),
-          status: 'pending' as const
+          orderStatus: 'queued' as const
         };
 
         const order = await storage.createOrder(orderData);
@@ -614,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         total,
         paymentMethod: 'cash' as const,
         paymentStatus: 'paid' as const,
-        status: 'pending' as const
+        orderStatus: 'queued' as const
       };
 
       const order = await storage.createOrder(orderData);
@@ -699,8 +699,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         discount: 0,
         total: subtotal,
         paymentMethod: "cash", // Default for open bills
-        paymentStatus: "pending",
-        status: "open" // Set status to open for open bills
+        paymentStatus: "unpaid", // Use unpaid for open bills
+        payLater: true, // Mark as pay-later order
+        orderStatus: "queued" // Set status to queued for open bills
       };
 
       const newOrder = await storage.createOrder(orderData);
@@ -715,7 +716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/open-bills", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const allOrders = await storage.getOrders();
-      const openBills = allOrders.filter(order => order.status === 'open');
+      const openBills = allOrders.filter(order => order.payLater === true && order.paymentStatus !== 'paid');
       res.json(openBills);
     } catch (error) {
       res.status(500).json({ message: "Failed to get open bills" });
@@ -735,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let existingOpenBill = null;
       if (mode === 'replace' && billId) {
         existingOpenBill = await storage.getOrder(billId);
-        if (!existingOpenBill || existingOpenBill.status !== 'open') {
+        if (!existingOpenBill || existingOpenBill.payLater !== true || existingOpenBill.paymentStatus === 'paid') {
           return res.status(400).json({ message: "Open bill to edit not found or already processed" });
         }
       } else if (mode === 'create') {
@@ -804,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total: subtotal,
           paymentMethod: "cash",
           paymentStatus: "pending",
-          status: "open"
+          orderStatus: "queued"
         };
 
         const newOrder = await storage.createOrder(orderData);
@@ -831,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Order not found" });
       }
       
-      if (order.status !== 'open') {
+      if (order.orderStatus !== 'queued') {
         return res.status(400).json({ message: "Only open bills can be submitted" });
       }
       
@@ -859,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (statusResult.success) {
           // Update payment status based on Midtrans response
           let newPaymentStatus = order.paymentStatus;
-          let orderStatus = order.status;
+          let orderStatus = order.orderStatus;
           
           if (statusResult.transactionStatus === 'settlement' || statusResult.transactionStatus === 'capture') {
             newPaymentStatus = 'paid';
@@ -881,7 +882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             // Update order status if paid
-            if (newPaymentStatus === 'paid' && orderStatus !== order.status) {
+            if (newPaymentStatus === 'paid' && orderStatus !== order.orderStatus) {
               await storage.updateOrderStatus(id, orderStatus);
             }
           }

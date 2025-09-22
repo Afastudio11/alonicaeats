@@ -435,15 +435,15 @@ export class DatabaseStorage implements IStorage {
     return newOrder;
   }
 
-  async updateOrderStatus(id: string, status: string): Promise<Order | undefined> {
+  async updateOrderStatus(id: string, orderStatus: string): Promise<Order | undefined> {
     const [updated] = await db
       .update(orders)
-      .set({ status, updatedAt: new Date() })
+      .set({ orderStatus, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning();
     
     // If order is completed, deduct stock automatically
-    if (updated && status === 'completed') {
+    if (updated && orderStatus === 'served') {
       try {
         const orderItems = Array.isArray(updated.items) ? updated.items : [];
         const stockResult = await this.deductStock(orderItems.map((item: any) => ({
@@ -487,7 +487,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateOpenBillItems(id: string, newItems: any[], additionalSubtotal: number): Promise<Order | undefined> {
     const currentOrder = await this.getOrder(id);
-    if (!currentOrder || currentOrder.status !== 'open') {
+    if (!currentOrder || currentOrder.orderStatus !== 'queued') {
       return undefined;
     }
 
@@ -511,7 +511,7 @@ export class DatabaseStorage implements IStorage {
 
   async replaceOpenBillItems(id: string, newItems: any[], newSubtotal: number): Promise<Order | undefined> {
     const currentOrder = await this.getOrder(id);
-    if (!currentOrder || currentOrder.status !== 'open') {
+    if (!currentOrder || currentOrder.orderStatus !== 'queued') {
       return undefined;
     }
 
@@ -534,7 +534,7 @@ export class DatabaseStorage implements IStorage {
     const [order] = await db
       .select()
       .from(orders)
-      .where(sql`${orders.tableNumber} = ${tableNumber} AND ${orders.status} = 'open'`)
+      .where(sql`${orders.tableNumber} = ${tableNumber} AND ${orders.orderStatus} = 'queued'`)
       .orderBy(desc(orders.createdAt))
       .limit(1);
     return order || undefined;

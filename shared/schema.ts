@@ -3,6 +3,18 @@ import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Enums
+export const PaymentMethodEnum = z.enum(['qris', 'cash', 'pay_later']);
+export const PaymentStatusEnum = z.enum(['pending', 'paid', 'failed', 'expired', 'unpaid', 'refunded']);
+export const OrderStatusEnum = z.enum(['queued', 'preparing', 'ready', 'served', 'cancelled']);
+export const ReservationStatusEnum = z.enum(['pending', 'confirmed', 'completed', 'cancelled']);
+
+// Type aliases for better TypeScript support
+export type PaymentMethod = z.infer<typeof PaymentMethodEnum>;
+export type PaymentStatus = z.infer<typeof PaymentStatusEnum>;
+export type OrderStatus = z.infer<typeof OrderStatusEnum>;
+export type ReservationStatus = z.infer<typeof ReservationStatusEnum>;
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -37,8 +49,9 @@ export const orders = pgTable("orders", {
   subtotal: integer("subtotal").notNull(),
   discount: integer("discount").notNull().default(0),
   total: integer("total").notNull(),
-  paymentMethod: text("payment_method").notNull().default("qris"), // only 'qris' now
-  paymentStatus: text("payment_status").notNull().default("pending"), // 'pending', 'paid', 'failed', 'expired'
+  paymentMethod: text("payment_method").notNull().default("qris"), // 'qris', 'cash', 'pay_later'
+  paymentStatus: text("payment_status").notNull().default("pending"), // 'pending', 'paid', 'failed', 'expired', 'unpaid', 'refunded'
+  payLater: boolean("pay_later").notNull().default(false), // true for eat-first-pay-later orders
   midtransOrderId: text("midtrans_order_id"), // Midtrans order ID
   midtransTransactionId: text("midtrans_transaction_id"), // Midtrans transaction ID
   midtransTransactionStatus: text("midtrans_transaction_status"), // Midtrans status
@@ -46,7 +59,7 @@ export const orders = pgTable("orders", {
   qrisString: text("qris_string"), // QRIS raw string for QR generation
   paymentExpiredAt: timestamp("payment_expired_at"), // Payment expiry time
   paidAt: timestamp("paid_at"), // When payment was completed
-  status: text("status").notNull().default("pending"), // 'open', 'pending', 'preparing', 'ready', 'completed'
+  orderStatus: text("order_status").notNull().default("queued"), // 'queued', 'preparing', 'ready', 'served', 'cancelled'
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
@@ -122,6 +135,10 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  paymentMethod: PaymentMethodEnum,
+  paymentStatus: PaymentStatusEnum,
+  orderStatus: OrderStatusEnum,
 });
 
 export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit({
@@ -144,6 +161,8 @@ export const insertReservationSchema = createInsertSchema(reservations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  status: ReservationStatusEnum,
 });
 
 // Types

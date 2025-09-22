@@ -4,10 +4,11 @@ export const MENU_CATEGORIES = {
 } as const;
 
 export const ORDER_STATUSES = {
-  pending: 'Pending',
+  queued: 'Queued',
   preparing: 'Preparing',
   ready: 'Ready',
-  completed: 'Completed'
+  served: 'Served',
+  cancelled: 'Cancelled'
 } as const;
 
 export const PAYMENT_METHODS = {

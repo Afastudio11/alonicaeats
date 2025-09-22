@@ -180,22 +180,22 @@ export default function KitchenSection() {
     });
   };
 
-  // Filter orders for kitchen and bar - only pending and preparing orders
+  // Filter orders for kitchen and bar - only queued and preparing orders
   const allActiveOrders = orders.filter(order => 
-    order.status === 'pending' || order.status === 'preparing'
+    order.orderStatus === 'queued' || order.orderStatus === 'preparing'
   );
 
   // Separate orders by type - mixed orders appear in both tabs
   const kitchenOrders = allActiveOrders.filter(order => hasFoodItems(order));
   const barOrders = allActiveOrders.filter(order => hasDrinkItems(order));
 
-  // Separate pending and preparing orders for kitchen
-  const pendingKitchenOrders = kitchenOrders.filter(order => order.status === 'pending');
-  const preparingKitchenOrders = kitchenOrders.filter(order => order.status === 'preparing');
+  // Separate queued and preparing orders for kitchen
+  const pendingKitchenOrders = kitchenOrders.filter(order => order.orderStatus === 'queued');
+  const preparingKitchenOrders = kitchenOrders.filter(order => order.orderStatus === 'preparing');
 
-  // Separate pending and preparing orders for bar
-  const pendingBarOrders = barOrders.filter(order => order.status === 'pending');
-  const preparingBarOrders = barOrders.filter(order => order.status === 'preparing');
+  // Separate queued and preparing orders for bar
+  const pendingBarOrders = barOrders.filter(order => order.orderStatus === 'queued');
+  const preparingBarOrders = barOrders.filter(order => order.orderStatus === 'preparing');
 
   const handleStartCooking = (order: Order) => {
     updateStatusMutation.mutate({ orderId: order.id, status: 'preparing' });
@@ -540,7 +540,7 @@ interface KitchenOrderCardProps {
 
 function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrimary, filterType, menuItems = [], categories = [] }: KitchenOrderCardProps) {
   const orderItems = order.items as OrderItem[];
-  const statusColor = getOrderStatusColor(order.status);
+  const statusColor = getOrderStatusColor(order.orderStatus);
   
   // Filter items based on the current view (kitchen or bar)
   const filteredItems = filterType ? orderItems.filter(orderItem => {
@@ -569,7 +569,7 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
               className={statusColor}
               data-testid={`badge-order-status-${order.id}`}
             >
-              {order.status === 'pending' ? 'Menunggu' : (filterType === 'bar' ? 'Dibuat' : 'Dimasak')}
+              {order.orderStatus === 'queued' ? 'Menunggu' : (filterType === 'bar' ? 'Dibuat' : 'Dimasak')}
             </Badge>
             {filterType && (
               <Badge variant="outline" className="text-xs">
