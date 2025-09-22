@@ -158,7 +158,7 @@ export default function CashierSection() {
       queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
       toast({
         title: "Bill berhasil disubmit",
-        description: "Pembayaran berhasil diproses",
+        description: "Bill telah dikirim ke dapur untuk diproses",
       });
       setViewingBill(null);
       refetchOpenBills();
@@ -794,7 +794,7 @@ export default function CashierSection() {
                             className="w-full"
                           >
                             <Send className="h-4 w-4 mr-1" />
-                            Bayar Sekarang
+                            Kirim ke Dapur
                           </Button>
                         </div>
                       </CardContent>
@@ -1368,7 +1368,7 @@ export default function CashierSection() {
               disabled={submitOpenBillMutation.isPending}
             >
               <Send className="h-4 w-4 mr-2" />
-              Bayar Sekarang
+              Kirim ke Dapur
             </Button>
           </DialogFooter>
         </DialogContent>
