@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import rateLimit from 'express-rate-limit';
 import { storage } from "./storage";
-import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema } from "@shared/schema";
+import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, type InsertOrder } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
@@ -651,6 +651,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create open bill (Admin/Kasir only)
+  app.post("/api/orders/open-bill", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { customerName, tableNumber, items } = req.body;
+      
+      if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Customer name, table number, and items are required" });
+      }
+
+      // Calculate total server-side by fetching actual menu item prices
+      let subtotal = 0;
+      const itemDetails = [];
+      
+      for (const orderItem of items) {
+        const menuItem = await storage.getMenuItem(orderItem.itemId);
+        if (!menuItem || !menuItem.isAvailable) {
+          return res.status(400).json({ message: `Menu item ${orderItem.itemId} not found or unavailable` });
+        }
+        
+        const itemTotal = menuItem.price * orderItem.quantity;
+        subtotal += itemTotal;
+        
+        itemDetails.push({
+          itemId: menuItem.id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity: orderItem.quantity,
+          notes: orderItem.notes || ""
+        });
+      }
+
+      const orderData: InsertOrder = {
+        customerName: customerName.trim(),
+        tableNumber: tableNumber.trim(),
+        items: itemDetails,
+        subtotal,
+        discount: 0,
+        total: subtotal,
+        paymentMethod: "cash", // Default for open bills
+        paymentStatus: "pending",
+        status: "open" // Set status to open for open bills
+      };
+
+      const newOrder = await storage.createOrder(orderData);
+      res.json({ success: true, order: newOrder });
+    } catch (error) {
+      console.error('Open bill creation error:', error);
+      res.status(500).json({ message: "Failed to create open bill" });
+    }
+  });
+
+  // Get open bills (Admin/Kasir only)
+  app.get("/api/orders/open-bills", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const allOrders = await storage.getOrders();
+      const openBills = allOrders.filter(order => order.status === 'open');
+      res.json(openBills);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get open bills" });
+    }
+  });
+
+  // Submit open bill (convert to pending) (Admin/Kasir only)
+  app.patch("/api/orders/:id/submit", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const order = await storage.getOrder(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      if (order.status !== 'open') {
+        return res.status(400).json({ message: "Only open bills can be submitted" });
+      }
+      
+      const updatedOrder = await storage.updateOrderStatus(id, 'pending');
+      res.json({ success: true, order: updatedOrder });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to submit open bill" });
     }
   });
 

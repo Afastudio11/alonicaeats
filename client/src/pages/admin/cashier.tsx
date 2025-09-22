@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,10 @@ export default function CashierSection() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  
+  // Open bills state
+  const [showOpenBills, setShowOpenBills] = useState(false);
+  const [viewingBill, setViewingBill] = useState<Order | null>(null);
 
   // Load menu items and categories
   const { data: menuItems = [] } = useQuery<MenuItem[]>({
@@ -59,6 +63,11 @@ export default function CashierSection() {
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
+  });
+
+  // Load open bills
+  const { data: openBills = [], refetch: refetchOpenBills } = useQuery<Order[]>({
+    queryKey: ["/api/orders/open-bills"],
   });
 
   // Group menu items by category
@@ -88,6 +97,59 @@ export default function CashierSection() {
     onError: () => {
       toast({
         title: "Gagal membuat pesanan",
+        description: "Silakan coba lagi",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Create open bill mutation
+  const createOpenBillMutation = useMutation({
+    mutationFn: async (orderData: any) => {
+      const response = await apiRequest('POST', '/api/orders/open-bill', orderData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+      toast({
+        title: "Open Bill berhasil dibuat",
+        description: "Bill telah disimpan dan dapat diakses kapan saja",
+      });
+      // Reset form
+      setCustomerName("");
+      setTableNumber("");
+      setCart([]);
+      setNotes({});
+    },
+    onError: () => {
+      toast({
+        title: "Gagal membuat open bill",
+        description: "Silakan coba lagi",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Submit open bill mutation (convert to pending)
+  const submitOpenBillMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const response = await apiRequest('PATCH', `/api/orders/${orderId}/submit`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+      toast({
+        title: "Bill berhasil disubmit",
+        description: "Bill telah dikirim ke dapur untuk diproses",
+      });
+      setViewingBill(null);
+      refetchOpenBills();
+    },
+    onError: () => {
+      toast({
+        title: "Gagal submit bill",
         description: "Silakan coba lagi",
         variant: "destructive",
       });
@@ -274,6 +336,50 @@ export default function CashierSection() {
     // We'll create the order after payment is calculated
   };
 
+  // Create open bill
+  const handleCreateOpenBill = () => {
+    if (!customerName.trim()) {
+      toast({
+        title: "Nama customer diperlukan",
+        description: "Mohon masukkan nama customer",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!tableNumber.trim()) {
+      toast({
+        title: "Nomor meja diperlukan",
+        description: "Mohon masukkan nomor meja",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cart.length === 0) {
+      toast({
+        title: "Cart kosong",
+        description: "Mohon tambahkan item ke cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const orderData = {
+      customerName: customerName.trim(),
+      tableNumber: tableNumber.trim(),
+      items: cart.map(item => ({
+        itemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        notes: item.notes || ""
+      })),
+    };
+
+    createOpenBillMutation.mutate(orderData);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -289,6 +395,84 @@ export default function CashierSection() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Open Bills Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>Open Bills</span>
+                <Badge variant="secondary" data-testid="open-bills-count">
+                  {openBills.length}
+                </Badge>
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowOpenBills(!showOpenBills)}
+                data-testid="toggle-open-bills"
+              >
+                {showOpenBills ? 'Sembunyikan' : 'Tampilkan'} Open Bills
+              </Button>
+            </div>
+          </CardHeader>
+          {showOpenBills && (
+            <CardContent>
+              {openBills.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Tidak ada open bills</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {openBills.map((bill) => (
+                    <Card key={bill.id} className="border-l-4 border-l-yellow-500">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold text-foreground">{bill.customerName}</h4>
+                            <p className="text-sm text-muted-foreground">Meja {bill.tableNumber}</p>
+                          </div>
+                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+                            Open
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {new Date(bill.createdAt).toLocaleString('id-ID')}
+                        </p>
+                        <p className="font-semibold text-lg mb-3">
+                          {formatCurrency(bill.total)}
+                        </p>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setViewingBill(bill)}
+                            className="flex-1"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Lihat
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => submitOpenBillMutation.mutate(bill.id)}
+                            disabled={submitOpenBillMutation.isPending}
+                            className="flex-1"
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Submit
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -483,16 +667,29 @@ export default function CashierSection() {
                     </div>
                   </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    onClick={handleSubmitOrder}
-                    disabled={createOrderMutation.isPending}
-                    className="w-full"
-                    data-testid="button-submit-order"
-                  >
-                    <Calculator className="h-4 w-4 mr-2" />
-                    {createOrderMutation.isPending ? "Memproses..." : "Hitung Pembayaran"}
-                  </Button>
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleSubmitOrder}
+                      disabled={createOrderMutation.isPending}
+                      className="w-full"
+                      data-testid="button-submit-order"
+                    >
+                      <Calculator className="h-4 w-4 mr-2" />
+                      {createOrderMutation.isPending ? "Memproses..." : "Hitung Pembayaran"}
+                    </Button>
+                    
+                    <Button
+                      onClick={handleCreateOpenBill}
+                      disabled={createOpenBillMutation.isPending}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-create-open-bill"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      {createOpenBillMutation.isPending ? "Menyimpan..." : "Simpan sebagai Open Bill"}
+                    </Button>
+                  </div>
                 </>
               )}
             </CardContent>
@@ -694,6 +891,84 @@ export default function CashierSection() {
             >
               <Printer className="h-4 w-4 mr-2" />
               Print Struk
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Bill Dialog */}
+      <Dialog open={!!viewingBill} onOpenChange={() => setViewingBill(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5" />
+              <span>Detail Open Bill</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {viewingBill && (
+            <div className="space-y-4">
+              {/* Customer Info */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Customer:</span>
+                  <span className="font-medium">{viewingBill.customerName}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Meja:</span>
+                  <span className="font-medium">{viewingBill.tableNumber}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Dibuat:</span>
+                  <span className="font-medium">{new Date(viewingBill.createdAt).toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+              
+              {/* Order Items */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Items:</h4>
+                {Array.isArray(viewingBill.items) && viewingBill.items.map((item: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center py-2 border-b">
+                    <div>
+                      <span className="font-medium">{item.quantity}x {item.name}</span>
+                      {item.notes && (
+                        <p className="text-sm text-muted-foreground">Note: {item.notes}</p>
+                      )}
+                    </div>
+                    <span className="font-medium">
+                      {formatCurrency((item.price || 0) * (item.quantity || 0))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Total */}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total:</span>
+                  <span className="text-primary">{formatCurrency(viewingBill.total)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setViewingBill(null)}
+            >
+              Tutup
+            </Button>
+            <Button 
+              onClick={() => {
+                if (viewingBill) {
+                  submitOpenBillMutation.mutate(viewingBill.id);
+                }
+              }}
+              disabled={submitOpenBillMutation.isPending}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Submit ke Dapur
             </Button>
           </DialogFooter>
         </DialogContent>

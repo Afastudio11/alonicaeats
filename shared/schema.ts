@@ -46,7 +46,7 @@ export const orders = pgTable("orders", {
   qrisString: text("qris_string"), // QRIS raw string for QR generation
   paymentExpiredAt: timestamp("payment_expired_at"), // Payment expiry time
   paidAt: timestamp("paid_at"), // When payment was completed
-  status: text("status").notNull().default("pending"), // 'pending', 'preparing', 'ready', 'completed'
+  status: text("status").notNull().default("pending"), // 'open', 'pending', 'preparing', 'ready', 'completed'
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
