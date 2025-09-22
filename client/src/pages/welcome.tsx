@@ -306,6 +306,9 @@ export default function WelcomePage() {
         <DialogContent className="w-full max-w-sm mx-4">
           <DialogHeader>
             <DialogTitle className="text-center">Admin Login</DialogTitle>
+            <DialogDescription className="text-center">
+              Masukkan kredensial admin untuk mengakses dashboard.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input
