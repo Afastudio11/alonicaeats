@@ -31,8 +31,8 @@ export default function AnalyticsSection() {
     try {
       setIsGeneratingPdf(true);
       
-      // Ensure jspdf-autotable is loaded
-      await import('jspdf-autotable');
+      // Import autoTable function for ESM compatibility
+      const { default: autoTable } = await import('jspdf-autotable');
       
       // Validate analytics data
       if (!analytics || analytics.totalOrders === 0) {
@@ -79,11 +79,6 @@ export default function AnalyticsSection() {
       doc.setTextColor(220, 38, 38);
       doc.text('Top Menu Items', 20, 145);
       
-      // Verify autoTable is available
-      if (!(doc as any).autoTable) {
-        throw new Error('PDF table plugin not loaded');
-      }
-      
       try {
         const topItemsData = analytics.topItems && analytics.topItems.length > 0 
           ? analytics.topItems.map((item, index) => [
@@ -93,7 +88,7 @@ export default function AnalyticsSection() {
             ])
           : [['1', 'No data available', '0']];
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: 155,
           head: [['Rank', 'Menu Item', 'Orders']],
           body: topItemsData,
@@ -123,7 +118,7 @@ export default function AnalyticsSection() {
             ])
           : [['No data', formatCurrency(0)]];
         
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: finalY + 30,
           head: [['Date', 'Revenue']],
           body: dailySalesTableData,
@@ -160,7 +155,7 @@ export default function AnalyticsSection() {
               ])
             : [['No data', '0']];
           
-          (doc as any).autoTable({
+          autoTable(doc, {
             startY: 40,
             head: [['Hour', 'Orders']],
             body: hourlyOrdersTableData,
@@ -192,7 +187,7 @@ export default function AnalyticsSection() {
               ])
             : [['No data', '0']];
           
-          (doc as any).autoTable({
+          autoTable(doc, {
             startY: finalY + 30,
             head: [['Hour', 'Orders']],
             body: hourlyOrdersTableData,
