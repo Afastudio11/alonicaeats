@@ -1,17 +1,224 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Settings } from "lucide-react";
+import { Settings, Calendar, Clock, Phone, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation } from "@tanstack/react-query";
+
+const reservationSchema = z.object({
+  customerName: z.string().min(2, "Nama harus minimal 2 karakter"),
+  phoneNumber: z.string().min(10, "Nomor telepon harus minimal 10 digit").regex(/^[0-9+\-\s()]+$/, "Format nomor telepon tidak valid"),
+  guestCount: z.number().min(1, "Jumlah tamu minimal 1").max(20, "Jumlah tamu maksimal 20"),
+  reservationDate: z.string().min(1, "Tanggal reservasi harus diisi"),
+  reservationTime: z.string().min(1, "Waktu reservasi harus diisi"),
+  notes: z.string().optional(),
+});
+
+function ReservationForm({ onClose }: { onClose: () => void }) {
+  const { toast } = useToast();
+  
+  const form = useForm<z.infer<typeof reservationSchema>>({
+    resolver: zodResolver(reservationSchema),
+    defaultValues: {
+      customerName: "",
+      phoneNumber: "",
+      guestCount: 1,
+      reservationDate: "",
+      reservationTime: "",
+      notes: "",
+    },
+  });
+
+  const createReservationMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof reservationSchema>) => {
+      const response = await fetch("/api/reservations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to create reservation");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Reservasi berhasil dibuat!",
+        description: "Kami akan menghubungi Anda untuk konfirmasi reservasi.",
+      });
+      form.reset();
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Gagal membuat reservasi",
+        description: "Silakan coba lagi atau hubungi restoran langsung.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: z.infer<typeof reservationSchema>) => {
+    createReservationMutation.mutate(data);
+  };
+
+  // Generate time options (every 30 minutes from 10:00 to 22:00)
+  const timeOptions: string[] = [];
+  for (let hour = 10; hour <= 22; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      timeOptions.push(timeString);
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="customerName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nama Anda</FormLabel>
+              <FormControl>
+                <Input placeholder="Masukkan nama lengkap" {...field} data-testid="input-reservation-name" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="phoneNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nomor Telepon</FormLabel>
+              <FormControl>
+                <Input placeholder="08xxxxxxxxxx" {...field} data-testid="input-reservation-phone" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="guestCount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Jumlah Tamu</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="1"
+                  max="20"
+                  {...field}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                  data-testid="input-reservation-guests"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="reservationDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tanggal Reservasi</FormLabel>
+              <FormControl>
+                <Input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  {...field}
+                  data-testid="input-reservation-date"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="reservationTime"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Waktu Reservasi</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-reservation-time">
+                    <SelectValue placeholder="Pilih waktu" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {timeOptions.map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Catatan (Opsional)</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Permintaan khusus atau catatan lainnya"
+                  {...field}
+                  data-testid="input-reservation-notes"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="flex justify-end space-x-2">
+          <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel-reservation">
+            Batal
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={createReservationMutation.isPending}
+            data-testid="button-submit-reservation"
+          >
+            {createReservationMutation.isPending ? "Menyimpan..." : "Buat Reservasi"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
 
 export default function WelcomePage() {
   const [, setLocation] = useLocation();
   const [customerName, setCustomerName] = useState("");
   const [tableNumber, setTableNumber] = useState("");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showReservation, setShowReservation] = useState(false);
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const { login } = useAuth();
@@ -149,13 +356,39 @@ export default function WelcomePage() {
           />
         </div>
 
-        <Button
-          onClick={handleStartOrder}
-          className="w-full h-14 bg-transparent border-2 border-white text-white font-medium rounded-xl hover:bg-white hover:text-primary transition-all"
-          data-testid="button-start-order"
-        >
-          Pesan Sekarang
-        </Button>
+        <div className="space-y-3">
+          <Button
+            onClick={handleStartOrder}
+            className="w-full h-14 bg-transparent border-2 border-white text-white font-medium rounded-xl hover:bg-white hover:text-primary transition-all"
+            data-testid="button-start-order"
+          >
+            Pesan Sekarang
+          </Button>
+          
+          <div className="text-center text-white/70 text-sm">atau</div>
+          
+          <Dialog open={showReservation} onOpenChange={setShowReservation}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full h-14 bg-white/10 border-2 border-white/30 text-white font-medium rounded-xl hover:bg-white/20 transition-all"
+                data-testid="button-make-reservation"
+              >
+                <Calendar className="h-5 w-5 mr-2" />
+                Buat Reservasi
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Buat Reservasi
+                </DialogTitle>
+              </DialogHeader>
+              <ReservationForm onClose={() => setShowReservation(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   );
