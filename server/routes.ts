@@ -859,6 +859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total: subtotal,
           paymentMethod: "cash",
           paymentStatus: "pending",
+          payLater: true,
           orderStatus: "queued"
         };
 
