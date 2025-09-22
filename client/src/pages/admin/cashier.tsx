@@ -158,7 +158,7 @@ export default function CashierSection() {
       queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
       toast({
         title: "Bill berhasil disubmit",
-        description: "Bill telah dikirim ke dapur untuk diproses",
+        description: "Pembayaran berhasil diproses",
       });
       setViewingBill(null);
       refetchOpenBills();
