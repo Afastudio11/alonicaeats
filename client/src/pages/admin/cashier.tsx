@@ -129,7 +129,7 @@ export default function CashierSection() {
       // Show different messages based on whether it was created or updated
       toast({
         title: data.action === 'updated' ? "Open Bill berhasil diperbarui" : "Open Bill berhasil dibuat",
-        description: data.message || "Bill telah disimpan dan dapat diakses kapan saja",
+        description: data.message || "Bill telah disimpan dan otomatis dikirim ke dapur",
       });
       // Reset form
       setCustomerName("");
@@ -787,15 +787,13 @@ export default function CashierSection() {
                               Edit
                             </Button>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={() => submitOpenBillMutation.mutate(bill.id)}
-                            disabled={submitOpenBillMutation.isPending}
-                            className="w-full"
-                          >
-                            <Send className="h-4 w-4 mr-1" />
-                            Kirim ke Dapur
-                          </Button>
+                          <div className="w-full bg-green-50 border border-green-200 rounded-md p-2 text-center">
+                            <div className="flex items-center justify-center text-green-700">
+                              <Send className="h-4 w-4 mr-1" />
+                              <span className="text-sm font-medium">Sudah Masuk ke Dapur</span>
+                            </div>
+                            <p className="text-xs text-green-600 mt-1">Open bill otomatis dikirim ke dapur</p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1359,17 +1357,13 @@ export default function CashierSection() {
             >
               Tutup
             </Button>
-            <Button 
-              onClick={() => {
-                if (viewingBill) {
-                  submitOpenBillMutation.mutate(viewingBill.id);
-                }
-              }}
-              disabled={submitOpenBillMutation.isPending}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Kirim ke Dapur
-            </Button>
+            <div className="bg-green-50 border border-green-200 rounded-md px-4 py-2">
+              <div className="flex items-center text-green-700">
+                <Send className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">Sudah Masuk ke Dapur</span>
+              </div>
+              <p className="text-xs text-green-600 mt-1">Open bill otomatis dikirim ke dapur</p>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
