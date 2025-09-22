@@ -508,6 +508,27 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
+  async replaceOpenBillItems(id: string, newItems: any[], newSubtotal: number): Promise<Order | undefined> {
+    const currentOrder = await this.getOrder(id);
+    if (!currentOrder || currentOrder.status !== 'open') {
+      return undefined;
+    }
+
+    const newTotal = newSubtotal; // No discount for now
+
+    const [updated] = await db
+      .update(orders)
+      .set({ 
+        items: newItems,
+        subtotal: newSubtotal,
+        total: newTotal,
+        updatedAt: new Date() 
+      })
+      .where(eq(orders.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
   async getOpenBillByTable(tableNumber: string): Promise<Order | undefined> {
     const [order] = await db
       .select()

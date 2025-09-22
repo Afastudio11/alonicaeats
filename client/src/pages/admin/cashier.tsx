@@ -55,6 +55,7 @@ export default function CashierSection() {
   // Open bills state
   const [showOpenBills, setShowOpenBills] = useState(false);
   const [viewingBill, setViewingBill] = useState<Order | null>(null);
+  const [editingBill, setEditingBill] = useState<Order | null>(null);
   
   // Split bill state
   const [showSplitBill, setShowSplitBill] = useState(false);
@@ -135,6 +136,7 @@ export default function CashierSection() {
       setTableNumber("");
       setCart([]);
       setNotes({});
+      setEditingBill(null);
     },
     onError: () => {
       toast({
@@ -415,6 +417,31 @@ export default function CashierSection() {
     setCashAmount("");
   };
 
+  // Edit existing open bill
+  const handleEditOpenBill = (bill: Order) => {
+    // Load bill data into current form
+    setCustomerName(bill.customerName);
+    setTableNumber(bill.tableNumber);
+    setEditingBill(bill);
+    
+    // Convert bill items to cart format
+    const billItems = Array.isArray(bill.items) ? bill.items : [];
+    const cartItems: CartItem[] = billItems.map((item: any) => ({
+      id: item.itemId || item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      notes: item.notes || ""
+    }));
+    
+    setCart(cartItems);
+    
+    toast({
+      title: "Open Bill dimuat",
+      description: `Bill untuk ${bill.customerName} - Meja ${bill.tableNumber} dimuat untuk editing`,
+    });
+  };
+
   // Create open bill
   const handleCreateOpenBill = () => {
     if (!customerName.trim()) {
@@ -467,7 +494,12 @@ export default function CashierSection() {
       return;
     }
 
-    createOpenBillMutation.mutate(orderData);
+    // If editing existing bill, add editingBillId to the request
+    if (editingBill) {
+      createOpenBillMutation.mutate({ ...orderData, editingBillId: editingBill.id });
+    } else {
+      createOpenBillMutation.mutate(orderData);
+    }
   };
 
   // Cancel split bill
@@ -726,24 +758,36 @@ export default function CashierSection() {
                         <p className="font-semibold text-lg mb-3">
                           {formatCurrency(bill.total)}
                         </p>
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setViewingBill(bill)}
-                            className="flex-1"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Lihat
-                          </Button>
+                        <div className="space-y-2">
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setViewingBill(bill)}
+                              className="flex-1"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Lihat
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditOpenBill(bill)}
+                              className="flex-1"
+                              data-testid={`button-edit-bill-${bill.id}`}
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
                           <Button
                             size="sm"
                             onClick={() => submitOpenBillMutation.mutate(bill.id)}
                             disabled={submitOpenBillMutation.isPending}
-                            className="flex-1"
+                            className="w-full"
                           >
                             <Send className="h-4 w-4 mr-1" />
-                            Submit
+                            Submit ke Dapur
                           </Button>
                         </div>
                       </CardContent>
@@ -826,9 +870,36 @@ export default function CashierSection() {
           {/* Customer Info */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="h-5 w-5" />
-                <span>Info Customer</span>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <User className="h-5 w-5" />
+                  <span>Info Customer</span>
+                  {editingBill && (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      Edit Mode
+                    </Badge>
+                  )}
+                </div>
+                {editingBill && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingBill(null);
+                      setCustomerName("");
+                      setTableNumber("");
+                      setCart([]);
+                      setNotes({});
+                      toast({
+                        title: "Edit dibatalkan",
+                        description: "Kembali ke mode buat pesanan baru",
+                      });
+                    }}
+                    data-testid="button-cancel-edit"
+                  >
+                    Batal Edit
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -985,7 +1056,11 @@ export default function CashierSection() {
                       data-testid="button-create-open-bill"
                     >
                       <FileText className="h-4 w-4 mr-2" />
-                      {createOpenBillMutation.isPending ? "Menyimpan..." : "Simpan sebagai Open Bill"}
+                      {createOpenBillMutation.isPending 
+                        ? "Menyimpan..." 
+                        : editingBill 
+                          ? "Update Open Bill" 
+                          : "Simpan sebagai Open Bill"}
                     </Button>
                     
                     <Button
