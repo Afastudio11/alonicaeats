@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import type { Order } from "@shared/schema";
 
 const TIME_PERIODS = [
@@ -31,6 +30,14 @@ export default function AnalyticsSection() {
   const generatePDFReport = async () => {
     try {
       setIsGeneratingPdf(true);
+      
+      // Ensure jspdf-autotable is loaded
+      await import('jspdf-autotable');
+      
+      // Validate analytics data
+      if (!analytics || analytics.totalOrders === 0) {
+        throw new Error('No data available to generate report');
+      }
       
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
@@ -72,98 +79,142 @@ export default function AnalyticsSection() {
       doc.setTextColor(220, 38, 38);
       doc.text('Top Menu Items', 20, 145);
       
-      const topItemsData = analytics.topItems.map((item, index) => [
-        (index + 1).toString(),
-        item.name,
-        item.orders.toString()
-      ]);
+      // Verify autoTable is available
+      if (!(doc as any).autoTable) {
+        throw new Error('PDF table plugin not loaded');
+      }
       
-      (doc as any).autoTable({
-        startY: 155,
-        head: [['Rank', 'Menu Item', 'Orders']],
-        body: topItemsData,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 38, 38], textColor: 255 },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
-        margin: { left: 20, right: 20 },
-      });
+      try {
+        const topItemsData = analytics.topItems && analytics.topItems.length > 0 
+          ? analytics.topItems.map((item, index) => [
+              (index + 1).toString(),
+              item.name || 'Unknown Item',
+              (item.orders || 0).toString()
+            ])
+          : [['1', 'No data available', '0']];
+        
+        (doc as any).autoTable({
+          startY: 155,
+          head: [['Rank', 'Menu Item', 'Orders']],
+          body: topItemsData,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 20, right: 20 },
+        });
+      } catch (error) {
+        console.warn('Failed to generate Top Menu Items table:', error);
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Unable to generate Top Menu Items table', 20, 165);
+      }
       
       // Daily Sales Data Table
-      const finalY = (doc as any).lastAutoTable.finalY || 200;
+      let finalY = (doc as any).lastAutoTable?.finalY || 200;
       doc.setFontSize(14);
       doc.setTextColor(220, 38, 38);
       doc.text('Daily Sales Breakdown', 20, finalY + 20);
       
-      const dailySalesTableData = analytics.dailySalesData.map(item => [
-        item.date,
-        formatCurrency(item.revenue)
-      ]);
-      
-      (doc as any).autoTable({
-        startY: finalY + 30,
-        head: [['Date', 'Revenue']],
-        body: dailySalesTableData,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 38, 38], textColor: 255 },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
-        margin: { left: 20, right: 20 },
-      });
+      try {
+        const dailySalesTableData = analytics.dailySalesData && analytics.dailySalesData.length > 0
+          ? analytics.dailySalesData.map(item => [
+              item.date || 'N/A',
+              formatCurrency(item.revenue || 0)
+            ])
+          : [['No data', formatCurrency(0)]];
+        
+        (doc as any).autoTable({
+          startY: finalY + 30,
+          head: [['Date', 'Revenue']],
+          body: dailySalesTableData,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 20, right: 20 },
+        });
+        
+        // Update finalY for next section
+        finalY = (doc as any).lastAutoTable?.finalY || finalY + 80;
+      } catch (error) {
+        console.warn('Failed to generate Daily Sales table:', error);
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Unable to generate Daily Sales table', 20, finalY + 40);
+        finalY = finalY + 60;
+      }
       
       // Hourly Orders Pattern Table
-      const finalY1 = (doc as any).lastAutoTable.finalY || 280;
       
       // Check if we need a new page
-      if (finalY1 > 220) {
+      if (finalY > 220) {
         doc.addPage();
         doc.setFontSize(14);
         doc.setTextColor(220, 38, 38);
         doc.text('Hourly Orders Pattern', 20, 30);
         
-        const hourlyOrdersTableData = analytics.hourlyOrdersData.map(item => [
-          `${item.hour}:00`,
-          item.orders.toString()
-        ]);
-        
-        (doc as any).autoTable({
-          startY: 40,
-          head: [['Hour', 'Orders']],
-          body: hourlyOrdersTableData,
-          theme: 'grid',
-          headStyles: { fillColor: [220, 38, 38], textColor: 255 },
-          alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { left: 20, right: 20 },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 40 }
-          }
-        });
+        try {
+          const hourlyOrdersTableData = analytics.hourlyOrdersData && analytics.hourlyOrdersData.length > 0
+            ? analytics.hourlyOrdersData.map(item => [
+                `${item.hour || 0}:00`,
+                (item.orders || 0).toString()
+              ])
+            : [['No data', '0']];
+          
+          (doc as any).autoTable({
+            startY: 40,
+            head: [['Hour', 'Orders']],
+            body: hourlyOrdersTableData,
+            theme: 'grid',
+            headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 20, right: 20 },
+            columnStyles: {
+              0: { cellWidth: 40 },
+              1: { cellWidth: 40 }
+            }
+          });
+        } catch (error) {
+          console.warn('Failed to generate Hourly Orders table (new page):', error);
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          doc.text('Unable to generate Hourly Orders table', 20, 50);
+        }
       } else {
         doc.setFontSize(14);
         doc.setTextColor(220, 38, 38);
-        doc.text('Hourly Orders Pattern', 20, finalY1 + 20);
+        doc.text('Hourly Orders Pattern', 20, finalY + 20);
         
-        const hourlyOrdersTableData = analytics.hourlyOrdersData.map(item => [
-          `${item.hour}:00`,
-          item.orders.toString()
-        ]);
-        
-        (doc as any).autoTable({
-          startY: finalY1 + 30,
-          head: [['Hour', 'Orders']],
-          body: hourlyOrdersTableData,
-          theme: 'grid',
-          headStyles: { fillColor: [220, 38, 38], textColor: 255 },
-          alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { left: 20, right: 20 },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 40 }
-          }
-        });
+        try {
+          const hourlyOrdersTableData = analytics.hourlyOrdersData && analytics.hourlyOrdersData.length > 0
+            ? analytics.hourlyOrdersData.map(item => [
+                `${item.hour || 0}:00`,
+                (item.orders || 0).toString()
+              ])
+            : [['No data', '0']];
+          
+          (doc as any).autoTable({
+            startY: finalY + 30,
+            head: [['Hour', 'Orders']],
+            body: hourlyOrdersTableData,
+            theme: 'grid',
+            headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 20, right: 20 },
+            columnStyles: {
+              0: { cellWidth: 40 },
+              1: { cellWidth: 40 }
+            }
+          });
+        } catch (error) {
+          console.warn('Failed to generate Hourly Orders table (same page):', error);
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          doc.text('Unable to generate Hourly Orders table', 20, finalY + 40);
+        }
       }
       
       // Payment Methods
-      const finalY2 = (doc as any).lastAutoTable.finalY || 280;
+      const finalY2 = (doc as any).lastAutoTable?.finalY || 280;
       if (finalY2 > 250) {
         doc.addPage();
         doc.setFontSize(14);
@@ -206,9 +257,11 @@ export default function AnalyticsSection() {
       
     } catch (error) {
       console.error('PDF generation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Detailed error:', errorMessage);
       toast({
         title: "PDF Generation Failed",
-        description: "There was an error generating the PDF report. Please try again.",
+        description: `Error: ${errorMessage}. Please try again.`,
         variant: "destructive",
       });
     } finally {
