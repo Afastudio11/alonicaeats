@@ -716,7 +716,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/open-bills", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const allOrders = await storage.getOrders();
-      const openBills = allOrders.filter(order => order.payLater === true && order.paymentStatus !== 'paid');
+      // More robust filtering for open bills to handle boolean conversion issues
+      const openBills = allOrders.filter(order => {
+        const isPayLater = Boolean(order.payLater);
+        const isNotPaid = order.paymentStatus !== 'paid';
+        const isQueued = order.orderStatus === 'queued' || order.orderStatus === 'pending';
+        return isPayLater && isNotPaid && isQueued;
+      });
       res.json(openBills);
     } catch (error) {
       res.status(500).json({ message: "Failed to get open bills" });
@@ -1094,7 +1100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = reservationSchemaWithCoercion.parse({
         ...rest,
         reservationDate: reservationDateTime,
-        reservationTime
+        reservationTime,
+        status: "pending" // Default status for new reservations
       });
       
       const reservation = await storage.createReservation(validatedData);

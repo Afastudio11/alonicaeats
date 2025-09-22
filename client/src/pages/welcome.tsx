@@ -258,11 +258,25 @@ export default function WelcomePage() {
     try {
       await login(adminUsername, adminPassword);
       setShowAdminLogin(false);
-      setLocation("/admin");
-      toast({
-        title: "Login berhasil",
-        description: "Selamat datang di admin dashboard",
-      });
+      
+      // Get user from auth hook after successful login
+      const savedUser = localStorage.getItem('alonica-user');
+      const userData = savedUser ? JSON.parse(savedUser) : null;
+      
+      // Redirect based on user role
+      if (userData?.role === 'kasir') {
+        setLocation("/kasir/orders");
+        toast({
+          title: "Login berhasil",
+          description: "Selamat datang di kasir dashboard",
+        });
+      } else {
+        setLocation("/admin");
+        toast({
+          title: "Login berhasil",
+          description: "Selamat datang di admin dashboard",
+        });
+      }
     } catch (error) {
       toast({
         title: "Login gagal",
