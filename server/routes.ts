@@ -725,20 +725,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create or update open bill (Admin/Kasir only) - checks for existing open bill for table
   app.post("/api/orders/open-bill-smart", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
-      const { customerName, tableNumber, items, editingBillId } = req.body;
+      const { customerName, tableNumber, items, mode = 'create', billId } = req.body;
       
       if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Customer name, table number, and items are required" });
       }
 
-      // Check if we're editing a specific bill or if there's already an open bill for this table
+      // Check if we're replacing a specific bill or if there's already an open bill for this table
       let existingOpenBill = null;
-      if (editingBillId) {
-        existingOpenBill = await storage.getOrder(editingBillId);
+      if (mode === 'replace' && billId) {
+        existingOpenBill = await storage.getOrder(billId);
         if (!existingOpenBill || existingOpenBill.status !== 'open') {
           return res.status(400).json({ message: "Open bill to edit not found or already processed" });
         }
-      } else {
+      } else if (mode === 'create') {
+        // Check for existing open bill for this table (for smart appending)
         existingOpenBill = await storage.getOpenBillByTable(tableNumber.trim());
       }
 
@@ -765,8 +766,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (existingOpenBill) {
-        if (editingBillId) {
-          // When editing, replace the entire bill content
+        if (mode === 'replace') {
+          // When replacing, replace the entire bill content
           const updatedOrder = await storage.replaceOpenBillItems(existingOpenBill.id, itemDetails, subtotal);
           if (updatedOrder) {
             res.json({ 
@@ -779,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             res.status(500).json({ message: "Failed to update open bill" });
           }
         } else {
-          // When not editing, add items to existing bill
+          // When creating and bill exists for table, add items to existing bill
           const updatedOrder = await storage.updateOpenBillItems(existingOpenBill.id, itemDetails, subtotal);
           if (updatedOrder) {
             res.json({ 

@@ -40,6 +40,7 @@ export interface IStorage {
     paidAt?: Date;
   }): Promise<Order | undefined>;
   updateOpenBillItems(id: string, newItems: any[], additionalSubtotal: number): Promise<Order | undefined>;
+  replaceOpenBillItems(id: string, newItems: any[], newSubtotal: number): Promise<Order | undefined>;
   getOpenBillByTable(tableNumber: string): Promise<Order | undefined>;
 
   // Inventory

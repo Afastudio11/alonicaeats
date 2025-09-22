@@ -494,11 +494,18 @@ export default function CashierSection() {
       return;
     }
 
-    // If editing existing bill, add editingBillId to the request
+    // If editing existing bill, add mode and billId to the request
     if (editingBill) {
-      createOpenBillMutation.mutate({ ...orderData, editingBillId: editingBill.id });
+      createOpenBillMutation.mutate({ 
+        ...orderData, 
+        mode: 'replace',
+        billId: editingBill.id 
+      });
     } else {
-      createOpenBillMutation.mutate(orderData);
+      createOpenBillMutation.mutate({ 
+        ...orderData, 
+        mode: 'create' 
+      });
     }
   };
 
@@ -923,6 +930,7 @@ export default function CashierSection() {
                   value={tableNumber}
                   onChange={(e) => setTableNumber(e.target.value)}
                   placeholder="Masukkan nomor meja"
+                  disabled={!!editingBill}
                   data-testid="input-table-number"
                 />
               </div>
