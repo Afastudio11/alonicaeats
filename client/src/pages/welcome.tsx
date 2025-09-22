@@ -4,7 +4,7 @@ import { Settings, Calendar, Clock, Phone, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
@@ -401,6 +401,9 @@ export default function WelcomePage() {
                   <Calendar className="h-5 w-5" />
                   Buat Reservasi
                 </DialogTitle>
+                <DialogDescription>
+                  Buat reservasi meja untuk tanggal dan waktu yang diinginkan.
+                </DialogDescription>
               </DialogHeader>
               <ReservationForm onClose={() => setShowReservation(false)} />
             </DialogContent>

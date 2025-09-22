@@ -82,7 +82,7 @@ export const getQueryFn: <T>(options: {
 
     // Auto-inject auth header for admin routes if token exists
     const token = localStorage.getItem('alonica-token');
-    if (token && (url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/store-profile') || url.includes('/api/reservations'))) {
+    if (token && (url.includes('/api/categories') || url.includes('/api/menu') || url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/store-profile') || url.includes('/api/auth/logout') || url.includes('/api/objects') || url.includes('/api/reservations'))) {
       headers.Authorization = `Bearer ${token}`;
     }
 

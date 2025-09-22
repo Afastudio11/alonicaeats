@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -163,6 +163,9 @@ export default function InventorySection() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Inventory Item</DialogTitle>
+                <DialogDescription>
+                  Tambah item baru ke inventory dengan detail stok dan supplier.
+                </DialogDescription>
               </DialogHeader>
               <InventoryItemForm
                 onSubmit={(item) => createItemMutation.mutate(item)}

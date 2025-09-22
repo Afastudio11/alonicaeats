@@ -12,11 +12,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
+interface User {
+  id: string;
+  username: string;
+  role: string;
+}
+
 interface KasirSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   currentSection: string;
-  user: any;
+  user: User | null;
 }
 
 const menuItems = [
@@ -65,7 +71,7 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-primary-foreground">
-                  {user?.username?.charAt(0).toUpperCase()}
+                  {user?.username?.[0]?.toUpperCase() ?? '?'}
                 </span>
               </div>
               <div>
@@ -82,20 +88,20 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
               const isActive = currentSection === item.id;
               
               return (
-                <Link key={item.id} href={item.path}>
-                  <a
-                    className={cn(
-                      "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                      isActive 
-                        ? "bg-primary text-primary-foreground" 
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                    data-testid={`nav-${item.id}`}
-                    onClick={onClose}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{item.label}</span>
-                  </a>
+                <Link 
+                  key={item.id} 
+                  href={item.path}
+                  className={cn(
+                    "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    isActive 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  data-testid={`nav-${item.id}`}
+                  onClick={onClose}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
