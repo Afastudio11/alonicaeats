@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const reservationSchema = z.object({
   customerName: z.string().min(2, "Nama harus minimal 2 karakter"),
@@ -25,6 +25,7 @@ const reservationSchema = z.object({
 
 function ReservationForm({ onClose }: { onClose: () => void }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const form = useForm<z.infer<typeof reservationSchema>>({
     resolver: zodResolver(reservationSchema),
@@ -53,6 +54,8 @@ function ReservationForm({ onClose }: { onClose: () => void }) {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate reservations query to refresh admin dashboard
+      queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
       toast({
         title: "Reservasi berhasil dibuat!",
         description: "Kami akan menghubungi Anda untuk konfirmasi reservasi.",
