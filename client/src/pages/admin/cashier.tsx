@@ -617,7 +617,7 @@ export default function CashierSection() {
     }, 0);
   };
 
-  const handleSplitPayment = (part: {id: number, items: CartItem[], customerName: string}) => {
+  const handleSplitPayment = (part: {id: number, items: CartItem[], customerName: string, paid?: boolean}) => {
     // Early return if split already paid
     if (part.paid) {
       toast({
