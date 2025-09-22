@@ -4,8 +4,6 @@ import KasirSidebar from "@/components/kasir/sidebar";
 import OrdersSection from "@/pages/admin/orders";
 import KitchenSection from "@/pages/admin/kitchen";
 import CashierSection from "@/pages/admin/cashier";
-import InventorySection from "@/pages/admin/inventory";
-import CustomerSection from "@/pages/kasir/customer";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -55,13 +53,13 @@ export default function KasirDashboard() {
         return <KitchenSection />;
       case 'cashier':
         return <CashierSection />;
+      // Block restricted sections for kasir
       case 'customer':
-        return <CustomerSection />;
       case 'inventory':
-        return <InventorySection />;
-      // Block analytics and settings access for kasir
       case 'analytics':
       case 'settings':
+      case 'menu':
+      case 'categories':
         return (
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold text-foreground mb-2">Access Denied</h2>

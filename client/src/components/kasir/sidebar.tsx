@@ -20,11 +20,9 @@ interface KasirSidebarProps {
 }
 
 const menuItems = [
-  { id: 'orders', label: 'Orders', icon: ClipboardList, path: '/kasir/orders' },
-  { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
+  { id: 'orders', label: 'Menu Order', icon: ClipboardList, path: '/kasir/orders' },
   { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
-  { id: 'customer', label: 'Customer', icon: Users, path: '/kasir/customer' },
-  { id: 'inventory', label: 'Inventory', icon: Package, path: '/kasir/inventory' },
+  { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
 ];
 
 export default function KasirSidebar({ isOpen, onClose, currentSection, user }: KasirSidebarProps) {
