@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer, Calendar, Phone, Users, MoreHorizontal } from "lucide-react";
+import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -12,7 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
 import { printReceipt } from "@/utils/thermal-print";
-import type { Order, OrderItem, Reservation } from "@shared/schema";
+import type { Order, OrderItem } from "@shared/schema";
 
 export default function OrdersSection() {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -30,10 +30,6 @@ export default function OrdersSection() {
     staleTime: 0,
   });
 
-  const { data: reservations = [], isLoading: reservationsLoading } = useQuery<Reservation[]>({
-    queryKey: ["/api/reservations"],
-    refetchInterval: 5000,
-  });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
@@ -84,26 +80,6 @@ export default function OrdersSection() {
     }
   });
 
-  const updateReservationMutation = useMutation({
-    mutationFn: async ({ reservationId, status }: { reservationId: string; status: string }) => {
-      const response = await apiRequest('PATCH', `/api/reservations/${reservationId}`, { status });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
-      toast({
-        title: "Status reservasi berhasil diupdate",
-        description: "Status reservasi telah diperbarui",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Gagal update status",
-        description: "Silakan coba lagi",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Calculate stats
   const today = new Date().toDateString();
@@ -122,16 +98,7 @@ export default function OrdersSection() {
     updateStatusMutation.mutate({ orderId, status });
   };
 
-  const handleReservationUpdate = (reservationId: string, status: string) => {
-    updateReservationMutation.mutate({ reservationId, status });
-  };
 
-  // Filter today's reservations
-  const todayReservations = reservations.filter(reservation => {
-    const reservationDate = new Date(reservation.reservationDate);
-    const today = new Date();
-    return reservationDate.toDateString() === today.toDateString();
-  });
 
   // Helper function to check if order date matches filter
   const isOrderInDateRange = (order: Order, filter: string): boolean => {
@@ -255,119 +222,6 @@ export default function OrdersSection() {
         </div>
       </div>
 
-      {/* Today's Reservations */}
-      <Card className="alonica-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Reservasi Hari Ini ({todayReservations.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {reservationsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </div>
-          ) : todayReservations.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8" data-testid="text-no-reservations">
-              Tidak ada reservasi hari ini
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {todayReservations.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  className="border rounded-lg p-4 space-y-3"
-                  data-testid={`card-reservation-${reservation.id}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{reservation.customerName}</span>
-                    </div>
-                    <Badge 
-                      variant={
-                        reservation.status === 'confirmed' ? 'default' :
-                        reservation.status === 'pending' ? 'secondary' :
-                        reservation.status === 'cancelled' ? 'destructive' :
-                        'outline'
-                      }
-                    >
-                      {reservation.status}
-                    </Badge>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{reservation.phoneNumber}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{reservation.reservationTime}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>{reservation.guestCount} orang</span>
-                    </div>
-                    {reservation.notes && (
-                      <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                        {reservation.notes}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    {reservation.status === 'pending' && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => handleReservationUpdate(reservation.id, 'confirmed')}
-                          className="flex-1"
-                          data-testid={`button-confirm-${reservation.id}`}
-                        >
-                          Konfirmasi
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
-                          data-testid={`button-cancel-${reservation.id}`}
-                        >
-                          Batal
-                        </Button>
-                      </>
-                    )}
-                    {reservation.status === 'confirmed' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline" className="w-full">
-                            <MoreHorizontal className="h-4 w-4 mr-2" />
-                            Aksi
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() => handleReservationUpdate(reservation.id, 'completed')}
-                          >
-                            Selesai
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
-                            className="text-red-600"
-                          >
-                            Batalkan
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Recent Orders Table */}
       <div className="alonica-card overflow-hidden">
