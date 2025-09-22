@@ -9,16 +9,17 @@ const app = express();
 // Trust proxy for accurate client IP identification (required for Replit infrastructure)
 app.set('trust proxy', 1);
 
-// Security middleware
+// Security middleware - environment-specific CSP
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", ...(isProduction ? [] : ["'unsafe-inline'"])],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "*.unsplash.com", "*.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // unsafe-eval needed for Vite in development
-      connectSrc: ["'self'", "wss:", "ws:"],
+      scriptSrc: ["'self'", ...(isProduction ? [] : ["'unsafe-inline'", "'unsafe-eval'"])], // Dev-only unsafe directives
+      connectSrc: ["'self'", ...(isProduction ? [] : ["wss:", "ws:"])], // WebSocket only in dev for HMR
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -28,11 +29,38 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false // Disable COEP for compatibility
 }));
 
-// CORS configuration
+// CORS configuration with proper origin validation
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.REPLIT_DOMAINS?.split(',') || [], 'https://*.replit.app', 'https://*.repl.co'].flat() 
-    : true, // Allow all origins in development
+  origin: (origin, callback) => {
+    if (process.env.NODE_ENV !== 'production') {
+      // Allow all origins in development
+      return callback(null, true);
+    }
+    
+    // Production: strict origin validation
+    const allowedOrigins = [
+      ...(process.env.REPLIT_DOMAINS?.split(',').map(d => d.trim()) || []),
+    ];
+    
+    const replitPatterns = [
+      /^https:\/\/[\w-]+\.replit\.app$/,
+      /^https:\/\/[\w-]+\.repl\.co$/
+    ];
+    
+    if (!origin) return callback(null, true); // Allow same-origin requests
+    
+    // Check explicit allowlist
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Check replit domain patterns
+    if (replitPatterns.some(pattern => pattern.test(origin))) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -44,26 +72,12 @@ app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
+      // Only log method, path, status, and duration - no response bodies to prevent token leakage
+      const logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
   });
