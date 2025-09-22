@@ -545,7 +545,7 @@ export default function CashierSection() {
       return;
     }
 
-    const currentAssigned = getAssignedQuantity(cartItem.id);
+    const currentAssigned = getUnpaidAssignedQuantity(cartItem.id);
     const remainingQty = cartItem.quantity - currentAssigned;
     
     if (quantity > remainingQty) {
@@ -591,8 +591,17 @@ export default function CashierSection() {
   };
 
   const getAssignedQuantity = (cartItemId: string) => {
-    // Count items in ALL splits (paid and unpaid) to prevent over-assignment
+    // Count items in ALL splits (paid and unpaid) for display purposes
     return splitParts.reduce((total, part) => {
+      const item = part.items.find(item => item.id === cartItemId);
+      return total + (item?.quantity || 0);
+    }, 0);
+  };
+
+  const getUnpaidAssignedQuantity = (cartItemId: string) => {
+    // Count only items assigned to UNPAID splits for capacity calculations
+    return splitParts.reduce((total, part) => {
+      if (part.paid) return total; // Skip paid splits
       const item = part.items.find(item => item.id === cartItemId);
       return total + (item?.quantity || 0);
     }, 0);
@@ -607,6 +616,16 @@ export default function CashierSection() {
   };
 
   const handleSplitPayment = (part: {id: number, items: CartItem[], customerName: string}) => {
+    // Early return if split already paid
+    if (part.paid) {
+      toast({
+        title: "Split sudah dibayar",
+        description: "Split ini sudah dibayar sebelumnya",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!part.customerName.trim()) {
       toast({
         title: "Nama customer diperlukan",
