@@ -8,12 +8,18 @@ import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
 import { MidtransService } from "./midtrans-service";
 
-// Initialize Midtrans service
-let midtransService: MidtransService;
+// Initialize Midtrans service (graceful degradation for development)
+let midtransService: MidtransService | null = null;
 try {
-  midtransService = new MidtransService();
+  if (process.env.MIDTRANS_SERVER_KEY && process.env.MIDTRANS_CLIENT_KEY) {
+    midtransService = new MidtransService();
+    console.log('✅ Midtrans payment service initialized successfully');
+  } else {
+    console.log('ℹ️  Midtrans not configured - using mock QRIS for development');
+  }
 } catch (error) {
-  console.warn('Midtrans service not initialized:', error instanceof Error ? error.message : error);
+  console.warn('⚠️  Midtrans service initialization failed:', error instanceof Error ? error.message : error);
+  console.log('ℹ️  Using mock QRIS for development');
 }
 
 // Image file signature validation
