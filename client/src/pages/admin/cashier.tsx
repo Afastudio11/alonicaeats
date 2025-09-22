@@ -794,7 +794,7 @@ export default function CashierSection() {
                             className="w-full"
                           >
                             <Send className="h-4 w-4 mr-1" />
-                            Submit ke Dapur
+                            Bayar Sekarang
                           </Button>
                         </div>
                       </CardContent>
@@ -1368,7 +1368,7 @@ export default function CashierSection() {
               disabled={submitOpenBillMutation.isPending}
             >
               <Send className="h-4 w-4 mr-2" />
-              Submit ke Dapur
+              Bayar Sekarang
             </Button>
           </DialogFooter>
         </DialogContent>

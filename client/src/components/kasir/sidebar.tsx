@@ -23,6 +23,7 @@ const menuItems = [
   { id: 'orders', label: 'Menu Order', icon: ClipboardList, path: '/kasir/orders' },
   { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
+  { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
 ];
 
 export default function KasirSidebar({ isOpen, onClose, currentSection, user }: KasirSidebarProps) {
