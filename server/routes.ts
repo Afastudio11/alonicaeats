@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import rateLimit from 'express-rate-limit';
+import { ZodError } from 'zod';
 import { storage } from "./storage";
 import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, type InsertOrder } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -47,6 +48,48 @@ function detectImageMimeType(buffer: Buffer): string | null {
     }
   }
   return null;
+}
+
+// Error handling utilities
+interface ApiError {
+  message: string;
+  code?: string;
+  details?: any;
+}
+
+function formatZodError(error: ZodError): ApiError {
+  const details = error.errors.map(err => ({
+    field: err.path.join('.'),
+    message: err.message,
+    code: err.code
+  }));
+
+  return {
+    message: "Validation failed",
+    code: "VALIDATION_ERROR",
+    details
+  };
+}
+
+function sendErrorResponse(res: Response, status: number, error: string | ApiError) {
+  if (typeof error === 'string') {
+    return res.status(status).json({ message: error });
+  }
+  return res.status(status).json(error);
+}
+
+function handleApiError(res: Response, error: unknown, defaultMessage: string = "Internal server error") {
+  if (error instanceof ZodError) {
+    return sendErrorResponse(res, 400, formatZodError(error));
+  }
+  
+  if (error instanceof Error) {
+    console.error(`API Error: ${defaultMessage}`, error);
+    return sendErrorResponse(res, 500, defaultMessage);
+  }
+  
+  console.error(`Unknown API Error: ${defaultMessage}`, error);
+  return sendErrorResponse(res, 500, defaultMessage);
 }
 
 
@@ -280,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = await storage.createCategory(validatedData);
       res.status(201).json(category);
     } catch (error) {
-      res.status(400).json({ message: "Invalid category data" });
+      return handleApiError(res, error, "Failed to create category");
     }
   });
 
@@ -291,12 +334,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = await storage.updateCategory(id, validatedData);
       
       if (!category) {
-        return res.status(404).json({ message: "Category not found" });
+        return sendErrorResponse(res, 404, "Category not found");
       }
       
       res.json(category);
     } catch (error) {
-      res.status(400).json({ message: "Invalid category data" });
+      return handleApiError(res, error, "Failed to update category");
     }
   });
 
@@ -350,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const item = await storage.createMenuItem(validatedData);
       res.status(201).json(item);
     } catch (error) {
-      res.status(400).json({ message: "Invalid data" });
+      return handleApiError(res, error, "Failed to create menu item");
     }
   });
 
@@ -361,12 +404,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const item = await storage.updateMenuItem(id, validatedData);
       
       if (!item) {
-        return res.status(404).json({ message: "Menu item not found" });
+        return sendErrorResponse(res, 404, "Menu item not found");
       }
       
       res.json(item);
     } catch (error) {
-      res.status(400).json({ message: "Invalid data" });
+      return handleApiError(res, error, "Failed to update menu item");
     }
   });
 
@@ -644,19 +687,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { status } = req.body;
       
-      if (!status) {
-        return res.status(400).json({ message: "Status is required" });
+      // Basic validation for required field
+      if (!status || typeof status !== 'string') {
+        return sendErrorResponse(res, 400, {
+          message: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: [{ field: "status", message: "Status is required and must be a string" }]
+        });
       }
       
       const order = await storage.updateOrderStatus(id, status);
       
       if (!order) {
-        return res.status(404).json({ message: "Order not found" });
+        return sendErrorResponse(res, 404, "Order not found");
       }
       
       res.json(order);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      return handleApiError(res, error, "Failed to update order status");
     }
   });
 
@@ -947,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const item = await storage.createInventoryItem(validatedData);
       res.status(201).json(item);
     } catch (error) {
-      res.status(400).json({ message: "Invalid data" });
+      return handleApiError(res, error, "Failed to create inventory item");
     }
   });
 
@@ -958,12 +1006,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const item = await storage.updateInventoryItem(id, validatedData);
       
       if (!item) {
-        return res.status(404).json({ message: "Inventory item not found" });
+        return sendErrorResponse(res, 404, "Inventory item not found");
       }
       
       res.json(item);
     } catch (error) {
-      res.status(400).json({ message: "Invalid data" });
+      return handleApiError(res, error, "Failed to update inventory item");
     }
   });
 
