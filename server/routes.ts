@@ -969,7 +969,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/reservations", async (req, res) => {
     try {
-      const validatedData = insertReservationSchema.parse(req.body);
+      // Transform date string to Date object and combine with time
+      const { reservationDate, reservationTime, ...rest } = req.body;
+      
+      // Combine date and time into a single timestamp
+      const dateTimeString = `${reservationDate}T${reservationTime}:00`;
+      const reservationDateTime = new Date(dateTimeString);
+      
+      if (isNaN(reservationDateTime.getTime())) {
+        return res.status(400).json({ message: "Invalid date or time format" });
+      }
+      
+      // Use the schema with date coercion
+      const reservationSchemaWithCoercion = insertReservationSchema.extend({
+        reservationDate: insertReservationSchema.shape.reservationDate
+      });
+      
+      const validatedData = reservationSchemaWithCoercion.parse({
+        ...rest,
+        reservationDate: reservationDateTime,
+        reservationTime
+      });
+      
       const reservation = await storage.createReservation(validatedData);
       res.status(201).json(reservation);
     } catch (error) {
@@ -978,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/reservations/:id/status", requireAuth, requireAdminOrKasir, async (req, res) => {
+  app.patch("/api/reservations/:id", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
