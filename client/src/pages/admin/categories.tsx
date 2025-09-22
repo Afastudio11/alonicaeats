@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useErrorHandler } from "@/hooks/use-error-handler";
 import { apiRequest } from "@/lib/queryClient";
 import type { Category, InsertCategory } from "@shared/schema";
 
@@ -16,6 +18,8 @@ export default function CategoriesSection() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const { toast } = useToast();
+  const { createErrorHandler } = useErrorHandler();
+  const { confirm, dialog } = useConfirmDialog();
   const queryClient = useQueryClient();
 
   const { data: categories = [], isLoading } = useQuery<Category[]>({
@@ -35,13 +39,7 @@ export default function CategoriesSection() {
         description: "Kategori baru telah dibuat",
       });
     },
-    onError: () => {
-      toast({
-        title: "Gagal menambahkan kategori",
-        description: "Silakan coba lagi",
-        variant: "destructive",
-      });
-    }
+    onError: createErrorHandler("Gagal menambahkan kategori")
   });
 
   const updateCategoryMutation = useMutation({
@@ -57,26 +55,12 @@ export default function CategoriesSection() {
         description: "Kategori telah diperbarui",
       });
     },
-    onError: () => {
-      toast({
-        title: "Gagal update kategori",
-        description: "Silakan coba lagi",
-        variant: "destructive",
-      });
-    }
+    onError: createErrorHandler("Gagal update kategori")
   });
 
   const deleteCategoryMutation = useMutation({
     mutationFn: async (id: string) => {
-      try {
-        await apiRequest('DELETE', `/api/categories/${id}`);
-      } catch (error: any) {
-        // apiRequest throws on non-OK responses, so we need to check the error message
-        if (error.message.includes('409')) {
-          throw new Error("Category is in use and cannot be deleted");
-        }
-        throw error;
-      }
+      await apiRequest('DELETE', `/api/categories/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
@@ -85,15 +69,7 @@ export default function CategoriesSection() {
         description: "Kategori telah dihapus",
       });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Gagal menghapus kategori",
-        description: error.message === "Category is in use and cannot be deleted" 
-          ? "Kategori masih digunakan oleh menu item dan tidak dapat dihapus"
-          : "Silakan coba lagi",
-        variant: "destructive",
-      });
-    }
+    onError: createErrorHandler("Gagal menghapus kategori")
   });
 
   const handleToggleActive = (category: Category) => {
@@ -104,9 +80,13 @@ export default function CategoriesSection() {
   };
 
   const handleDelete = (category: Category) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus kategori "${category.name}"?`)) {
-      deleteCategoryMutation.mutate(category.id);
-    }
+    confirm({
+      title: "Hapus Kategori",
+      description: `Apakah Anda yakin ingin menghapus kategori "${category.name}"?`,
+      confirmText: "Hapus",
+      variant: "destructive",
+      onConfirm: () => deleteCategoryMutation.mutate(category.id),
+    });
   };
 
   if (isLoading) {
@@ -236,6 +216,8 @@ export default function CategoriesSection() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {dialog}
     </div>
   );
 }
