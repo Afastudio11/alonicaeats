@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, BarChart3, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, Clock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import type { Order } from "@shared/schema";
 
 const TIME_PERIODS = [
@@ -15,6 +18,8 @@ const TIME_PERIODS = [
 
 export default function AnalyticsSection() {
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const { toast } = useToast();
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
@@ -22,6 +27,194 @@ export default function AnalyticsSection() {
 
   // Calculate analytics based on orders
   const analytics = calculateAnalytics(orders, selectedPeriod);
+
+  const generatePDFReport = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Header
+      doc.setFontSize(20);
+      doc.setTextColor(220, 38, 38); // Primary red color
+      doc.text('ALONICA RESTAURANT', pageWidth / 2, 25, { align: 'center' });
+      
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Sales Analytics Report', pageWidth / 2, 35, { align: 'center' });
+      
+      // Period and date info
+      doc.setFontSize(12);
+      const currentDate = new Date().toLocaleDateString('id-ID', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      doc.text(`Period: ${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}`, 20, 50);
+      doc.text(`Generated: ${currentDate}`, 20, 60);
+      
+      // KPI Summary
+      doc.setFontSize(14);
+      doc.setTextColor(220, 38, 38);
+      doc.text('Key Performance Indicators', 20, 80);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Total Revenue: ${formatCurrency(analytics.totalRevenue)} (+${analytics.revenueGrowth}%)`, 20, 95);
+      doc.text(`Total Orders: ${analytics.totalOrders} (+${analytics.ordersGrowth}%)`, 20, 105);
+      doc.text(`Average Order Value: ${formatCurrency(analytics.averageOrderValue)} (-${analytics.aovChange}%)`, 20, 115);
+      doc.text(`Peak Hour: ${analytics.peakHour} (${analytics.peakHourOrders} orders)`, 20, 125);
+      
+      // Top Menu Items Table
+      doc.setFontSize(14);
+      doc.setTextColor(220, 38, 38);
+      doc.text('Top Menu Items', 20, 145);
+      
+      const topItemsData = analytics.topItems.map((item, index) => [
+        (index + 1).toString(),
+        item.name,
+        item.orders.toString()
+      ]);
+      
+      (doc as any).autoTable({
+        startY: 155,
+        head: [['Rank', 'Menu Item', 'Orders']],
+        body: topItemsData,
+        theme: 'grid',
+        headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { left: 20, right: 20 },
+      });
+      
+      // Daily Sales Data Table
+      const finalY = (doc as any).lastAutoTable.finalY || 200;
+      doc.setFontSize(14);
+      doc.setTextColor(220, 38, 38);
+      doc.text('Daily Sales Breakdown', 20, finalY + 20);
+      
+      const dailySalesTableData = analytics.dailySalesData.map(item => [
+        item.date,
+        formatCurrency(item.revenue)
+      ]);
+      
+      (doc as any).autoTable({
+        startY: finalY + 30,
+        head: [['Date', 'Revenue']],
+        body: dailySalesTableData,
+        theme: 'grid',
+        headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { left: 20, right: 20 },
+      });
+      
+      // Hourly Orders Pattern Table
+      const finalY1 = (doc as any).lastAutoTable.finalY || 280;
+      
+      // Check if we need a new page
+      if (finalY1 > 220) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.setTextColor(220, 38, 38);
+        doc.text('Hourly Orders Pattern', 20, 30);
+        
+        const hourlyOrdersTableData = analytics.hourlyOrdersData.map(item => [
+          `${item.hour}:00`,
+          item.orders.toString()
+        ]);
+        
+        (doc as any).autoTable({
+          startY: 40,
+          head: [['Hour', 'Orders']],
+          body: hourlyOrdersTableData,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 20, right: 20 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 40 }
+          }
+        });
+      } else {
+        doc.setFontSize(14);
+        doc.setTextColor(220, 38, 38);
+        doc.text('Hourly Orders Pattern', 20, finalY1 + 20);
+        
+        const hourlyOrdersTableData = analytics.hourlyOrdersData.map(item => [
+          `${item.hour}:00`,
+          item.orders.toString()
+        ]);
+        
+        (doc as any).autoTable({
+          startY: finalY1 + 30,
+          head: [['Hour', 'Orders']],
+          body: hourlyOrdersTableData,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 20, right: 20 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 40 }
+          }
+        });
+      }
+      
+      // Payment Methods
+      const finalY2 = (doc as any).lastAutoTable.finalY || 280;
+      if (finalY2 > 250) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.setTextColor(220, 38, 38);
+        doc.text('Payment Method Distribution', 20, 30);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Cash: ${analytics.paymentMethods.cash}%`, 20, 45);
+        doc.text(`QRIS: ${analytics.paymentMethods.qris}%`, 20, 55);
+      } else {
+        doc.setFontSize(14);
+        doc.setTextColor(220, 38, 38);
+        doc.text('Payment Method Distribution', 20, finalY2 + 20);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Cash: ${analytics.paymentMethods.cash}%`, 20, finalY2 + 35);
+        doc.text(`QRIS: ${analytics.paymentMethods.qris}%`, 20, finalY2 + 45);
+      }
+      
+      // Footer
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - 20, doc.internal.pageSize.height - 10, { align: 'right' });
+        doc.text('Generated by Alonica POS System', 20, doc.internal.pageSize.height - 10);
+      }
+      
+      // Save the PDF
+      const filename = `alonica-sales-report-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+      
+      toast({
+        title: "PDF Generated Successfully",
+        description: `Sales report downloaded as ${filename}`,
+      });
+      
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: "There was an error generating the PDF report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -44,20 +237,32 @@ export default function AnalyticsSection() {
 
   return (
     <div className="space-y-6">
-      {/* Time Period Tabs */}
-      <div className="flex space-x-1 bg-muted rounded-xl p-1 w-fit">
-        {TIME_PERIODS.map((period) => (
-          <Button
-            key={period.value}
-            variant={selectedPeriod === period.value ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setSelectedPeriod(period.value)}
-            className={selectedPeriod === period.value ? "bg-white text-primary" : ""}
-            data-testid={`button-period-${period.value}`}
-          >
-            {period.label}
-          </Button>
-        ))}
+      {/* Header with Download Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex space-x-1 bg-muted rounded-xl p-1 w-fit">
+          {TIME_PERIODS.map((period) => (
+            <Button
+              key={period.value}
+              variant={selectedPeriod === period.value ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setSelectedPeriod(period.value)}
+              className={selectedPeriod === period.value ? "bg-white text-primary" : ""}
+              data-testid={`button-period-${period.value}`}
+            >
+              {period.label}
+            </Button>
+          ))}
+        </div>
+        
+        <Button
+          onClick={generatePDFReport}
+          disabled={isGeneratingPdf || isLoading}
+          className="flex items-center gap-2"
+          data-testid="button-download-pdf"
+        >
+          <Download className="h-4 w-4" />
+          {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+        </Button>
       </div>
 
       {/* KPI Cards */}
