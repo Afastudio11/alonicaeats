@@ -49,8 +49,7 @@ export default function ReservationsSection() {
   const filteredReservations = useMemo(() => {
     return reservations.filter(reservation => {
       // Use string comparison to avoid timezone issues
-      const reservationDate = parse(reservation.reservationDate as string, 'yyyy-MM-dd', new Date());
-      const reservationDateStr = format(reservationDate, 'yyyy-MM-dd');
+      const reservationDateStr = format(reservation.reservationDate, 'yyyy-MM-dd');
       const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
       const dateMatch = reservationDateStr === selectedDateStr;
       const statusMatch = statusFilter === "all" || reservation.status === statusFilter;
@@ -66,11 +65,9 @@ export default function ReservationsSection() {
     const endRange = endOfDay(addDays(today, 6)); // Today + next 6 days
     
     return reservations.filter(reservation => {
-      const reservationDate = parse(reservation.reservationDate as string, 'yyyy-MM-dd', new Date());
-      return isWithinInterval(reservationDate, { start: startRange, end: endRange });
+      return isWithinInterval(reservation.reservationDate, { start: startRange, end: endRange });
     }).reduce((acc, reservation) => {
-      const reservationDate = parse(reservation.reservationDate as string, 'yyyy-MM-dd', new Date());
-      const dateKey = format(reservationDate, 'yyyy-MM-dd');
+      const dateKey = format(reservation.reservationDate, 'yyyy-MM-dd');
       if (!acc[dateKey]) {
         acc[dateKey] = [];
       }

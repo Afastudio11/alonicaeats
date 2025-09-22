@@ -722,6 +722,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create or update open bill (Admin/Kasir only) - checks for existing open bill for table
+  app.post("/api/orders/open-bill-smart", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { customerName, tableNumber, items } = req.body;
+      
+      if (!customerName || !tableNumber || !items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Customer name, table number, and items are required" });
+      }
+
+      // Check if there's already an open bill for this table
+      const existingOpenBill = await storage.getOpenBillByTable(tableNumber.trim());
+
+      // Calculate total server-side by fetching actual menu item prices
+      let subtotal = 0;
+      const itemDetails = [];
+      
+      for (const orderItem of items) {
+        const menuItem = await storage.getMenuItem(orderItem.itemId);
+        if (!menuItem || !menuItem.isAvailable) {
+          return res.status(400).json({ message: `Menu item ${orderItem.itemId} not found or unavailable` });
+        }
+        
+        const itemTotal = menuItem.price * orderItem.quantity;
+        subtotal += itemTotal;
+        
+        itemDetails.push({
+          itemId: menuItem.id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity: orderItem.quantity,
+          notes: orderItem.notes || ""
+        });
+      }
+
+      if (existingOpenBill) {
+        // Update existing open bill
+        const updatedOrder = await storage.updateOpenBillItems(existingOpenBill.id, itemDetails, subtotal);
+        if (updatedOrder) {
+          res.json({ 
+            success: true, 
+            order: updatedOrder,
+            action: 'updated',
+            message: `Berhasil menambah item ke open bill meja ${tableNumber}` 
+          });
+        } else {
+          res.status(500).json({ message: "Failed to update open bill" });
+        }
+      } else {
+        // Create new open bill
+        const orderData: InsertOrder = {
+          customerName: customerName.trim(),
+          tableNumber: tableNumber.trim(),
+          items: itemDetails,
+          subtotal,
+          discount: 0,
+          total: subtotal,
+          paymentMethod: "cash",
+          paymentStatus: "pending",
+          status: "open"
+        };
+
+        const newOrder = await storage.createOrder(orderData);
+        res.json({ 
+          success: true, 
+          order: newOrder,
+          action: 'created',
+          message: `Berhasil membuat open bill baru untuk meja ${tableNumber}` 
+        });
+      }
+    } catch (error) {
+      console.error('Smart open bill creation error:', error);
+      res.status(500).json({ message: "Failed to process open bill" });
+    }
+  });
+
   // Submit open bill (convert to pending) (Admin/Kasir only)
   app.patch("/api/orders/:id/submit", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {

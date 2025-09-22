@@ -39,6 +39,8 @@ export interface IStorage {
     paymentExpiredAt?: Date;
     paidAt?: Date;
   }): Promise<Order | undefined>;
+  updateOpenBillItems(id: string, newItems: any[], additionalSubtotal: number): Promise<Order | undefined>;
+  getOpenBillByTable(tableNumber: string): Promise<Order | undefined>;
 
   // Inventory
   getInventoryItems(): Promise<InventoryItem[]>;
@@ -480,6 +482,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(orders.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  async updateOpenBillItems(id: string, newItems: any[], additionalSubtotal: number): Promise<Order | undefined> {
+    const currentOrder = await this.getOrder(id);
+    if (!currentOrder || currentOrder.status !== 'open') {
+      return undefined;
+    }
+
+    const existingItems = Array.isArray(currentOrder.items) ? currentOrder.items : [];
+    const updatedItems = [...existingItems, ...newItems];
+    const newSubtotal = currentOrder.subtotal + additionalSubtotal;
+    const newTotal = newSubtotal; // No discount for now
+
+    const [updated] = await db
+      .update(orders)
+      .set({ 
+        items: updatedItems,
+        subtotal: newSubtotal,
+        total: newTotal,
+        updatedAt: new Date() 
+      })
+      .where(eq(orders.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getOpenBillByTable(tableNumber: string): Promise<Order | undefined> {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(sql`${orders.tableNumber} = ${tableNumber} AND ${orders.status} = 'open'`)
+      .orderBy(desc(orders.createdAt))
+      .limit(1);
+    return order || undefined;
   }
 
   // Inventory methods

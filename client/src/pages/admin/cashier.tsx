@@ -115,18 +115,20 @@ export default function CashierSection() {
     }
   });
 
-  // Create open bill mutation
+  // Create open bill mutation (smart - checks for existing bill for table)
   const createOpenBillMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      const response = await apiRequest('POST', '/api/orders/open-bill', orderData);
+      const response = await apiRequest('POST', '/api/orders/open-bill-smart', orderData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+      
+      // Show different messages based on whether it was created or updated
       toast({
-        title: "Open Bill berhasil dibuat",
-        description: "Bill telah disimpan dan dapat diakses kapan saja",
+        title: data.action === 'updated' ? "Open Bill berhasil diperbarui" : "Open Bill berhasil dibuat",
+        description: data.message || "Bill telah disimpan dan dapat diakses kapan saja",
       });
       // Reset form
       setCustomerName("");
@@ -136,7 +138,7 @@ export default function CashierSection() {
     },
     onError: () => {
       toast({
-        title: "Gagal membuat open bill",
+        title: "Gagal memproses open bill",
         description: "Silakan coba lagi",
         variant: "destructive",
       });
