@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChefHat, Clock, CheckCircle, Printer, Play, RefreshCw } from "lucide-react";
+import { ChefHat, Clock, CheckCircle, Printer, Play, RefreshCw, Wine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs as TabsContainer, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { printWithThermalSettings, getThermalPreference } from "@/utils/thermal-print";
-import type { Order, OrderItem } from "@shared/schema";
+import type { Order, OrderItem, Category, MenuItem } from "@shared/schema";
 
 export default function KitchenSection() {
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
+  const [activeTab, setActiveTab] = useState("kitchen");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -21,6 +23,16 @@ export default function KitchenSection() {
     refetchOnWindowFocus: true,
     refetchIntervalInBackground: true,
     staleTime: 0,
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    staleTime: 300000, // Cache for 5 minutes
+  });
+
+  const { data: menuItems = [] } = useQuery<MenuItem[]>({
+    queryKey: ["/api/menu"],
+    staleTime: 300000, // Cache for 5 minutes
   });
 
   const updateStatusMutation = useMutation({
@@ -127,36 +139,108 @@ export default function KitchenSection() {
     }
   });
 
-  // Filter orders for kitchen - only pending and preparing orders
-  const kitchenOrders = orders.filter(order => 
+  // Helper function to check if an order contains only drinks
+  const isDrinkOnlyOrder = (order: Order): boolean => {
+    const orderItems = order.items as OrderItem[];
+    if (!orderItems.length) return false;
+    
+    return orderItems.every(orderItem => {
+      const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+      if (!menuItem) return false;
+      
+      const category = categories.find(cat => cat.id === menuItem.categoryId);
+      return category?.name.toLowerCase().includes('minuman');
+    });
+  };
+
+  // Helper function to check if an order contains drink items
+  const hasDrinkItems = (order: Order): boolean => {
+    const orderItems = order.items as OrderItem[];
+    if (!orderItems.length) return false;
+    
+    return orderItems.some(orderItem => {
+      const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+      if (!menuItem) return false;
+      
+      const category = categories.find(cat => cat.id === menuItem.categoryId);
+      return category?.name.toLowerCase().includes('minuman');
+    });
+  };
+
+  // Helper function to check if an order contains food items
+  const hasFoodItems = (order: Order): boolean => {
+    const orderItems = order.items as OrderItem[];
+    if (!orderItems.length) return true; // Default to kitchen if no items found
+    
+    return orderItems.some(orderItem => {
+      const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+      if (!menuItem) return true; // Default to kitchen if menu item not found
+      
+      const category = categories.find(cat => cat.id === menuItem.categoryId);
+      return !category?.name.toLowerCase().includes('minuman');
+    });
+  };
+
+  // Filter orders for kitchen and bar - only pending and preparing orders
+  const allActiveOrders = orders.filter(order => 
     order.status === 'pending' || order.status === 'preparing'
   );
 
-  // Separate pending and preparing orders
-  const pendingOrders = kitchenOrders.filter(order => order.status === 'pending');
-  const preparingOrders = kitchenOrders.filter(order => order.status === 'preparing');
+  // Separate orders by type - mixed orders appear in both tabs
+  const kitchenOrders = allActiveOrders.filter(order => hasFoodItems(order));
+  const barOrders = allActiveOrders.filter(order => hasDrinkItems(order));
+
+  // Separate pending and preparing orders for kitchen
+  const pendingKitchenOrders = kitchenOrders.filter(order => order.status === 'pending');
+  const preparingKitchenOrders = kitchenOrders.filter(order => order.status === 'preparing');
+
+  // Separate pending and preparing orders for bar
+  const pendingBarOrders = barOrders.filter(order => order.status === 'pending');
+  const preparingBarOrders = barOrders.filter(order => order.status === 'preparing');
 
   const handleStartCooking = (order: Order) => {
     updateStatusMutation.mutate({ orderId: order.id, status: 'preparing' });
   };
 
-  const handleMarkReady = (orderId: string) => {
-    // First update to 'ready', then auto-complete to 'completed'
-    updateStatusMutation.mutate(
-      { orderId, status: 'ready' },
-      {
-        onSuccess: () => {
-          // After successfully marking as ready, automatically complete the order
-          setTimeout(() => {
-            autoCompleteMutation.mutate({ orderId });
-          }, 500); // Small delay to ensure the ready state is visible
+  const handleMarkReady = (orderId: string, fromStation?: "kitchen" | "bar") => {
+    const order = orders.find(o => o.id === orderId);
+    
+    // Only change order status to 'ready' if:
+    // 1. Called from kitchen, OR
+    // 2. Called from bar and the order contains only drinks
+    const shouldMarkReady = fromStation === 'kitchen' || 
+      (fromStation === 'bar' && order && isDrinkOnlyOrder(order));
+    
+    if (shouldMarkReady) {
+      // Update to 'ready'
+      updateStatusMutation.mutate(
+        { orderId, status: 'ready' },
+        {
+          onSuccess: () => {
+            // Auto-complete logic remains the same
+            const shouldAutoComplete = fromStation === 'kitchen' || 
+              (fromStation === 'bar' && order && isDrinkOnlyOrder(order));
+            
+            if (shouldAutoComplete) {
+              // After successfully marking as ready, automatically complete the order
+              setTimeout(() => {
+                autoCompleteMutation.mutate({ orderId });
+              }, 500); // Small delay to ensure the ready state is visible
+            }
+          }
         }
-      }
-    );
+      );
+    } else {
+      // For bar items in mixed orders, just show a message without changing order status
+      toast({
+        title: "Minuman siap",
+        description: "Minuman sudah siap, menunggu makanan selesai dari dapur",
+      });
+    }
   };
 
-  const printKitchenTicket = (order: Order) => {
-    setPrintingOrder(order);
+  const printKitchenTicket = (order: Order, station?: "kitchen" | "bar") => {
+    setPrintingOrder({ ...order, station } as any);
     // Use thermal printer with user preference
     setTimeout(() => {
       printWithThermalSettings(getThermalPreference());
@@ -183,7 +267,12 @@ export default function KitchenSection() {
       {/* Hidden print ticket - only visible during printing */}
       {printingOrder && (
         <div className="hidden print:block print:fixed print:inset-0 print:bg-white print:z-50">
-          <KitchenTicket order={printingOrder} />
+          <KitchenTicket 
+            order={printingOrder} 
+            filterType={(printingOrder as any).station}
+            menuItems={menuItems}
+            categories={categories}
+          />
         </div>
       )}
 
@@ -193,7 +282,7 @@ export default function KitchenSection() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ChefHat className="h-8 w-8 text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">Dapur</h2>
+            <h2 className="text-2xl font-bold text-foreground">Dapur & Bar</h2>
           </div>
           <Button
             variant="outline"
@@ -207,95 +296,217 @@ export default function KitchenSection() {
           </Button>
         </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="alonica-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Pesanan Baru</p>
-              <p className="text-3xl font-bold text-yellow-600" data-testid="stat-pending-orders">
-                {pendingOrders.length}
-              </p>
-            </div>
-            <Clock className="h-8 w-8 text-yellow-600" />
-          </div>
-        </div>
+        {/* Tabs for Kitchen and Bar */}
+        <TabsContainer defaultValue="kitchen" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="kitchen" className="flex items-center gap-2">
+              <ChefHat className="h-4 w-4" />
+              Dapur ({kitchenOrders.length})
+            </TabsTrigger>
+            <TabsTrigger value="bar" className="flex items-center gap-2">
+              <Wine className="h-4 w-4" />
+              Bar ({barOrders.length})
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="alonica-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Sedang Dimasak</p>
-              <p className="text-3xl font-bold text-blue-600" data-testid="stat-preparing-orders">
-                {preparingOrders.length}
-              </p>
-            </div>
-            <ChefHat className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
+          {/* Kitchen Tab Content */}
+          <TabsContent value="kitchen" className="space-y-6">
+            {/* Kitchen Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="alonica-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pesanan Baru</p>
+                    <p className="text-3xl font-bold text-yellow-600" data-testid="stat-pending-kitchen-orders">
+                      {pendingKitchenOrders.length}
+                    </p>
+                  </div>
+                  <Clock className="h-8 w-8 text-yellow-600" />
+                </div>
+              </div>
 
-        <div className="alonica-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Aktif</p>
-              <p className="text-3xl font-bold text-primary" data-testid="stat-total-active">
-                {kitchenOrders.length}
-              </p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-primary" />
-          </div>
-        </div>
-      </div>
+              <div className="alonica-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sedang Dimasak</p>
+                    <p className="text-3xl font-bold text-blue-600" data-testid="stat-preparing-kitchen-orders">
+                      {preparingKitchenOrders.length}
+                    </p>
+                  </div>
+                  <ChefHat className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
 
-      {/* Orders Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Orders */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Clock className="h-5 w-5 text-yellow-600" />
-            Pesanan Baru ({pendingOrders.length})
-          </h3>
-          {pendingOrders.map((order) => (
-            <KitchenOrderCard 
-              key={order.id} 
-              order={order} 
-              onStartCooking={() => handleStartCooking(order)}
-              onPrint={() => printKitchenTicket(order)}
-              isPrimary={true}
-            />
-          ))}
-          {pendingOrders.length === 0 && (
-            <div className="alonica-card p-8 text-center">
-              <p className="text-muted-foreground" data-testid="text-no-pending-orders">
-                Tidak ada pesanan baru
-              </p>
+              <div className="alonica-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Aktif</p>
+                    <p className="text-3xl font-bold text-primary" data-testid="stat-total-kitchen-active">
+                      {kitchenOrders.length}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                </div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Preparing Orders */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <ChefHat className="h-5 w-5 text-blue-600" />
-            Sedang Dimasak ({preparingOrders.length})
-          </h3>
-          {preparingOrders.map((order) => (
-            <KitchenOrderCard 
-              key={order.id} 
-              order={order} 
-              onMarkReady={() => handleMarkReady(order.id)}
-              onPrint={() => printKitchenTicket(order)}
-              isPrimary={false}
-            />
-          ))}
-          {preparingOrders.length === 0 && (
-            <div className="alonica-card p-8 text-center">
-              <p className="text-muted-foreground" data-testid="text-no-preparing-orders">
-                Tidak ada pesanan sedang dimasak
-              </p>
+            {/* Kitchen Orders Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pending Kitchen Orders */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-yellow-600" />
+                  Pesanan Baru ({pendingKitchenOrders.length})
+                </h3>
+                {pendingKitchenOrders.map((order) => (
+                  <KitchenOrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onStartCooking={() => handleStartCooking(order)}
+                    onPrint={() => printKitchenTicket(order, "kitchen")}
+                    isPrimary={true}
+                    filterType="kitchen"
+                    menuItems={menuItems}
+                    categories={categories}
+                  />
+                ))}
+                {pendingKitchenOrders.length === 0 && (
+                  <div className="alonica-card p-8 text-center">
+                    <p className="text-muted-foreground" data-testid="text-no-pending-kitchen-orders">
+                      Tidak ada pesanan makanan baru
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Preparing Kitchen Orders */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <ChefHat className="h-5 w-5 text-blue-600" />
+                  Sedang Dimasak ({preparingKitchenOrders.length})
+                </h3>
+                {preparingKitchenOrders.map((order) => (
+                  <KitchenOrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onMarkReady={() => handleMarkReady(order.id, "kitchen")}
+                    onPrint={() => printKitchenTicket(order, "kitchen")}
+                    isPrimary={false}
+                    filterType="kitchen"
+                    menuItems={menuItems}
+                    categories={categories}
+                  />
+                ))}
+                {preparingKitchenOrders.length === 0 && (
+                  <div className="alonica-card p-8 text-center">
+                    <p className="text-muted-foreground" data-testid="text-no-preparing-kitchen-orders">
+                      Tidak ada makanan sedang dimasak
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+          </TabsContent>
+
+          {/* Bar Tab Content */}
+          <TabsContent value="bar" className="space-y-6">
+            {/* Bar Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="alonica-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pesanan Baru</p>
+                    <p className="text-3xl font-bold text-yellow-600" data-testid="stat-pending-bar-orders">
+                      {pendingBarOrders.length}
+                    </p>
+                  </div>
+                  <Clock className="h-8 w-8 text-yellow-600" />
+                </div>
+              </div>
+
+              <div className="alonica-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sedang Dibuat</p>
+                    <p className="text-3xl font-bold text-purple-600" data-testid="stat-preparing-bar-orders">
+                      {preparingBarOrders.length}
+                    </p>
+                  </div>
+                  <Wine className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+
+              <div className="alonica-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Aktif</p>
+                    <p className="text-3xl font-bold text-primary" data-testid="stat-total-bar-active">
+                      {barOrders.length}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+            </div>
+
+            {/* Bar Orders Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pending Bar Orders */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-yellow-600" />
+                  Pesanan Baru ({pendingBarOrders.length})
+                </h3>
+                {pendingBarOrders.map((order) => (
+                  <KitchenOrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onStartCooking={() => handleStartCooking(order)}
+                    onPrint={() => printKitchenTicket(order, "bar")}
+                    isPrimary={true}
+                    filterType="bar"
+                    menuItems={menuItems}
+                    categories={categories}
+                  />
+                ))}
+                {pendingBarOrders.length === 0 && (
+                  <div className="alonica-card p-8 text-center">
+                    <p className="text-muted-foreground" data-testid="text-no-pending-bar-orders">
+                      Tidak ada pesanan minuman baru
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Preparing Bar Orders */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Wine className="h-5 w-5 text-purple-600" />
+                  Sedang Dibuat ({preparingBarOrders.length})
+                </h3>
+                {preparingBarOrders.map((order) => (
+                  <KitchenOrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onMarkReady={() => handleMarkReady(order.id, "bar")}
+                    onPrint={() => printKitchenTicket(order, "bar")}
+                    isPrimary={false}
+                    filterType="bar"
+                    menuItems={menuItems}
+                    categories={categories}
+                  />
+                ))}
+                {preparingBarOrders.length === 0 && (
+                  <div className="alonica-card p-8 text-center">
+                    <p className="text-muted-foreground" data-testid="text-no-preparing-bar-orders">
+                      Tidak ada minuman sedang dibuat
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </TabsContainer>
       </div> {/* Close main content div */}
     </div>
   );
@@ -307,11 +518,28 @@ interface KitchenOrderCardProps {
   onMarkReady?: () => void;
   onPrint: () => void;
   isPrimary: boolean;
+  filterType?: "kitchen" | "bar";
+  menuItems?: MenuItem[];
+  categories?: Category[];
 }
 
-function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrimary }: KitchenOrderCardProps) {
+function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrimary, filterType, menuItems = [], categories = [] }: KitchenOrderCardProps) {
   const orderItems = order.items as OrderItem[];
   const statusColor = getOrderStatusColor(order.status);
+  
+  // Filter items based on the current view (kitchen or bar)
+  const filteredItems = filterType ? orderItems.filter(orderItem => {
+    const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+    if (!menuItem) return filterType === 'kitchen'; // Default to kitchen if item not found
+    
+    const category = categories.find(cat => cat.id === menuItem.categoryId);
+    const isDrink = category?.name.toLowerCase().includes('minuman');
+    
+    return filterType === 'bar' ? isDrink : !isDrink;
+  }) : orderItems;
+
+  // Don't render if no items match the filter
+  if (filteredItems.length === 0) return null;
   
   return (
     <div className="alonica-card overflow-hidden" data-testid={`card-kitchen-order-${order.id}`}>
@@ -326,8 +554,13 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
               className={statusColor}
               data-testid={`badge-order-status-${order.id}`}
             >
-              {order.status === 'pending' ? 'Menunggu' : 'Dimasak'}
+              {order.status === 'pending' ? 'Menunggu' : (filterType === 'bar' ? 'Dibuat' : 'Dimasak')}
             </Badge>
+            {filterType && (
+              <Badge variant="outline" className="text-xs">
+                {filterType === 'bar' ? 'Bar' : 'Dapur'}
+              </Badge>
+            )}
           </div>
           <div className="text-right">
             <p className="text-sm text-muted-foreground">Meja</p>
@@ -342,9 +575,9 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
           {formatDate(new Date(order.createdAt))}
         </p>
 
-        {/* Items */}
+        {/* Items - show only relevant items */}
         <div className="space-y-2 mb-4">
-          {orderItems.map((item, index) => (
+          {filteredItems.map((item, index) => (
             <div key={index} className="flex justify-between items-center">
               <div>
                 <span className="font-medium" data-testid={`text-item-name-${order.id}-${index}`}>
@@ -358,6 +591,11 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
               </div>
             </div>
           ))}
+          {filterType && filteredItems.length < orderItems.length && (
+            <p className="text-xs text-muted-foreground italic">
+              {orderItems.length - filteredItems.length} item lainnya ada di {filterType === 'bar' ? 'dapur' : 'bar'}
+            </p>
+          )}
         </div>
 
         {/* Actions */}
@@ -369,7 +607,7 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
               data-testid={`button-start-cooking-${order.id}`}
             >
               <Play className="h-4 w-4" />
-              Mulai Masak
+              {filterType === 'bar' ? 'Mulai Buat' : 'Mulai Masak'}
             </Button>
           )}
           
@@ -402,16 +640,35 @@ function KitchenOrderCard({ order, onStartCooking, onMarkReady, onPrint, isPrima
 
 interface KitchenTicketProps {
   order: Order;
+  filterType?: "kitchen" | "bar";
+  menuItems?: MenuItem[];
+  categories?: Category[];
 }
 
-function KitchenTicket({ order }: KitchenTicketProps) {
+function KitchenTicket({ order, filterType, menuItems = [], categories = [] }: KitchenTicketProps) {
   const orderItems = order.items as OrderItem[];
+  
+  // Filter items based on the station (if filterType is provided)
+  const filteredItems = filterType ? orderItems.filter(orderItem => {
+    const menuItem = menuItems.find(mi => mi.id === orderItem.itemId);
+    if (!menuItem) return filterType === 'kitchen'; // Default to kitchen if item not found
+    
+    const category = categories.find(cat => cat.id === menuItem.categoryId);
+    const isDrink = category?.name.toLowerCase().includes('minuman');
+    
+    return filterType === 'bar' ? isDrink : !isDrink;
+  }) : orderItems;
+
+  const stationName = filterType === 'bar' ? 'BAR' : 'KITCHEN';
+  const itemsLabel = filterType === 'bar' ? 'DRINKS TO PREPARE:' : 'ITEMS TO PREPARE:';
+  const copyLabel = filterType === 'bar' ? '** BAR COPY **' : '** KITCHEN COPY **';
+  const instructions = filterType === 'bar' ? 'Please prepare drinks as ordered' : 'Please prepare items as ordered';
   
   return (
     <div className="kitchen-ticket bg-white p-6 max-w-sm mx-auto font-mono text-sm">
       <div className="text-center mb-4">
-        <h1 className="text-lg font-bold">ALONICA KITCHEN</h1>
-        <h2 className="text-md font-semibold">KITCHEN ORDER TICKET</h2>
+        <h1 className="text-lg font-bold">ALONICA {stationName}</h1>
+        <h2 className="text-md font-semibold">{stationName} ORDER TICKET</h2>
         <div className="thermal-divider"></div>
       </div>
 
@@ -432,13 +689,19 @@ function KitchenTicket({ order }: KitchenTicketProps) {
           <span>Time:</span>
           <span>{formatDate(new Date(order.createdAt))}</span>
         </div>
+        {filterType && filteredItems.length < orderItems.length && (
+          <div className="thermal-grid text-xs text-gray-600">
+            <span>Note:</span>
+            <span>{orderItems.length - filteredItems.length} item(s) for {filterType === 'bar' ? 'kitchen' : 'bar'}</span>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-dashed border-gray-400 my-2"></div>
 
       <div className="mb-4">
-        <h3 className="font-semibold mb-2 thermal-center">ITEMS TO PREPARE:</h3>
-        {orderItems.map((item, index) => (
+        <h3 className="font-semibold mb-2 thermal-center">{itemsLabel}</h3>
+        {filteredItems.map((item, index) => (
           <div key={index} className="thermal-compact">
             <div className="thermal-grid">
               <span className="font-semibold">{item.quantity}x {item.name}</span>
@@ -462,8 +725,8 @@ function KitchenTicket({ order }: KitchenTicketProps) {
       <div className="thermal-divider"></div>
       
       <div className="thermal-center text-xs thermal-compact">
-        <p>** KITCHEN COPY **</p>
-        <p>Please prepare items as ordered</p>
+        <p>{copyLabel}</p>
+        <p>{instructions}</p>
       </div>
     </div>
   );
