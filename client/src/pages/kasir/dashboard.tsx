@@ -94,7 +94,7 @@ export default function KasirDashboard() {
       />
       
       {/* Main Content */}
-      <div className="lg:ml-64 min-h-screen">
+      <div className="lg:ml-64">
         {/* Mobile Header */}
         <div className="lg:hidden bg-white border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -114,7 +114,7 @@ export default function KasirDashboard() {
         </div>
         
         {/* Page Content */}
-        <div className="p-4">
+        <div className="p-4 lg:p-6 min-h-screen">
           {renderSection()}
         </div>
       </div>
