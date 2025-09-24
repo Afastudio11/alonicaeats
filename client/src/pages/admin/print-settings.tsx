@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Printer, Edit, Trash2, Save, X, CheckCircle, Settings, Wifi, Usb, Monitor, Play } from "lucide-react";
+import { Plus, Printer, Edit, Trash2, Save, X, CheckCircle, Settings, Wifi, Usb, Monitor, Play, Bluetooth, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useErrorHandler } from "@/hooks/use-error-handler";
 import { apiRequest } from "@/lib/queryClient";
@@ -35,12 +36,23 @@ const paperSizes = [
 const connectionTypes = [
   { value: "browser", label: "Browser Print", icon: Monitor, description: "Print via browser (default)" },
   { value: "usb", label: "USB Connection", icon: Usb, description: "Direct USB connection" },
-  { value: "network", label: "Network/WiFi", icon: Wifi, description: "IP address atau network" }
+  { value: "network", label: "Network/WiFi", icon: Wifi, description: "IP address atau network" },
+  { value: "bluetooth", label: "Bluetooth", icon: Bluetooth, description: "Koneksi wireless bluetooth" }
 ];
+
+// Interface for discovered bluetooth devices
+interface DiscoveredBluetoothDevice {
+  id: string;
+  name: string;
+  connected: boolean;
+}
 
 export default function PrintSettingsSection() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showBluetoothDialog, setShowBluetoothDialog] = useState(false);
+  const [bluetoothDevices, setBluetoothDevices] = useState<DiscoveredBluetoothDevice[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
   const { createErrorHandler } = useErrorHandler();
   const queryClient = useQueryClient();
@@ -169,6 +181,83 @@ export default function PrintSettingsSection() {
     setEditingId(null);
     setShowForm(false);
     form.reset();
+  };
+
+  // Bluetooth device discovery function
+  const scanBluetoothDevices = async () => {
+    setIsScanning(true);
+    try {
+      // Check if Web Bluetooth API is available
+      if (!navigator.bluetooth) {
+        toast({
+          title: "Bluetooth tidak didukung",
+          description: "Browser Anda tidak mendukung Web Bluetooth API. Gunakan Network/WiFi atau USB sebagai alternatif.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Request bluetooth device with better filters for printer devices
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [
+          { namePrefix: "POS" },
+          { namePrefix: "ESC" },
+          { namePrefix: "Thermal" },
+          { namePrefix: "Receipt" },
+          { namePrefix: "Printer" }
+        ],
+        optionalServices: [
+          '000018f0-0000-1000-8000-00805f9b34fb', // Generic printer service
+          '12345678-1234-5678-1234-56789abcdef0'  // Custom printer service
+        ]
+      });
+
+      if (device) {
+        const newDevice: DiscoveredBluetoothDevice = {
+          id: device.id,
+          name: device.name || 'Unknown Device',
+          connected: device.gatt?.connected || false
+        };
+
+        setBluetoothDevices(prev => {
+          const exists = prev.find(d => d.id === newDevice.id);
+          if (!exists) {
+            return [...prev, newDevice];
+          }
+          return prev;
+        });
+
+        toast({
+          title: "Device ditemukan",
+          description: `${newDevice.name} telah ditambahkan ke daftar`,
+        });
+      }
+    } catch (error) {
+      console.error('Bluetooth scanning error:', error);
+      toast({
+        title: "Gagal scan bluetooth",
+        description: "Pastikan bluetooth aktif dan izinkan akses. Catatan: Thermal printer klasik mungkin tidak mendukung Web Bluetooth.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const selectBluetoothDevice = (device: DiscoveredBluetoothDevice) => {
+    form.setValue('connectionString', device.id, { shouldDirty: true });
+    setShowBluetoothDialog(false);
+    toast({
+      title: "Device dipilih",
+      description: `${device.name} dipilih sebagai printer bluetooth`,
+    });
+  };
+
+  const handleConnectionTypeChange = (value: string) => {
+    form.setValue('connectionType', value, { shouldDirty: true });
+    if (value === 'bluetooth') {
+      setShowBluetoothDialog(true);
+    }
   };
 
   const handleTestPrint = () => {
@@ -413,7 +502,7 @@ export default function PrintSettingsSection() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Jenis Koneksi *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={handleConnectionTypeChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-connection-type">
                               <SelectValue placeholder="Pilih jenis koneksi" />
@@ -447,19 +536,37 @@ export default function PrintSettingsSection() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {form.watch("connectionType") === "network" ? "IP Address" : "Connection Path"}
+                          {form.watch("connectionType") === "network" ? "IP Address" : 
+                           form.watch("connectionType") === "bluetooth" ? "Device ID" : "Connection Path"}
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value || ""}
-                            placeholder={
-                              form.watch("connectionType") === "network" 
-                                ? "192.168.1.100:9100" 
-                                : "/dev/usb/lp0"
-                            }
-                            data-testid="input-connection-string"
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              {...field}
+                              value={field.value || ""}
+                              placeholder={
+                                form.watch("connectionType") === "network" 
+                                  ? "192.168.1.100:9100"
+                                  : form.watch("connectionType") === "bluetooth"
+                                  ? "Pilih device bluetooth"
+                                  : "/dev/usb/lp0"
+                              }
+                              readOnly={form.watch("connectionType") === "bluetooth"}
+                              data-testid="input-connection-string"
+                            />
+                            {form.watch("connectionType") === "bluetooth" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowBluetoothDialog(true)}
+                                data-testid="button-select-bluetooth"
+                              >
+                                <Bluetooth className="h-4 w-4 mr-2" />
+                                Pilih Device
+                              </Button>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -723,6 +830,86 @@ export default function PrintSettingsSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Bluetooth Device Discovery Dialog */}
+      <Dialog open={showBluetoothDialog} onOpenChange={setShowBluetoothDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bluetooth className="h-5 w-5" />
+              Pilih Device Bluetooth
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Device bluetooth yang tersedia:
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={scanBluetoothDevices}
+                disabled={isScanning}
+                data-testid="button-scan-bluetooth"
+              >
+                {isScanning ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                {isScanning ? "Scanning..." : "Scan Device"}
+              </Button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {bluetoothDevices.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bluetooth className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Belum ada device yang ditemukan</p>
+                  <p className="text-xs">Klik "Scan Device" untuk mencari</p>
+                </div>
+              ) : (
+                bluetoothDevices.map((device) => (
+                  <div
+                    key={device.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted cursor-pointer"
+                    onClick={() => selectBluetoothDevice(device)}
+                    data-testid={`bluetooth-device-${device.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Bluetooth className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{device.name}</p>
+                        <p className="text-xs text-muted-foreground">{device.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {device.connected && (
+                        <Badge variant="secondary" className="text-xs">Connected</Badge>
+                      )}
+                      <Button variant="ghost" size="sm">
+                        Pilih
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => setShowBluetoothDialog(false)}
+                data-testid="button-cancel-bluetooth"
+              >
+                Batal
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

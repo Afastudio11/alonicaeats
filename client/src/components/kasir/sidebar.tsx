@@ -88,7 +88,7 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentSection === item.id;
@@ -98,16 +98,16 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
                   key={item.id} 
                   href={item.path}
                   className={cn(
-                    "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                     isActive 
-                      ? "bg-primary text-primary-foreground" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      ? "bg-primary text-primary-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                   data-testid={`nav-${item.id}`}
                   onClick={onClose}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </Link>
               );
             })}

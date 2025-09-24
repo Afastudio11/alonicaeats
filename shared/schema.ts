@@ -12,6 +12,7 @@ export const ShiftStatusEnum = z.enum(['open', 'closed']);
 export const CashMovementTypeEnum = z.enum(['in', 'out']);
 export const RefundTypeEnum = z.enum(['void', 'partial_refund', 'full_refund']);
 export const RefundStatusEnum = z.enum(['pending', 'approved', 'rejected', 'completed']);
+export const ConnectionTypeEnum = z.enum(['browser', 'usb', 'network', 'bluetooth']);
 
 // Type aliases for better TypeScript support
 export type PaymentMethod = z.infer<typeof PaymentMethodEnum>;
@@ -22,6 +23,7 @@ export type ShiftStatus = z.infer<typeof ShiftStatusEnum>;
 export type CashMovementType = z.infer<typeof CashMovementTypeEnum>;
 export type RefundType = z.infer<typeof RefundTypeEnum>;
 export type RefundStatus = z.infer<typeof RefundStatusEnum>;
+export type ConnectionType = z.infer<typeof ConnectionTypeEnum>;
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -191,8 +193,8 @@ export const printSettings = pgTable("print_settings", {
   fontSize: integer("font_size").notNull().default(12),
   lineSpacing: integer("line_spacing").notNull().default(1),
   // Connection settings (for future use)
-  connectionType: text("connection_type").notNull().default("browser"), // 'browser', 'usb', 'network'
-  connectionString: text("connection_string"), // IP address, USB path, etc.
+  connectionType: text("connection_type").notNull().default("browser"), // 'browser', 'usb', 'network', 'bluetooth'
+  connectionString: text("connection_string"), // IP address, USB path, Bluetooth device ID, etc.
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
@@ -356,6 +358,8 @@ export const insertPrintSettingSchema = createInsertSchema(printSettings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  connectionType: ConnectionTypeEnum,
 });
 
 export const insertShiftSchema = createInsertSchema(shifts).omit({
