@@ -12,6 +12,7 @@ import SettingsSection from "./settings";
 import ReservationsSection from "./reservations";
 import UsersSection from "./users";
 import DiscountsSection from "./discounts";
+import PrintSettingsSection from "./print-settings";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -68,6 +69,8 @@ export default function AdminDashboard() {
         return <DiscountsSection />;
       case 'analytics':
         return <AnalyticsSection />;
+      case 'print-settings':
+        return <PrintSettingsSection />;
       case 'inventory':
         return <InventorySection />;
       case 'settings':
