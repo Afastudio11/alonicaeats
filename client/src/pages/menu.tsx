@@ -144,20 +144,30 @@ export default function MenuPage() {
       </div>
 
       {/* Menu Content */}
-      <div className="px-6">
+      <div className="px-6 py-6">
+        {/* Menu Items Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            🛒 Menu Items
+          </h1>
+        </div>
+
         {/* Dynamic Category Sections */}
         {itemsByCategory.map((group, index) => (
           <section 
             key={group.category.id} 
-            className={index < itemsByCategory.length - 1 ? "mb-8" : ""}
+            className="mb-8"
             ref={(el) => {
               sectionRefs.current[group.category.id] = el;
             }}
           >
-            <h2 className="text-xl font-semibold text-foreground mb-4" data-testid={`text-section-${group.category.id}`}>
-              {group.category.name}
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold text-foreground" data-testid={`text-section-${group.category.id}`}>
+                {group.category.name}
+              </h2>
+              <div className="w-12 h-1 bg-primary rounded-full mt-2"></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               {group.items.map((item) => (
                 <MenuItemCard 
                   key={item.id} 
@@ -185,32 +195,36 @@ export default function MenuPage() {
 
 function MenuItemCard({ item, onAddToCart }: { item: MenuItem; onAddToCart: (item: MenuItem) => void }) {
   // Truncate long names to keep cards compact
-  const displayName = item.name.length > 40 ? `${item.name.substring(0, 40)}...` : item.name;
+  const displayName = item.name.length > 35 ? `${item.name.substring(0, 35)}...` : item.name;
   
   return (
-    <div className="alonica-card overflow-hidden relative" data-testid={`card-menu-${item.id}`}>
-      <img 
-        src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"} 
-        alt={item.name} 
-        className="w-full h-24 object-cover"
-        data-testid={`img-menu-${item.id}`}
-      />
-      <div className="p-3">
-        <h3 className="font-medium text-foreground mb-1 text-sm leading-tight line-clamp-2" data-testid={`text-name-${item.id}`}>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative hover:shadow-md transition-shadow duration-200" data-testid={`card-menu-${item.id}`}>
+      <div className="relative">
+        <img 
+          src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"} 
+          alt={item.name} 
+          className="w-full h-28 object-cover"
+          data-testid={`img-menu-${item.id}`}
+        />
+        <Button
+          size="icon"
+          onClick={() => onAddToCart(item)}
+          className="absolute top-2 right-2 w-8 h-8 bg-white text-primary hover:bg-primary hover:text-white rounded-full shadow-lg transition-all duration-200"
+          data-testid={`button-add-${item.id}`}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold text-foreground mb-2 text-sm leading-tight line-clamp-2 min-h-[2.5rem]" data-testid={`text-name-${item.id}`}>
           {displayName}
         </h3>
-        <p className="text-base font-semibold text-primary" data-testid={`text-price-${item.id}`}>
-          {formatCurrency(item.price)}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-lg font-bold text-primary" data-testid={`text-price-${item.id}`}>
+            {formatCurrency(item.price)}
+          </p>
+        </div>
       </div>
-      <Button
-        size="icon"
-        onClick={() => onAddToCart(item)}
-        className="absolute top-2 right-2 w-7 h-7 bg-primary text-white rounded-full hover:bg-primary/90 transition-all"
-        data-testid={`button-add-${item.id}`}
-      >
-        <Plus className="h-3 w-3" />
-      </Button>
     </div>
   );
 }
