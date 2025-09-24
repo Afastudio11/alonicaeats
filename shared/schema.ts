@@ -116,6 +116,78 @@ export const reservations = pgTable("reservations", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+// Discounts table for discount management
+export const discounts = pgTable("discounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull().default("percentage"), // 'percentage', 'fixed'
+  value: integer("value").notNull(), // percentage (0-100) or fixed amount in rupiah
+  isActive: boolean("is_active").notNull().default(true),
+  // Discount application settings
+  applyToAll: boolean("apply_to_all").notNull().default(false),
+  categoryIds: jsonb("category_ids"), // array of category IDs to apply to
+  menuItemIds: jsonb("menu_item_ids"), // array of menu item IDs to apply to
+  // Time constraints
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Expenses table for tracking unexpected operational expenses
+export const expenses = pgTable("expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  amount: integer("amount").notNull(), // amount in rupiah
+  description: text("description").notNull(),
+  category: text("category").notNull().default("operational"), // 'operational', 'maintenance', 'supplies', 'other'
+  recordedBy: varchar("recorded_by").notNull().references(() => users.id), // kasir who recorded it
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Daily reports table for cashier shift closing
+export const dailyReports = pgTable("daily_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportDate: timestamp("report_date").notNull(),
+  cashierId: varchar("cashier_id").notNull().references(() => users.id),
+  // Financial summary
+  totalRevenueCash: integer("total_revenue_cash").notNull().default(0),
+  totalRevenueNonCash: integer("total_revenue_non_cash").notNull().default(0),
+  totalRevenue: integer("total_revenue").notNull().default(0),
+  physicalCashAmount: integer("physical_cash_amount").notNull().default(0),
+  cashDifference: integer("cash_difference").notNull().default(0), // physical - recorded
+  // Order counts
+  totalOrders: integer("total_orders").notNull().default(0),
+  cashOrders: integer("cash_orders").notNull().default(0),
+  nonCashOrders: integer("non_cash_orders").notNull().default(0),
+  // Shift timing
+  shiftStartTime: timestamp("shift_start_time"),
+  shiftEndTime: timestamp("shift_end_time"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Print settings table for printer management
+export const printSettings = pgTable("print_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  printerType: text("printer_type").notNull().default("thermal"), // 'thermal', 'inkjet', 'laser'
+  paperSize: text("paper_size").notNull().default("58mm"), // '58mm', '80mm', 'a4'
+  isActive: boolean("is_active").notNull().default(false),
+  // Print settings
+  printHeader: boolean("print_header").notNull().default(true),
+  printFooter: boolean("print_footer").notNull().default(true),
+  printLogo: boolean("print_logo").notNull().default(true),
+  fontSize: integer("font_size").notNull().default(12),
+  lineSpacing: integer("line_spacing").notNull().default(1),
+  // Connection settings (for future use)
+  connectionType: text("connection_type").notNull().default("browser"), // 'browser', 'usb', 'network'
+  connectionString: text("connection_string"), // IP address, USB path, etc.
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -165,6 +237,28 @@ export const insertReservationSchema = createInsertSchema(reservations).omit({
   status: ReservationStatusEnum,
 });
 
+export const insertDiscountSchema = createInsertSchema(discounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPrintSettingSchema = createInsertSchema(printSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -189,6 +283,18 @@ export type InsertStoreProfile = z.infer<typeof insertStoreProfileSchema>;
 
 export type Reservation = typeof reservations.$inferSelect;
 export type InsertReservation = z.infer<typeof insertReservationSchema>;
+
+export type Discount = typeof discounts.$inferSelect;
+export type InsertDiscount = z.infer<typeof insertDiscountSchema>;
+
+export type Expense = typeof expenses.$inferSelect;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+
+export type DailyReport = typeof dailyReports.$inferSelect;
+export type InsertDailyReport = z.infer<typeof insertDailyReportSchema>;
+
+export type PrintSetting = typeof printSettings.$inferSelect;
+export type InsertPrintSetting = z.infer<typeof insertPrintSettingSchema>;
 
 // Cart item type for frontend
 export interface CartItem {

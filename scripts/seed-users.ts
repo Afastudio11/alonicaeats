@@ -24,20 +24,29 @@ async function seedUsers() {
         console.log("ℹ️  Admin user already exists");
       }
 
-      // Seed kasir user (idempotent)
-      console.log("🧾 Creating kasir user...");
-      const existingKasir = await tx.select().from(users).where(eq(users.username, "kasir")).limit(1);
-      
-      if (existingKasir.length === 0) {
-        const hashedKasirPassword = await hashPassword("kasir123");
-        await tx.insert(users).values({
-          username: "kasir",
-          password: hashedKasirPassword,
-          role: "kasir"
-        });
-        console.log("✅ Kasir user created");
-      } else {
-        console.log("ℹ️  Kasir user already exists");
+      // Seed 4 kasir users (idempotent)
+      const cashierAccounts = [
+        { username: "kasir1", password: "kasir123", display: "Kasir 1 (Shift Pagi)" },
+        { username: "kasir2", password: "kasir456", display: "Kasir 2 (Shift Siang)" },
+        { username: "kasir3", password: "kasir789", display: "Kasir 3 (Shift Sore)" },
+        { username: "kasir4", password: "kasir000", display: "Kasir 4 (Shift Weekend)" }
+      ];
+
+      for (const cashier of cashierAccounts) {
+        console.log(`🧾 Creating ${cashier.display}...`);
+        const existingKasir = await tx.select().from(users).where(eq(users.username, cashier.username)).limit(1);
+        
+        if (existingKasir.length === 0) {
+          const hashedKasirPassword = await hashPassword(cashier.password);
+          await tx.insert(users).values({
+            username: cashier.username,
+            password: hashedKasirPassword,
+            role: "kasir"
+          });
+          console.log(`✅ ${cashier.display} created`);
+        } else {
+          console.log(`ℹ️  ${cashier.display} already exists`);
+        }
       }
       
       console.log("🎉 User seed completed successfully!");
