@@ -569,6 +569,259 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refund/Void Management (Cashier can request, Admin can authorize)
+  app.get("/api/refunds", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      const refunds = await storage.getRefunds();
+      
+      // Kasir can only see refunds they created
+      if (currentUser.role === 'kasir') {
+        const filteredRefunds = refunds.filter(refund => refund.requestedBy === currentUser.id);
+        return res.json(filteredRefunds);
+      }
+      
+      // Admin can see all refunds
+      res.json(refunds);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch refunds");
+    }
+  });
+
+  app.get("/api/refunds/order/:orderId", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const currentUser = (req as any).user;
+      const refunds = await storage.getRefundsByOrder(orderId);
+      
+      // Kasir can only see refunds they created
+      if (currentUser.role === 'kasir') {
+        const filteredRefunds = refunds.filter(refund => refund.requestedBy === currentUser.id);
+        return res.json(filteredRefunds);
+      }
+      
+      // Admin can see all refunds for the order
+      res.json(refunds);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch refunds for order");
+    }
+  });
+
+  app.post("/api/refunds", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      
+      // Omit server-controlled fields from validation
+      const refundInputSchema = insertRefundSchema.omit({ 
+        requestedBy: true, 
+        authorizedBy: true,
+        authorizationCode: true,
+        processedAt: true 
+      });
+      const validatedData = refundInputSchema.parse(req.body);
+      
+      // Verify the order exists
+      const order = await storage.getOrder(validatedData.orderId);
+      if (!order) {
+        return sendErrorResponse(res, 404, "Order not found");
+      }
+      
+      // Verify the order is served and paid
+      if (order.orderStatus !== 'served') {
+        return sendErrorResponse(res, 400, "Can only refund served orders");
+      }
+      
+      if (order.paymentStatus !== 'paid') {
+        return sendErrorResponse(res, 400, "Can only refund paid orders");
+      }
+      
+      // Check if refund amount is valid
+      if (validatedData.refundAmount <= 0) {
+        return sendErrorResponse(res, 400, "Refund amount must be greater than 0");
+      }
+      
+      if (validatedData.refundAmount > order.total) {
+        return sendErrorResponse(res, 400, "Refund amount cannot exceed order total");
+      }
+      
+      // Check cumulative refunds for this order
+      const existingRefunds = await storage.getRefundsByOrder(validatedData.orderId);
+      const totalRefunded = existingRefunds
+        .filter(r => ['approved', 'completed'].includes(r.status))
+        .reduce((sum, r) => sum + r.refundAmount, 0);
+      
+      if (totalRefunded + validatedData.refundAmount > order.total) {
+        return sendErrorResponse(res, 400, `Total refunds (${totalRefunded + validatedData.refundAmount}) cannot exceed order total (${order.total})`);
+      }
+      
+      // Admin can directly approve refunds, kasir creates pending requests
+      const refundData: any = {
+        ...validatedData,
+        requestedBy: currentUser.id,
+        status: currentUser.role === 'admin' ? 'approved' as const : 'pending' as const
+      };
+      
+      // If admin is creating it, add authorization details
+      if (currentUser.role === 'admin') {
+        refundData.authorizedBy = currentUser.id;
+        refundData.authorizationCode = `ADM-${Date.now()}`;
+      }
+      
+      const refund = await storage.createRefund(refundData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: currentUser.role === 'admin' ? 'refund_created_authorized' : 'refund_requested',
+        resourceType: 'refund',
+        resourceId: refund.id,
+        details: {
+          orderId: order.id,
+          amount: refund.amount,
+          refundType: refund.refundType,
+          reason: refund.reason
+        }
+      });
+      
+      res.status(201).json(refund);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create refund");
+    }
+  });
+
+  app.put("/api/refunds/:id/authorize", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      const { authorizationCode } = req.body;
+      
+      // Validate authorization code is provided
+      if (!authorizationCode || typeof authorizationCode !== 'string') {
+        return sendErrorResponse(res, 400, "Authorization code is required");
+      }
+      
+      // Get the refund
+      const refund = await storage.getRefund(id);
+      if (!refund) {
+        return sendErrorResponse(res, 404, "Refund not found");
+      }
+      
+      // Can only approve pending refunds
+      if (refund.status !== 'pending') {
+        return sendErrorResponse(res, 400, "Only pending refunds can be approved");
+      }
+      
+      // Approve the refund
+      const approvedRefund = await storage.authorizeRefund(id, currentUser.id, authorizationCode);
+      
+      if (!approvedRefund) {
+        return sendErrorResponse(res, 404, "Refund not found");
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'refund_approved',
+        resourceType: 'refund',
+        resourceId: refund.id,
+        details: {
+          authorizationCode,
+          amount: refund.refundAmount
+        }
+      });
+      
+      res.json(approvedRefund);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to authorize refund");
+    }
+  });
+
+  app.put("/api/refunds/:id/process", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      
+      // Get the refund
+      const refund = await storage.getRefund(id);
+      if (!refund) {
+        return sendErrorResponse(res, 404, "Refund not found");
+      }
+      
+      // Can only process approved refunds
+      if (refund.status !== 'approved') {
+        return sendErrorResponse(res, 400, "Only approved refunds can be processed");
+      }
+      
+      // Process the refund
+      const processedRefund = await storage.processRefund(id);
+      
+      if (!processedRefund) {
+        return sendErrorResponse(res, 404, "Refund not found");
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'refund_processed',
+        resourceType: 'refund',
+        resourceId: refund.id,
+        details: {
+          amount: refund.refundAmount,
+          refundType: refund.refundType
+        }
+      });
+      
+      res.json(processedRefund);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to process refund");
+    }
+  });
+
+  app.put("/api/refunds/:id/cancel", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      const { reason } = req.body;
+      
+      // Get the refund
+      const refund = await storage.getRefund(id);
+      if (!refund) {
+        return sendErrorResponse(res, 404, "Refund not found");
+      }
+      
+      // Can only cancel pending or approved refunds
+      if (!['pending', 'approved'].includes(refund.status)) {
+        return sendErrorResponse(res, 400, "Can only cancel pending or approved refunds");
+      }
+      
+      // Cancel the refund by updating status
+      const cancelledRefund = await storage.updateRefund(id, { 
+        status: 'rejected',
+        notes: reason ? `Cancelled: ${reason}` : 'Cancelled by admin'
+      });
+      
+      if (!cancelledRefund) {
+        return sendErrorResponse(res, 404, "Refund not found");
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'refund_cancelled',
+        resourceType: 'refund',
+        resourceId: refund.id,
+        details: {
+          amount: refund.refundAmount,
+          reason: reason || 'No reason provided'
+        }
+      });
+      
+      res.json(cancelledRefund);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to cancel refund");
+    }
+  });
+
   // Daily Reports (Kasir and Admin access)
   app.get("/api/daily-reports", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
