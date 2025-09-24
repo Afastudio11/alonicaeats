@@ -291,6 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         token: sessionToken
       });
     } catch (error) {
+      console.error("❌ Login error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
