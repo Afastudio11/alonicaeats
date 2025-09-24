@@ -1,0 +1,62 @@
+Kami membutuhkan penambahan fitur-fitur baru dan update pada sistem pelaporan di dashboard admin dan kasir website self-order kami.
+
+1. Dashboard Kasir
+
+A. Manajemen Shift (Sesuai Gambar)
+
+    Buka/Tutup Shift Kasir: Kasir harus memulai shift mereka dengan menekan tombol "Buka Shift" dan mengakhirinya dengan tombol "Tutup Shift" (yang akan memicu proses closingan).
+
+    Catat Kas Masuk/Kas Keluar (Diluar Transaksi): Menyediakan kolom untuk mencatat kas masuk (misal: setoran awal) dan kas keluar (pengeluaran dadakan) yang tidak termasuk dalam transaksi penjualan normal.
+
+        Catatan: Fitur Pengeluaran Dadakan sebelumnya akan terintegrasi di sini sebagai "Kas Keluar".
+
+    Rekap Akhir Shift (Closingan):
+
+        Diaktifkan saat tombol "Tutup Shift" ditekan.
+
+        Sistem menampilkan total pendapatan harian (tunai dan non-tunai) yang dicatat oleh kasir.
+
+        Kasir menginput jumlah uang fisik yang dihitung.
+
+        Sistem menampilkan selisih.
+
+B. Refund / Void (Sesuai Gambar)
+
+    Batalkan Transaksi (Refund/Void):
+
+        Kasir dapat mengajukan pembatalan (Void) atau pengembalian dana (Refund) untuk transaksi yang sudah terjadi.
+
+        Wajib Otorisasi Admin/Owner: Proses pembatalan harus memerlukan input password atau approval dari akun Admin/Owner sebelum dapat dieksekusi. Semua riwayat Void/Refund harus tercatat di log admin.
+
+2. Dashboard Admin
+
+A. Manajemen Pengguna (Kasir)
+
+    Fitur Utama: Manajemen Pengguna (Hanya dapat diakses oleh Admin).
+
+    Admin dapat menambah, mengedit, atau menonaktifkan akun kasir.
+
+    Fungsi yang tersedia: Mengganti ID Pengguna (username), Password, dan menetapkan role 'Kasir'.
+
+B. Audit dan Pelaporan Kasir (Strict Tracking)
+
+    Perekaman Data per Sesi/Shift: Semua laporan kasir harus direkam dan ditampilkan berdasarkan ID Sesi/Shift yang unik. Admin dapat melihat Nama Kasir, Waktu Mulai, Waktu Selesai, dan detail transaksi di sesi tersebut.
+
+    Tampilan Laporan Closingan & Pengeluaran: Admin dapat melihat detail per sesi, termasuk Total Pendapatan Tercatat, Uang Fisik yang Diinput, Selisih, dan semua Pengeluaran Dadakan yang dicatat kasir dalam sesi tersebut.
+
+    Pelacakan Riwayat: Sediakan filter tanggal untuk melihat laporan kasir semua sesi/shift minimal 1 bulan terakhir untuk audit.
+
+C. Pengelolaan Diskon dan Harga
+
+    Manajemen Diskon: Admin dapat membuat, mengedit, dan menghapus diskon (persentase/nominal) untuk produk atau kategori tertentu.
+
+    Penyesuaian Harga: Fitur di manajemen produk untuk penambahan harga, potongan harga, dan pembulatan nilai otomatis (misalnya ke ribuan terdekat).
+
+D. Page Analysis (Laporan Rangkuman)
+
+    Laporan Rangkuman Unduh (Download):
+
+        Pada halaman Analisis di dashboard Admin, ketika tombol download (ekspor) ditekan, file yang dihasilkan (CSV/Excel) HANYA boleh berisi rangkuman data dari dashboard analisis tersebut.
+
+        Contoh Rangkuman: Total Penjualan Kotor, Total Diskon Diberikan, Total Transaksi, Produk Terlaris (Top 10), dan Laba Bersih (jika data HPP tersedia), bukan data transaksi per baris yang detail.
+
