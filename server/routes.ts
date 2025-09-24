@@ -426,10 +426,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for user creation
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'user_created',
-        resourceType: 'user',
-        resourceId: user.id,
+        targetType: 'user',
+        targetId: user.id,
         details: {
           username: user.username,
           role: user.role,
@@ -478,10 +478,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create audit log for user update
       const changedFields = Object.keys(validatedData).filter(key => key !== 'password');
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'user_updated',
-        resourceType: 'user',
-        resourceId: user.id,
+        targetType: 'user',
+        targetId: user.id,
         details: {
           username: user.username,
           changedFields,
@@ -522,10 +522,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for user deletion
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'user_deleted',
-        resourceType: 'user',
-        resourceId: userToDelete.id,
+        targetType: 'user',
+        targetId: userToDelete.id,
         details: {
           username: userToDelete.username,
           role: userToDelete.role,
@@ -575,10 +575,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for password reset
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'password_reset_forced',
-        resourceType: 'user',
-        resourceId: targetUser.id,
+        targetType: 'user',
+        targetId: targetUser.id,
         details: {
           username: targetUser.username,
           resetBy: currentUser.username
@@ -650,10 +650,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for status change
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: validatedData.isActive ? 'user_activated' : 'user_deactivated',
-        resourceType: 'user',
-        resourceId: targetUser.id,
+        targetType: 'user',
+        targetId: targetUser.id,
         details: {
           username: targetUser.username,
           newStatus: validatedData.isActive ? 'active' : 'inactive',
@@ -808,10 +808,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for shift closing
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'shift_closed',
-        resourceType: 'shift',
-        resourceId: shift.id,
+        targetType: 'shift',
+        targetId: shift.id,
         details: { 
           finalCash, 
           cashDifference: closedShift.cashDifference,
@@ -867,10 +867,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for cash movement
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'cash_movement_created',
-        resourceType: 'cash_movement',
-        resourceId: movement.id,
+        targetType: 'cash_movement',
+        targetId: movement.id,
         details: { 
           type: movement.type,
           amount: movement.amount,
@@ -986,10 +986,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: currentUser.role === 'admin' ? 'refund_created_authorized' : 'refund_requested',
-        resourceType: 'refund',
-        resourceId: refund.id,
+        targetType: 'refund',
+        targetId: refund.id,
         details: {
           orderId: order.id,
           amount: refund.amount,
@@ -1035,10 +1035,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'refund_approved',
-        resourceType: 'refund',
-        resourceId: refund.id,
+        targetType: 'refund',
+        targetId: refund.id,
         details: {
           authorizationCode,
           amount: refund.refundAmount
@@ -1076,10 +1076,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'refund_processed',
-        resourceType: 'refund',
-        resourceId: refund.id,
+        targetType: 'refund',
+        targetId: refund.id,
         details: {
           amount: refund.refundAmount,
           refundType: refund.refundType
@@ -1121,10 +1121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'refund_cancelled',
-        resourceType: 'refund',
-        resourceId: refund.id,
+        targetType: 'refund',
+        targetId: refund.id,
         details: {
           amount: refund.refundAmount,
           reason: reason || 'No reason provided'
