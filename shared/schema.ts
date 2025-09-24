@@ -251,6 +251,10 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
 export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({
   id: true,
   createdAt: true,
+}).extend({
+  reportDate: z.coerce.date(),
+  shiftStartTime: z.coerce.date().optional(),
+  shiftEndTime: z.coerce.date().optional(),
 });
 
 export const insertPrintSettingSchema = createInsertSchema(printSettings).omit({

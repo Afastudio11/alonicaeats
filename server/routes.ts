@@ -308,6 +308,270 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Logged out successfully" });
   });
 
+  // User Management (Admin only)
+  app.get("/api/users", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Remove password field from response
+      const safeUsers = users.map(({ password, ...user }) => user);
+      res.json(safeUsers);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch users");
+    }
+  });
+
+  app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Hash password before storing
+      const hashedPassword = await hashPassword(validatedData.password);
+      const userWithHashedPassword = { ...validatedData, password: hashedPassword };
+      
+      const user = await storage.createUser(userWithHashedPassword);
+      
+      // Remove password from response
+      const { password, ...safeUser } = user;
+      res.status(201).json(safeUser);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create user");
+    }
+  });
+
+  app.put("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertUserSchema.partial().parse(req.body);
+      
+      // Hash password if it's being updated
+      let updateData = validatedData;
+      if (validatedData.password) {
+        const hashedPassword = await hashPassword(validatedData.password);
+        updateData = { ...validatedData, password: hashedPassword };
+      }
+      
+      const user = await storage.updateUser(id, updateData);
+      
+      if (!user) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Remove password from response
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to update user");
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      
+      // Prevent admin from deleting themselves
+      if (currentUser.id === id) {
+        return sendErrorResponse(res, 400, "Cannot delete your own account");
+      }
+      
+      const deleted = await storage.deleteUser(id);
+      
+      if (!deleted) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      return handleApiError(res, error, "Failed to delete user");
+    }
+  });
+
+  // Daily Reports (Kasir and Admin access)
+  app.get("/api/daily-reports", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      let reports;
+      
+      if (currentUser.role === 'admin') {
+        // Admin can see all reports
+        reports = await storage.getDailyReports();
+      } else {
+        // Kasir can only see their own reports
+        reports = await storage.getDailyReportsByCashier(currentUser.id);
+      }
+      
+      res.json(reports);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch daily reports");
+    }
+  });
+
+  app.post("/api/daily-reports", requireAuth, requireKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      // Omit server-controlled fields from validation
+      const dailyReportInputSchema = insertDailyReportSchema.omit({ cashierId: true });
+      const validatedData = dailyReportInputSchema.parse(req.body);
+      
+      // Inject the current cashier ID
+      const reportData = { ...validatedData, cashierId: currentUser.id };
+      
+      const report = await storage.createDailyReport(reportData);
+      res.status(201).json(report);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create daily report");
+    }
+  });
+
+  // Expenses (Kasir and Admin access)
+  app.get("/api/expenses", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      let expenses;
+      
+      if (currentUser.role === 'admin') {
+        // Admin can see all expenses
+        expenses = await storage.getExpenses();
+      } else {
+        // Kasir can only see their own expenses
+        expenses = await storage.getExpensesByCashier(currentUser.id);
+      }
+      
+      res.json(expenses);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch expenses");
+    }
+  });
+
+  app.post("/api/expenses", requireAuth, requireKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      // Omit server-controlled fields from validation
+      const expenseInputSchema = insertExpenseSchema.omit({ recordedBy: true });
+      const validatedData = expenseInputSchema.parse(req.body);
+      
+      // Inject the current cashier ID
+      const expenseData = { ...validatedData, recordedBy: currentUser.id };
+      
+      const expense = await storage.createExpense(expenseData);
+      res.status(201).json(expense);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create expense");
+    }
+  });
+
+  // Discounts (Admin only)
+  app.get("/api/discounts", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const discounts = await storage.getDiscounts();
+      res.json(discounts);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch discounts");
+    }
+  });
+
+  app.post("/api/discounts", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertDiscountSchema.parse(req.body);
+      const discount = await storage.createDiscount(validatedData);
+      res.status(201).json(discount);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create discount");
+    }
+  });
+
+  app.put("/api/discounts/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertDiscountSchema.partial().parse(req.body);
+      const discount = await storage.updateDiscount(id, validatedData);
+      
+      if (!discount) {
+        return sendErrorResponse(res, 404, "Discount not found");
+      }
+      
+      res.json(discount);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to update discount");
+    }
+  });
+
+  app.delete("/api/discounts/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteDiscount(id);
+      
+      if (!deleted) {
+        return sendErrorResponse(res, 404, "Discount not found");
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      return handleApiError(res, error, "Failed to delete discount");
+    }
+  });
+
+  // Print Settings (Admin and Kasir access)
+  app.get("/api/print-settings", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const settings = await storage.getPrintSettings();
+      res.json(settings);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch print settings");
+    }
+  });
+
+  app.post("/api/print-settings", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertPrintSettingSchema.parse(req.body);
+      const setting = await storage.createPrintSetting(validatedData);
+      res.status(201).json(setting);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create print setting");
+    }
+  });
+
+  app.put("/api/print-settings/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertPrintSettingSchema.partial().parse(req.body);
+      const setting = await storage.updatePrintSetting(id, validatedData);
+      
+      if (!setting) {
+        return sendErrorResponse(res, 404, "Print setting not found");
+      }
+      
+      res.json(setting);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to update print setting");
+    }
+  });
+
+  app.put("/api/print-settings/:id/activate", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Deactivate all other printers first
+      const allSettings = await storage.getPrintSettings();
+      for (const setting of allSettings) {
+        if (setting.id !== id && setting.isActive) {
+          await storage.updatePrintSetting(setting.id, { isActive: false });
+        }
+      }
+      
+      // Activate the selected printer
+      const setting = await storage.updatePrintSetting(id, { isActive: true });
+      
+      if (!setting) {
+        return sendErrorResponse(res, 404, "Print setting not found");
+      }
+      
+      res.json(setting);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to activate printer");
+    }
+  });
+
   // Categories (public read access for customer menu, admin required for modifications)
   app.get("/api/categories", async (req, res) => {
     try {
