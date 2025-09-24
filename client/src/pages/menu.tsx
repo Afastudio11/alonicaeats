@@ -115,8 +115,8 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {/* Category Navigation Bar */}
-      <div className="bg-white border-b px-6 py-3">
+      {/* Category Navigation Bar - Sticky */}
+      <div className="bg-white border-b px-6 py-3 sticky top-[72px] z-20">
         <div className="flex gap-3 overflow-x-auto scrollbar-hide">
           <Button
             variant={selectedCategory === null ? "default" : "outline"}
