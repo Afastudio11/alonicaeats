@@ -1,0 +1,88 @@
+Instruksi Uji Coba Sistem Website Kasir & Self-Order
+
+Tujuan Uji Coba:
+Memastikan seluruh sistem website berjalan optimal, stabil, dan aman dari sisi teknis hingga fungsionalitas.
+
+Fase 1: Persiapan Teknis
+
+    Sinkronisasi Penuh:
+
+        Lakukan sinkronisasi menyeluruh antara backend dan frontend.
+
+        Pastikan tidak ada error di console browser.
+
+        Verifikasi bahwa dashboard admin dan kasir bisa diakses tanpa kendala.
+
+    Pembersihan Data:
+
+        Bersihkan semua data yang ada di database, terutama tabel yang berkaitan dengan transaksi, inventori, dan pengguna (kecuali akun admin/kasir yang diperlukan). Hal ini untuk memastikan uji coba dilakukan di lingkungan yang bersih.
+
+Fase 2: Uji Coba Fungsionalitas & Alur Transaksi
+
+    Uji Pembuatan Pesanan Manual (Kasir):
+
+        Masuk ke dashboard kasir.
+
+        Buat 100 pesanan dummy secara manual.
+
+        Setiap pesanan harus memiliki variasi:
+
+            Minimal 3 produk berbeda.
+
+            Gunakan diskon, promo code, dan pembayaran tunai/non-tunai.
+
+            Terapkan opsi cetak struk (jika ada).
+
+        Periksa apakah stok inventori otomatis terpotong dengan benar setiap kali pesanan dibuat.
+
+    Uji Coba Fitur Self-Order:
+
+        Simulasikan 10 pesanan melalui alur self-order (dari sisi pelanggan).
+
+        Verifikasi bahwa pesanan tersebut masuk ke dashboard kasir secara real-time dan statusnya akurat.
+
+        Pastikan proses pembayaran (jika ada simulasi) berjalan lancar dan notifikasi diterima di sistem.
+
+Fase 3: Uji Coba Data Historis & Laporan
+
+    Input Data Palsu (Dummy Data):
+
+        Buat data transaksi palsu selama 3 bulan terakhir.
+
+        Data ini harus mencakup:
+
+            Pesanan harian dengan jumlah bervariasi.
+
+            Beragam produk dan kategori.
+
+            Transaksi pembayaran tunai dan non-tunai.
+
+            Penggunaan diskon dan promo yang berbeda.
+
+    Validasi Laporan:
+
+        Setelah data historis diinput, periksa dashboard admin.
+
+        Cek apakah semua laporan berjalan dengan baik, termasuk:
+
+            Laporan Penjualan: Verifikasi total penjualan harian, mingguan, dan bulanan.
+
+            Laporan Stok: Cek apakah data stok sesuai dengan data penjualan yang dimasukkan.
+
+            Laporan Keuangan: Pastikan data laba/rugi, arus kas, dan laporan lainnya akurat.
+
+            Riwayat Transaksi: Pastikan setiap transaksi dapat dilihat detailnya.
+
+Fase 4: Uji Coba Keamanan & Stabilitas
+
+    Uji Beban Ringan:
+
+        Simulasikan 5-10 pengguna yang mengakses website secara bersamaan.
+
+        Perhatikan apakah ada penurunan performa atau lag.
+
+    Uji Otentikasi & Otorisasi:
+
+        Pastikan hak akses pengguna (admin, kasir) sesuai.
+
+        Coba akses fitur admin menggunakan akun kasir dan sebaliknya. Sistem harus menolak akses tersebut.
