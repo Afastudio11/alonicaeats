@@ -7,6 +7,7 @@ import CashierSection from "@/pages/admin/cashier";
 import ReservationsSection from "@/pages/admin/reservations";
 import ExpensesSection from "@/pages/kasir/expenses";
 import DailyReportsSection from "@/pages/kasir/daily-reports";
+import ShiftManagementSection from "@/pages/kasir/shift-management";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -50,6 +51,8 @@ export default function KasirDashboard() {
 
   const renderSection = () => {
     switch (section) {
+      case 'shift':
+        return <ShiftManagementSection />;
       case 'orders':
         return <OrdersSection />;
       case 'kitchen':

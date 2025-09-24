@@ -8,6 +8,7 @@ import {
   Package, 
   Calendar,
   Receipt,
+  Clock,
   X,
   LogOut
 } from "lucide-react";
@@ -28,6 +29,7 @@ interface KasirSidebarProps {
 }
 
 const menuItems = [
+  { id: 'shift', label: 'Manajemen Shift', icon: Clock, path: '/kasir/shift' },
   { id: 'orders', label: 'Menu Order', icon: ClipboardList, path: '/kasir/orders' },
   { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
