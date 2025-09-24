@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import ShiftToggle from "./shift-toggle";
 
 interface User {
   id: string;
@@ -29,7 +30,6 @@ interface KasirSidebarProps {
 }
 
 const menuItems = [
-  { id: 'shift', label: 'Manajemen Shift', icon: Clock, path: '/kasir/shift' },
   { id: 'orders', label: 'Menu Order', icon: ClipboardList, path: '/kasir/orders' },
   { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
@@ -89,6 +89,10 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1">
+            {/* Shift Toggle */}
+            <ShiftToggle />
+            
+            {/* Menu Items */}
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentSection === item.id;
