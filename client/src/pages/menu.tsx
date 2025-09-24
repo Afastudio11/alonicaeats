@@ -131,7 +131,7 @@ export default function MenuPage() {
       {/* Modern Category Navigation Bar - Sticky */}
       <div className="bg-white/95 backdrop-blur-sm border-b shadow-sm px-3 py-3 sticky top-[72px] z-20">
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-3 border border-gray-200/50 shadow-inner">
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
+          <div className="flex gap-3 overflow-x-auto overflow-y-hidden scrollbar-hide scroll-smooth touch-pan-x" style={{ scrollBehavior: 'smooth' }}>
             {/* Semua Category */}
             <div
               onClick={() => {
@@ -139,31 +139,34 @@ export default function MenuPage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`
-                flex items-center justify-center py-3 px-4 rounded-xl cursor-pointer transition-all duration-300 group flex-shrink-0
+                flex items-center justify-center gap-2 py-3 px-4 rounded-xl cursor-pointer transition-all duration-300 group flex-shrink-0
                 ${selectedCategory === null 
                   ? 'bg-primary text-white shadow-lg scale-105' 
                   : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
                 }
               `}
             >
+              <Utensils className={`w-4 h-4 ${selectedCategory === null ? 'text-white' : 'text-primary'}`} />
               <span className="text-sm font-medium whitespace-nowrap">Semua</span>
             </div>
 
             {/* Category Items */}
             {categories.map((category) => {
+              const IconComponent = getCategoryIcon(category.name);
               const isActive = selectedCategory === category.id;
               return (
                 <div
                   key={category.id}
                   onClick={() => scrollToCategory(category.id)}
                   className={`
-                    flex items-center justify-center py-3 px-4 rounded-xl cursor-pointer transition-all duration-300 group flex-shrink-0
+                    flex items-center justify-center gap-2 py-3 px-4 rounded-xl cursor-pointer transition-all duration-300 group flex-shrink-0
                     ${isActive 
                       ? 'bg-primary text-white shadow-lg scale-105' 
                       : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
                     }
                   `}
                 >
+                  <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-primary'}`} />
                   <span className="text-sm font-medium whitespace-nowrap">
                     {category.name}
                   </span>
