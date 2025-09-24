@@ -13,7 +13,8 @@ import {
   Calendar,
   Users,
   Percent,
-  Printer
+  Printer,
+  FileSearch
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -34,6 +35,7 @@ const SIDEBAR_ITEMS = [
   { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
   { key: 'discounts', label: 'Kelola Discount', icon: Percent, path: '/admin/discounts' },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
+  { key: 'audit-reports', label: 'Laporan & Audit Kasir', icon: FileSearch, path: '/admin/audit-reports' },
   { key: 'inventory', label: 'Inventory', icon: Package, path: '/admin/inventory' },
   { key: 'print-settings', label: 'Print Settings', icon: Printer, path: '/admin/print-settings' },
   { key: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
