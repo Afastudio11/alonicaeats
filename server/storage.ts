@@ -1339,15 +1339,16 @@ class MemStorage implements IStorage {
       id: adminId,
       username: "admin",
       password: "$2b$10$mGZ9sY/TNom06PL3tA60UONfkBAMVjOUp2AaKbok/CzMWhS5OBp46", // hashed "admin123"
-      role: "admin"
+      role: "admin",
+      isActive: true
     });
 
     // Generate proper hashes for kasir passwords
     const cashiers = [
-      { username: "kasir1", password: "$2b$10$mGZ9sY/TNom06PL3tA60UONfkBAMVjOUp2AaKbok/CzMWhS5OBp46" }, // "admin123" for now - will work for testing
-      { username: "kasir2", password: "$2b$10$mGZ9sY/TNom06PL3tA60UONfkBAMVjOUp2AaKbok/CzMWhS5OBp46" }, // "admin123" for now
-      { username: "kasir3", password: "$2b$10$mGZ9sY/TNom06PL3tA60UONfkBAMVjOUp2AaKbok/CzMWhS5OBp46" }, // "admin123" for now
-      { username: "kasir4", password: "$2b$10$mGZ9sY/TNom06PL3tA60UONfkBAMVjOUp2AaKbok/CzMWhS5OBp46" }, // "admin123" for now
+      { username: "kasir1", password: "$2b$12$W3hDuaZc6yQB5lJUo19PjusKym9AfGiK48tP/fNdqbE6met93MrEK" }, // hashed "kasir123"
+      { username: "kasir2", password: "$2b$12$J9FBLQ5uAZjYSFLwW9TBcOAKw/oVVsqpYW/uUHdQz35xGoMcA.nSq" }, // hashed "kasir456"
+      { username: "kasir3", password: "$2b$12$QCfbVGSu/NCiH9jt0TO3qeKcB.MSdGtEa/3petlHGx8FC8rJSSQ26" }, // hashed "kasir789"
+      { username: "kasir4", password: "$2b$12$SJioU1yPMIBJKae6bWQzwuf9LyoLk0l.ehGf8SbfgVPz6bccvfycG" }, // hashed "kasir000"
     ];
 
     cashiers.forEach((cashier, index) => {
@@ -1356,7 +1357,8 @@ class MemStorage implements IStorage {
         id,
         username: cashier.username,
         password: cashier.password,
-        role: "kasir"
+        role: "kasir",
+        isActive: true
       });
     });
 
