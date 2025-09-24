@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Search, Mic, Plus } from "lucide-react";
+import { Search, Mic, Plus, ChefHat, Coffee, Fish, Utensils, Soup, Cookie } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -40,11 +40,24 @@ export default function MenuPage() {
     items: filteredItems.filter(item => item.categoryId === category.id)
   })).filter(group => group.items.length > 0);
 
+  // Category icons mapping
+  const getCategoryIcon = (categoryName: string) => {
+    const iconMap: { [key: string]: any } = {
+      "Ayam & Daging": ChefHat,
+      "Camilan & Dessert": Cookie,
+      "Ikan & Seafood": Fish,
+      "Minuman": Coffee,
+      "Nasi & Mie": Utensils,
+      "Sayur & Sup": Soup,
+    };
+    return iconMap[categoryName] || Utensils;
+  };
+
   const scrollToCategory = (categoryId: string) => {
     setSelectedCategory(categoryId);
     const element = sectionRefs.current[categoryId];
     if (element) {
-      const headerHeight = 140; // Approximate height of header + search + category nav
+      const headerHeight = 160; // Approximate height of header + search + category nav
       const elementPosition = element.offsetTop - headerHeight;
       window.scrollTo({
         top: elementPosition,
@@ -115,32 +128,65 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {/* Category Navigation Bar - Sticky */}
-      <div className="bg-white border-b px-6 py-4 sticky top-[72px] z-20">
-        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-            <Button
-              variant={selectedCategory === null ? "default" : "outline"}
-              size="sm"
+      {/* Modern Category Navigation Bar - Sticky */}
+      <div className="bg-white/95 backdrop-blur-sm border-b shadow-sm px-4 py-3 sticky top-[72px] z-20">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 border border-gray-200/50 shadow-inner">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {/* Semua Category */}
+            <div
               onClick={() => {
                 setSelectedCategory(null);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
+              className={`
+                flex flex-col items-center justify-center min-w-[80px] p-3 rounded-xl cursor-pointer transition-all duration-300 group
+                ${selectedCategory === null 
+                  ? 'bg-primary text-white shadow-lg scale-105' 
+                  : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
+                }
+              `}
             >
-              Semua
-            </Button>
-            {categories.map((category) => (
-              <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => scrollToCategory(category.id)}
-                className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
-              >
-                {category.name}
-              </Button>
-            ))}
+              <div className={`p-2 rounded-lg mb-1 transition-colors ${
+                selectedCategory === null ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
+              }`}>
+                <Utensils className={`w-4 h-4 ${selectedCategory === null ? 'text-white' : 'text-primary'}`} />
+              </div>
+              <span className="text-xs font-medium text-center leading-tight">Semua</span>
+              {selectedCategory === null && (
+                <div className="w-6 h-0.5 bg-white/50 rounded-full mt-1"></div>
+              )}
+            </div>
+
+            {/* Category Items */}
+            {categories.map((category) => {
+              const IconComponent = getCategoryIcon(category.name);
+              const isActive = selectedCategory === category.id;
+              return (
+                <div
+                  key={category.id}
+                  onClick={() => scrollToCategory(category.id)}
+                  className={`
+                    flex flex-col items-center justify-center min-w-[80px] p-3 rounded-xl cursor-pointer transition-all duration-300 group
+                    ${isActive 
+                      ? 'bg-primary text-white shadow-lg scale-105' 
+                      : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
+                    }
+                  `}
+                >
+                  <div className={`p-2 rounded-lg mb-1 transition-colors ${
+                    isActive ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
+                  }`}>
+                    <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-primary'}`} />
+                  </div>
+                  <span className="text-xs font-medium text-center leading-tight">
+                    {category.name}
+                  </span>
+                  {isActive && (
+                    <div className="w-6 h-0.5 bg-white/50 rounded-full mt-1"></div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -222,10 +268,12 @@ function MenuItemCard({ item, onAddToCart }: { item: MenuItem; onAddToCart: (ite
           {displayName}
         </h3>
         <div className="flex items-center justify-between">
-          <div className="bg-gray-100 rounded-lg px-3 py-2" data-testid={`text-price-${item.id}`}>
-            <div className="text-xs font-medium text-gray-600">Rp.</div>
-            <div className="text-lg font-bold text-primary leading-none">
-              {item.price.toLocaleString('id-ID')}
+          <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-xl px-4 py-3 shadow-sm" data-testid={`text-price-${item.id}`}>
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-semibold text-primary/80">Rp</span>
+              <span className="text-xl font-bold text-primary">
+                {item.price.toLocaleString('id-ID')}
+              </span>
             </div>
           </div>
         </div>
