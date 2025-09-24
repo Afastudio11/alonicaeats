@@ -6,6 +6,7 @@ import {
   CreditCard, 
   Users, 
   Package, 
+  Calendar,
   X,
   LogOut
 } from "lucide-react";
@@ -30,6 +31,7 @@ const menuItems = [
   { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
   { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
+  { id: 'daily-reports', label: 'Laporan Harian', icon: Calendar, path: '/kasir/daily-reports' },
 ];
 
 export default function KasirSidebar({ isOpen, onClose, currentSection, user }: KasirSidebarProps) {

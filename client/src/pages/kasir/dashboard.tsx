@@ -5,6 +5,7 @@ import OrdersSection from "@/pages/admin/orders";
 import KitchenSection from "@/pages/admin/kitchen";
 import CashierSection from "@/pages/admin/cashier";
 import ReservationsSection from "@/pages/admin/reservations";
+import DailyReportsSection from "@/pages/kasir/daily-reports";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -56,6 +57,8 @@ export default function KasirDashboard() {
         return <CashierSection />;
       case 'reservations':
         return <ReservationsSection />;
+      case 'daily-reports':
+        return <DailyReportsSection />;
       // Block restricted sections for kasir
       case 'dashboard':
       case 'inventory':
