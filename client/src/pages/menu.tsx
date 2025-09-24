@@ -116,30 +116,32 @@ export default function MenuPage() {
       </div>
 
       {/* Category Navigation Bar - Sticky */}
-      <div className="bg-white border-b px-6 py-3 sticky top-[72px] z-20">
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-          <Button
-            variant={selectedCategory === null ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setSelectedCategory(null);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
-          >
-            Semua
-          </Button>
-          {categories.map((category) => (
+      <div className="bg-white border-b px-6 py-4 sticky top-[72px] z-20">
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide">
             <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
+              variant={selectedCategory === null ? "default" : "outline"}
               size="sm"
-              onClick={() => scrollToCategory(category.id)}
+              onClick={() => {
+                setSelectedCategory(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
             >
-              {category.name}
+              Semua
             </Button>
-          ))}
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                variant={selectedCategory === category.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => scrollToCategory(category.id)}
+                className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
+              >
+                {category.name}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -220,9 +222,12 @@ function MenuItemCard({ item, onAddToCart }: { item: MenuItem; onAddToCart: (ite
           {displayName}
         </h3>
         <div className="flex items-center justify-between">
-          <p className="text-lg font-bold text-primary" data-testid={`text-price-${item.id}`}>
-            {formatCurrency(item.price)}
-          </p>
+          <div className="bg-gray-100 rounded-lg px-3 py-2" data-testid={`text-price-${item.id}`}>
+            <div className="text-xs font-medium text-gray-600">Rp.</div>
+            <div className="text-lg font-bold text-primary leading-none">
+              {item.price.toLocaleString('id-ID')}
+            </div>
+          </div>
         </div>
       </div>
     </div>
