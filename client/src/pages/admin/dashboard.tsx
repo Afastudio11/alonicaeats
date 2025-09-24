@@ -10,6 +10,7 @@ import AnalyticsSection from "./analytics";
 import InventorySection from "./inventory";
 import SettingsSection from "./settings";
 import ReservationsSection from "./reservations";
+import UsersSection from "./users";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -56,6 +57,8 @@ export default function AdminDashboard() {
         return <CashierSection />;
       case 'reservations':
         return <ReservationsSection />;
+      case 'users':
+        return <UsersSection />;
       case 'menu':
         return <MenuSection />;
       case 'categories':
