@@ -11,7 +11,8 @@ import {
   X,
   ChefHat,
   Calendar,
-  Users
+  Users,
+  Percent
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,6 +31,7 @@ const SIDEBAR_ITEMS = [
   { key: 'users', label: 'Manajemen User', icon: Users, path: '/admin/users' },
   { key: 'menu', label: 'Custom Menu', icon: Utensils, path: '/admin/menu' },
   { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
+  { key: 'discounts', label: 'Kelola Discount', icon: Percent, path: '/admin/discounts' },
   { key: 'analytics', label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
   { key: 'inventory', label: 'Inventory', icon: Package, path: '/admin/inventory' },
   { key: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' },
