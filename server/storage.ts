@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type Discount, type InsertDiscount, type Expense, type InsertExpense, type DailyReport, type InsertDailyReport, type PrintSetting, type InsertPrintSetting, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations, discounts, expenses, dailyReports, printSettings } from "@shared/schema";
+import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type Discount, type InsertDiscount, type Expense, type InsertExpense, type DailyReport, type InsertDailyReport, type PrintSetting, type InsertPrintSetting, type Shift, type InsertShift, type CashMovement, type InsertCashMovement, type Refund, type InsertRefund, type AuditLog, type InsertAuditLog, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations, discounts, expenses, dailyReports, printSettings, shifts, cashMovements, refunds, auditLogs } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -108,6 +108,38 @@ export interface IStorage {
   updatePrintSetting(id: string, setting: Partial<InsertPrintSetting>): Promise<PrintSetting | undefined>;
   setActivePrintSetting(id: string): Promise<PrintSetting | undefined>;
   deletePrintSetting(id: string): Promise<boolean>;
+
+  // Shifts
+  getShifts(): Promise<Shift[]>;
+  getShiftsByCashier(cashierId: string): Promise<Shift[]>;
+  getActiveShift(cashierId: string): Promise<Shift | undefined>;
+  getShift(id: string): Promise<Shift | undefined>;
+  createShift(shift: InsertShift): Promise<Shift>;
+  updateShift(id: string, shift: Partial<InsertShift>): Promise<Shift | undefined>;
+  closeShift(id: string, finalCash: number, notes?: string): Promise<Shift | undefined>;
+
+  // Cash Movements
+  getCashMovements(): Promise<CashMovement[]>;
+  getCashMovementsByShift(shiftId: string): Promise<CashMovement[]>;
+  getCashMovement(id: string): Promise<CashMovement | undefined>;
+  createCashMovement(movement: InsertCashMovement): Promise<CashMovement>;
+  updateCashMovement(id: string, movement: Partial<InsertCashMovement>): Promise<CashMovement | undefined>;
+  deleteCashMovement(id: string): Promise<boolean>;
+
+  // Refunds
+  getRefunds(): Promise<Refund[]>;
+  getRefundsByOrder(orderId: string): Promise<Refund[]>;
+  getRefund(id: string): Promise<Refund | undefined>;
+  createRefund(refund: InsertRefund): Promise<Refund>;
+  updateRefund(id: string, refund: Partial<InsertRefund>): Promise<Refund | undefined>;
+  authorizeRefund(id: string, authorizedBy: string, authCode: string): Promise<Refund | undefined>;
+  processRefund(id: string): Promise<Refund | undefined>;
+
+  // Audit Logs
+  getAuditLogs(): Promise<AuditLog[]>;
+  getAuditLogsByUser(userId: string): Promise<AuditLog[]>;
+  getAuditLogsByAction(action: string): Promise<AuditLog[]>;
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
 }
 
 // Legacy MemStorage class (no longer used, kept for reference)
@@ -1110,6 +1142,162 @@ export class DatabaseStorage implements IStorage {
   async deletePrintSetting(id: string): Promise<boolean> {
     const result = await db.delete(printSettings).where(eq(printSettings.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  // Shift methods
+  async getShifts(): Promise<Shift[]> {
+    return await db.select().from(shifts).orderBy(desc(shifts.startTime));
+  }
+
+  async getShiftsByCashier(cashierId: string): Promise<Shift[]> {
+    return await db.select().from(shifts).where(eq(shifts.cashierId, cashierId)).orderBy(desc(shifts.startTime));
+  }
+
+  async getActiveShift(cashierId: string): Promise<Shift | undefined> {
+    const [shift] = await db.select().from(shifts)
+      .where(sql`${shifts.cashierId} = ${cashierId} AND ${shifts.status} = 'open'`)
+      .limit(1);
+    return shift || undefined;
+  }
+
+  async getShift(id: string): Promise<Shift | undefined> {
+    const [shift] = await db.select().from(shifts).where(eq(shifts.id, id));
+    return shift || undefined;
+  }
+
+  async createShift(shift: InsertShift): Promise<Shift> {
+    const [newShift] = await db.insert(shifts).values(shift).returning();
+    return newShift;
+  }
+
+  async updateShift(id: string, shift: Partial<InsertShift>): Promise<Shift | undefined> {
+    const [updated] = await db
+      .update(shifts)
+      .set({ ...shift, updatedAt: new Date() })
+      .where(eq(shifts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async closeShift(id: string, finalCash: number, notes?: string): Promise<Shift | undefined> {
+    const [updated] = await db
+      .update(shifts)
+      .set({ 
+        finalCash,
+        endTime: new Date(),
+        status: 'closed',
+        notes,
+        updatedAt: new Date()
+      })
+      .where(eq(shifts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Cash Movement methods
+  async getCashMovements(): Promise<CashMovement[]> {
+    return await db.select().from(cashMovements).orderBy(desc(cashMovements.createdAt));
+  }
+
+  async getCashMovementsByShift(shiftId: string): Promise<CashMovement[]> {
+    return await db.select().from(cashMovements).where(eq(cashMovements.shiftId, shiftId)).orderBy(desc(cashMovements.createdAt));
+  }
+
+  async getCashMovement(id: string): Promise<CashMovement | undefined> {
+    const [movement] = await db.select().from(cashMovements).where(eq(cashMovements.id, id));
+    return movement || undefined;
+  }
+
+  async createCashMovement(movement: InsertCashMovement): Promise<CashMovement> {
+    const [newMovement] = await db.insert(cashMovements).values(movement).returning();
+    return newMovement;
+  }
+
+  async updateCashMovement(id: string, movement: Partial<InsertCashMovement>): Promise<CashMovement | undefined> {
+    const [updated] = await db
+      .update(cashMovements)
+      .set(movement)
+      .where(eq(cashMovements.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteCashMovement(id: string): Promise<boolean> {
+    const result = await db.delete(cashMovements).where(eq(cashMovements.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Refund methods
+  async getRefunds(): Promise<Refund[]> {
+    return await db.select().from(refunds).orderBy(desc(refunds.createdAt));
+  }
+
+  async getRefundsByOrder(orderId: string): Promise<Refund[]> {
+    return await db.select().from(refunds).where(eq(refunds.orderId, orderId)).orderBy(desc(refunds.createdAt));
+  }
+
+  async getRefund(id: string): Promise<Refund | undefined> {
+    const [refund] = await db.select().from(refunds).where(eq(refunds.id, id));
+    return refund || undefined;
+  }
+
+  async createRefund(refund: InsertRefund): Promise<Refund> {
+    const [newRefund] = await db.insert(refunds).values(refund).returning();
+    return newRefund;
+  }
+
+  async updateRefund(id: string, refund: Partial<InsertRefund>): Promise<Refund | undefined> {
+    const [updated] = await db
+      .update(refunds)
+      .set({ ...refund, updatedAt: new Date() })
+      .where(eq(refunds.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async authorizeRefund(id: string, authorizedBy: string, authCode: string): Promise<Refund | undefined> {
+    const [updated] = await db
+      .update(refunds)
+      .set({ 
+        authorizedBy,
+        authorizationCode: authCode,
+        status: 'approved',
+        updatedAt: new Date()
+      })
+      .where(eq(refunds.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async processRefund(id: string): Promise<Refund | undefined> {
+    const [updated] = await db
+      .update(refunds)
+      .set({ 
+        status: 'completed',
+        processedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(refunds.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Audit Log methods
+  async getAuditLogs(): Promise<AuditLog[]> {
+    return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+  }
+
+  async getAuditLogsByUser(userId: string): Promise<AuditLog[]> {
+    return await db.select().from(auditLogs).where(eq(auditLogs.performedBy, userId)).orderBy(desc(auditLogs.createdAt));
+  }
+
+  async getAuditLogsByAction(action: string): Promise<AuditLog[]> {
+    return await db.select().from(auditLogs).where(eq(auditLogs.action, action)).orderBy(desc(auditLogs.createdAt));
+  }
+
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [newLog] = await db.insert(auditLogs).values(log).returning();
+    return newLog;
   }
 }
 

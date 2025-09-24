@@ -8,12 +8,20 @@ export const PaymentMethodEnum = z.enum(['qris', 'cash', 'pay_later']);
 export const PaymentStatusEnum = z.enum(['pending', 'paid', 'failed', 'expired', 'unpaid', 'refunded']);
 export const OrderStatusEnum = z.enum(['queued', 'preparing', 'ready', 'served', 'cancelled']);
 export const ReservationStatusEnum = z.enum(['pending', 'confirmed', 'completed', 'cancelled']);
+export const ShiftStatusEnum = z.enum(['open', 'closed']);
+export const CashMovementTypeEnum = z.enum(['in', 'out']);
+export const RefundTypeEnum = z.enum(['void', 'partial_refund', 'full_refund']);
+export const RefundStatusEnum = z.enum(['pending', 'approved', 'rejected', 'completed']);
 
 // Type aliases for better TypeScript support
 export type PaymentMethod = z.infer<typeof PaymentMethodEnum>;
 export type PaymentStatus = z.infer<typeof PaymentStatusEnum>;
 export type OrderStatus = z.infer<typeof OrderStatusEnum>;
 export type ReservationStatus = z.infer<typeof ReservationStatusEnum>;
+export type ShiftStatus = z.infer<typeof ShiftStatusEnum>;
+export type CashMovementType = z.infer<typeof CashMovementTypeEnum>;
+export type RefundType = z.infer<typeof RefundTypeEnum>;
+export type RefundStatus = z.infer<typeof RefundStatusEnum>;
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -188,6 +196,70 @@ export const printSettings = pgTable("print_settings", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+// Shifts table for cashier shift management
+export const shifts = pgTable("shifts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  cashierId: varchar("cashier_id").notNull().references(() => users.id),
+  startTime: timestamp("start_time").notNull().default(sql`now()`),
+  endTime: timestamp("end_time"),
+  initialCash: integer("initial_cash").notNull().default(0), // starting cash amount
+  finalCash: integer("final_cash"), // ending cash amount counted by cashier
+  systemCash: integer("system_cash"), // cash according to system calculations
+  cashDifference: integer("cash_difference").default(0), // final - system
+  totalOrders: integer("total_orders").default(0),
+  totalRevenue: integer("total_revenue").default(0),
+  totalCashRevenue: integer("total_cash_revenue").default(0),
+  totalNonCashRevenue: integer("total_non_cash_revenue").default(0),
+  status: text("status").notNull().default("open"), // 'open', 'closed'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Cash movements table for tracking cash in/out during shifts
+export const cashMovements = pgTable("cash_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shiftId: varchar("shift_id").notNull().references(() => shifts.id),
+  cashierId: varchar("cashier_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // 'in', 'out'
+  amount: integer("amount").notNull(), // amount in rupiah
+  description: text("description").notNull(),
+  category: text("category").notNull().default("other"), // 'initial_deposit', 'expense', 'deposit', 'other'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+// Refunds table for tracking refund/void transactions
+export const refunds = pgTable("refunds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  originalAmount: integer("original_amount").notNull(),
+  refundAmount: integer("refund_amount").notNull(),
+  refundType: text("refund_type").notNull(), // 'void', 'partial_refund', 'full_refund'
+  reason: text("reason").notNull(),
+  requestedBy: varchar("requested_by").notNull().references(() => users.id), // cashier who requested
+  authorizedBy: varchar("authorized_by").notNull().references(() => users.id), // admin who authorized
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'completed'
+  authorizationCode: text("authorization_code"), // admin password verification
+  processedAt: timestamp("processed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Audit logs table for tracking all admin authorization actions
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: text("action").notNull(), // 'refund_authorized', 'void_authorized', 'user_created', etc.
+  performedBy: varchar("performed_by").notNull().references(() => users.id),
+  targetId: varchar("target_id"), // ID of the affected entity (order, user, etc.)
+  targetType: text("target_type"), // 'order', 'user', 'refund', etc.
+  details: jsonb("details"), // additional context data
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -263,6 +335,33 @@ export const insertPrintSettingSchema = createInsertSchema(printSettings).omit({
   updatedAt: true,
 });
 
+export const insertShiftSchema = createInsertSchema(shifts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startTime: z.coerce.date().optional(),
+  endTime: z.coerce.date().optional(),
+});
+
+export const insertCashMovementSchema = createInsertSchema(cashMovements).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRefundSchema = createInsertSchema(refunds).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  processedAt: z.coerce.date().optional(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -299,6 +398,18 @@ export type InsertDailyReport = z.infer<typeof insertDailyReportSchema>;
 
 export type PrintSetting = typeof printSettings.$inferSelect;
 export type InsertPrintSetting = z.infer<typeof insertPrintSettingSchema>;
+
+export type Shift = typeof shifts.$inferSelect;
+export type InsertShift = z.infer<typeof insertShiftSchema>;
+
+export type CashMovement = typeof cashMovements.$inferSelect;
+export type InsertCashMovement = z.infer<typeof insertCashMovementSchema>;
+
+export type Refund = typeof refunds.$inferSelect;
+export type InsertRefund = z.infer<typeof insertRefundSchema>;
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 // Cart item type for frontend
 export interface CartItem {
