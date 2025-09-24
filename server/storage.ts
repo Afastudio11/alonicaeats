@@ -892,8 +892,8 @@ export class DatabaseStorage implements IStorage {
 // Use DatabaseStorage instead of MemStorage
 export const storage = new DatabaseStorage();
 
-// Initialize database with seed data
-storage.seedData().catch(console.error);
+// Database seeding is now handled via explicit scripts for better control
+// Run: npm run seed:users and npm run seed:menu for initial setup
 
 // Keep MemStorage class for reference but comment out the instantiation
 // export const storage = new MemStorage();
