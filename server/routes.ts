@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import rateLimit from 'express-rate-limit';
 import { ZodError } from 'zod';
 import { storage } from "./storage";
-import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, insertUserSchema, insertDiscountSchema, insertExpenseSchema, insertDailyReportSchema, insertPrintSettingSchema, type InsertOrder } from "@shared/schema";
+import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, insertUserSchema, insertDiscountSchema, insertExpenseSchema, insertDailyReportSchema, insertPrintSettingSchema, insertShiftSchema, insertCashMovementSchema, insertRefundSchema, insertAuditLogSchema, type InsertOrder } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
@@ -383,6 +383,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       return handleApiError(res, error, "Failed to delete user");
+    }
+  });
+
+  // Shift Management (Kasir and Admin access)
+  app.get("/api/shifts", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      let shifts;
+      
+      if (currentUser.role === 'admin') {
+        // Admin can see all shifts
+        shifts = await storage.getShifts();
+      } else {
+        // Kasir can only see their own shifts
+        shifts = await storage.getShiftsByCashier(currentUser.id);
+      }
+      
+      res.json(shifts);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch shifts");
+    }
+  });
+
+  app.get("/api/shifts/active", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      const activeShift = await storage.getActiveShift(currentUser.id);
+      
+      if (!activeShift) {
+        return res.json(null);
+      }
+      
+      res.json(activeShift);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch active shift");
+    }
+  });
+
+  app.post("/api/shifts", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      
+      // Check if user already has an active shift
+      const existingShift = await storage.getActiveShift(currentUser.id);
+      if (existingShift) {
+        return sendErrorResponse(res, 400, "You already have an active shift. Please close it before opening a new one.");
+      }
+      
+      // Omit server-controlled fields from validation
+      const shiftInputSchema = insertShiftSchema.omit({ cashierId: true });
+      const validatedData = shiftInputSchema.parse(req.body);
+      
+      // Inject the current cashier ID and set status to open
+      const shiftData = { 
+        ...validatedData, 
+        cashierId: currentUser.id,
+        status: 'open' as const
+      };
+      
+      const shift = await storage.createShift(shiftData);
+      
+      // Create audit log for shift opening
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'shift_opened',
+        resourceType: 'shift',
+        resourceId: shift.id,
+        details: { startingCash: shift.startingCash }
+      });
+      
+      res.status(201).json(shift);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to open shift");
+    }
+  });
+
+  app.put("/api/shifts/:id/close", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      const { finalCash, notes } = req.body;
+      
+      // Validate finalCash is provided and is a number
+      if (typeof finalCash !== 'number' || finalCash < 0) {
+        return sendErrorResponse(res, 400, "Final cash amount is required and must be a positive number");
+      }
+      
+      // Get the shift to verify ownership (kasir can only close their own shifts)
+      const shift = await storage.getShift(id);
+      if (!shift) {
+        return sendErrorResponse(res, 404, "Shift not found");
+      }
+      
+      if (currentUser.role !== 'admin' && shift.cashierId !== currentUser.id) {
+        return sendErrorResponse(res, 403, "You can only close your own shifts");
+      }
+      
+      if (shift.status !== 'open') {
+        return sendErrorResponse(res, 400, "Only open shifts can be closed");
+      }
+      
+      // Close the shift
+      const closedShift = await storage.closeShift(id, finalCash, notes);
+      
+      if (!closedShift) {
+        return sendErrorResponse(res, 404, "Shift not found");
+      }
+      
+      // Create audit log for shift closing
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'shift_closed',
+        resourceType: 'shift',
+        resourceId: shift.id,
+        details: { 
+          finalCash, 
+          cashDifference: closedShift.cashDifference,
+          notes 
+        }
+      });
+      
+      res.json(closedShift);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to close shift");
+    }
+  });
+
+  // Cash Movement Management
+  app.get("/api/cash-movements", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { shiftId } = req.query;
+      let movements;
+      
+      if (shiftId) {
+        movements = await storage.getCashMovementsByShift(shiftId as string);
+      } else {
+        movements = await storage.getCashMovements();
+      }
+      
+      res.json(movements);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch cash movements");
+    }
+  });
+
+  app.post("/api/cash-movements", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      
+      // Cash movement schema already omits id and createdAt
+      const cashMovementInputSchema = insertCashMovementSchema;
+      const validatedData = cashMovementInputSchema.parse(req.body);
+      
+      // Verify the shift belongs to the current user (unless admin)
+      if (currentUser.role !== 'admin') {
+        const shift = await storage.getShift(validatedData.shiftId);
+        if (!shift || shift.cashierId !== currentUser.id) {
+          return sendErrorResponse(res, 403, "You can only add cash movements to your own shifts");
+        }
+        
+        if (shift.status !== 'open') {
+          return sendErrorResponse(res, 400, "Cannot add cash movements to a closed shift");
+        }
+      }
+      
+      const movement = await storage.createCashMovement(validatedData);
+      
+      // Create audit log for cash movement
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'cash_movement_created',
+        resourceType: 'cash_movement',
+        resourceId: movement.id,
+        details: { 
+          type: movement.type,
+          amount: movement.amount,
+          reason: movement.reason 
+        }
+      });
+      
+      res.status(201).json(movement);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to create cash movement");
     }
   });
 
