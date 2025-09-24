@@ -817,13 +817,20 @@ export default function CashierSection() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue={categories[0]?.id || ""} className="w-full">
-                <TabsList className="grid w-full" style={{gridTemplateColumns: `repeat(${categories.length}, 1fr)`}}>
-                  {categories.map((category) => (
-                    <TabsTrigger key={category.id} value={category.id} data-testid={`tab-${category.name.toLowerCase()}`}>
-                      {category.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
+                  <TabsList className="grid w-full h-auto bg-transparent gap-2 p-0">
+                    {categories.map((category) => (
+                      <TabsTrigger 
+                        key={category.id} 
+                        value={category.id} 
+                        data-testid={`tab-${category.name.toLowerCase()}`}
+                        className="data-[state=active]:bg-primary data-[state=active]:text-white bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 text-xs py-2 px-3 whitespace-nowrap flex-1 min-w-0"
+                      >
+                        <span className="truncate">{category.name}</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
                 
                 {categories.map((category) => (
                   <TabsContent key={category.id} value={category.id} className="space-y-4">
@@ -832,12 +839,17 @@ export default function CashierSection() {
                         <Card key={item.id} className="hover:shadow-md transition-shadow">
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-semibold text-foreground" data-testid={`menu-item-${item.id}`}>
+                              <h3 className="font-semibold text-foreground flex-1 mr-3" data-testid={`menu-item-${item.id}`}>
                                 {item.name}
                               </h3>
-                              <Badge variant="secondary" data-testid={`price-${item.id}`}>
-                                {formatCurrency(item.price)}
-                              </Badge>
+                              <div className="bg-gray-100 rounded-lg px-3 py-2 border border-gray-200 flex-shrink-0" data-testid={`price-${item.id}`}>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-xs font-medium text-gray-600">Rp</span>
+                                  <span className="text-sm font-bold text-primary">
+                                    {item.price.toLocaleString('id-ID')}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                             {item.description && (
                               <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
