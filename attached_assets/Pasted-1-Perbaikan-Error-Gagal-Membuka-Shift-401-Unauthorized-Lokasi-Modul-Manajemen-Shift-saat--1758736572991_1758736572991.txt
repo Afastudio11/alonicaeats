@@ -1,0 +1,41 @@
+1. Perbaikan Error: Gagal Membuka Shift (401: Unauthorized)
+
+    Lokasi: Modul Manajemen Shift saat menekan tombol "Buka Shift".
+
+    Masalah: Muncul error berwarna merah dengan kode: "401: Unauthorized". Hal ini menyebabkan kasir tidak dapat memulai sesi kerja dan mencatat kas awal.
+
+    Tindakan yang Diminta:
+
+        Investigasi penyebab error 401 Unauthorized di endpoint pembukaan shift.
+
+        Pastikan token otentikasi (atau sesi) untuk user dengan role Kasir valid dan memiliki izin yang diperlukan untuk membuka shift.
+
+        Implementasikan penanganan error yang lebih baik (misalnya, secara otomatis refresh sesi jika token expired atau meminta user untuk Login ulang).
+
+2. Peningkatan Fitur: Otomatisasi Format Rupiah (Rp.)
+
+    Lokasi: Semua input dan display angka yang berhubungan dengan nilai uang (misalnya, Kas Awal, Revenue Today, Total Orders, Pencatatan Pengeluaran, Harga Item).
+
+    Masalah: Input angka masih polos dan rentan salah ketik (salah jumlah nol). Format tampilan tidak otomatis menggunakan pemisah ribuan.
+
+    Tindakan yang Diminta:
+
+        Implementasikan Input Masking: Saat pengguna mengetik angka di field mata uang (contoh: Kas Awal), titik pemisah ribuan (.) harus ditambahkan secara otomatis (real-time).
+
+            Contoh: Ketik 30000 → Tampilan menjadi 30.000.
+
+        Tampilan Format Uang: Semua nilai uang yang ditampilkan (Revenue Today, laporan, dll.) harus diformat lengkap dengan simbol "Rp." dan pemisah ribuan yang benar.
+
+        Pastikan data yang dikirim ke backend adalah angka murni (tanpa karakter . atau Rp.).
+
+3. Perbaikan Tata Letak (UI/UX)
+
+    Lokasi: Tampilan Dashboard Utama (Home Screen) pada gambar kedua (setelah Login).
+
+    Masalah: Terdapat "gap kosong" atau area putih yang sangat luas di bagian utama layar. Hal ini membuat tampilan terkesan kurang rapi dan tidak efisien.
+
+    Tindakan yang Diminta:
+
+        Review dan optimalkan tata letak (layout) halaman utama.
+
+        Pastikan konten utama (yang seharusnya muncul di area kosong tersebut) dimuat dengan benar, atau minimalkan whitespace agar tampilan lebih padat dan informatif.

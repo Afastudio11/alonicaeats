@@ -6,7 +6,27 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number): string {
-  return `Rp. ${amount.toLocaleString('id-ID')}`
+  return `Rp ${amount.toLocaleString('id-ID')}`
+}
+
+// Format currency input with real-time thousands separators
+export function formatCurrencyInput(value: string): string {
+  // Remove all non-digit characters
+  const numericValue = value.replace(/\D/g, '');
+  
+  // If empty, return empty string
+  if (!numericValue) return '';
+  
+  // Parse and format with thousands separators using dot (.)
+  const number = parseInt(numericValue);
+  return number.toLocaleString('id-ID');
+}
+
+// Parse formatted currency input back to number
+export function parseCurrencyInput(formattedValue: string): number {
+  // Remove all non-digit characters and parse
+  const numericValue = formattedValue.replace(/\D/g, '');
+  return numericValue ? parseInt(numericValue) : 0;
 }
 
 export function formatDate(date: Date): string {

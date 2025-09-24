@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -11,16 +12,17 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Clock, DollarSign, TrendingUp, TrendingDown, User, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { formatCurrency } from "@/lib/utils";
 import type { Shift, InsertShift } from "@shared/schema";
 
 export default function ShiftManagementSection() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [initialCash, setInitialCash] = useState("");
-  const [finalCash, setFinalCash] = useState("");
+  const [initialCash, setInitialCash] = useState(0);
+  const [finalCash, setFinalCash] = useState(0);
   const [notes, setNotes] = useState("");
-  const [cashIn, setCashIn] = useState("");
-  const [cashOut, setCashOut] = useState("");
+  const [cashIn, setCashIn] = useState(0);
+  const [cashOut, setCashOut] = useState(0);
   const [cashDescription, setCashDescription] = useState("");
 
   // Fetch active shift
@@ -43,7 +45,7 @@ export default function ShiftManagementSection() {
         description: "Shift berhasil dibuka. Anda dapat mulai melayani pelanggan."
       });
       queryClient.invalidateQueries({ queryKey: ['/api/shifts/active'] });
-      setInitialCash("");
+      setInitialCash(0);
     },
     onError: (error: any) => {
       toast({
@@ -70,7 +72,7 @@ export default function ShiftManagementSection() {
         description: "Shift berhasil ditutup. Laporan shift telah disimpan."
       });
       queryClient.invalidateQueries({ queryKey: ['/api/shifts/active'] });
-      setFinalCash("");
+      setFinalCash(0);
       setNotes("");
     },
     onError: (error: any) => {
@@ -101,8 +103,8 @@ export default function ShiftManagementSection() {
         title: variables.type === 'in' ? "Kas Masuk Dicatat" : "Kas Keluar Dicatat",
         description: `Transaksi kas ${variables.type === 'in' ? 'masuk' : 'keluar'} berhasil dicatat`
       });
-      setCashIn("");
-      setCashOut("");
+      setCashIn(0);
+      setCashOut(0);
       setCashDescription("");
       queryClient.invalidateQueries({ queryKey: ['/api/cash-movements'] });
     },
@@ -116,8 +118,7 @@ export default function ShiftManagementSection() {
   });
 
   const handleOpenShift = () => {
-    const amount = parseFloat(initialCash);
-    if (isNaN(amount) || amount < 0) {
+    if (isNaN(initialCash) || initialCash < 0) {
       toast({
         title: "Input Tidak Valid",
         description: "Masukkan jumlah kas awal yang valid",
@@ -125,12 +126,11 @@ export default function ShiftManagementSection() {
       });
       return;
     }
-    openShiftMutation.mutate({ initialCash: amount });
+    openShiftMutation.mutate({ initialCash });
   };
 
   const handleCloseShift = () => {
-    const amount = parseFloat(finalCash);
-    if (isNaN(amount) || amount < 0) {
+    if (isNaN(finalCash) || finalCash < 0) {
       toast({
         title: "Input Tidak Valid",
         description: "Masukkan jumlah kas akhir yang valid",
@@ -138,11 +138,11 @@ export default function ShiftManagementSection() {
       });
       return;
     }
-    closeShiftMutation.mutate({ finalCash: amount, notes: notes || undefined });
+    closeShiftMutation.mutate({ finalCash, notes: notes || undefined });
   };
 
   const handleCashMovement = (type: 'in' | 'out') => {
-    const amount = parseFloat(type === 'in' ? cashIn : cashOut);
+    const amount = type === 'in' ? cashIn : cashOut;
     if (isNaN(amount) || amount <= 0) {
       toast({
         title: "Input Tidak Valid",
@@ -168,13 +168,6 @@ export default function ShiftManagementSection() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   const formatTime = (date: string | Date) => {
     return new Date(date).toLocaleString('id-ID', {
@@ -189,9 +182,8 @@ export default function ShiftManagementSection() {
 
   const calculateCashDifference = () => {
     if (!activeShift || !finalCash) return 0;
-    const final = parseFloat(finalCash);
     const expected = (activeShift.systemCash || activeShift.initialCash || 0);
-    return final - expected;
+    return finalCash - expected;
   };
 
   if (loadingShift) {
@@ -230,12 +222,10 @@ export default function ShiftManagementSection() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="initial-cash">Kas Awal (Rp)</Label>
-              <Input
+              <CurrencyInput
                 id="initial-cash"
-                type="number"
-                placeholder="0"
                 value={initialCash}
-                onChange={(e) => setInitialCash(e.target.value)}
+                onValueChange={setInitialCash}
                 data-testid="input-initial-cash"
               />
             </div>
@@ -311,12 +301,10 @@ export default function ShiftManagementSection() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cash-in">Kas Masuk (Rp)</Label>
-                  <Input
+                  <CurrencyInput
                     id="cash-in"
-                    type="number"
-                    placeholder="0"
                     value={cashIn}
-                    onChange={(e) => setCashIn(e.target.value)}
+                    onValueChange={setCashIn}
                     data-testid="input-cash-in"
                   />
                   <Button 
@@ -333,12 +321,10 @@ export default function ShiftManagementSection() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="cash-out">Kas Keluar (Rp)</Label>
-                  <Input
+                  <CurrencyInput
                     id="cash-out"
-                    type="number"
-                    placeholder="0"
                     value={cashOut}
-                    onChange={(e) => setCashOut(e.target.value)}
+                    onValueChange={setCashOut}
                     data-testid="input-cash-out"
                   />
                   <Button 
@@ -372,12 +358,10 @@ export default function ShiftManagementSection() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="final-cash">Kas Fisik Dihitung (Rp)</Label>
-                  <Input
+                  <CurrencyInput
                     id="final-cash"
-                    type="number"
-                    placeholder="0"
                     value={finalCash}
-                    onChange={(e) => setFinalCash(e.target.value)}
+                    onValueChange={setFinalCash}
                     data-testid="input-final-cash"
                   />
                 </div>
@@ -404,7 +388,7 @@ export default function ShiftManagementSection() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Kas Fisik</p>
-                      <p className="font-medium">{formatCurrency(parseFloat(finalCash) || 0)}</p>
+                      <p className="font-medium">{formatCurrency(finalCash || 0)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Selisih</p>
