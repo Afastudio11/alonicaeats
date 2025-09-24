@@ -89,12 +89,12 @@ export default function InventorySection() {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="alonica-card p-6 animate-pulse">
+            <div key={i} className="alonica-card p-4 animate-pulse">
               <div className="h-16 bg-muted rounded"></div>
             </div>
           ))}
         </div>
-        <div className="alonica-card p-6 animate-pulse">
+        <div className="alonica-card p-4 animate-pulse">
           <div className="h-64 bg-muted rounded"></div>
         </div>
       </div>
@@ -105,7 +105,7 @@ export default function InventorySection() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground" data-testid="stat-total-items">
               {totalItems}
@@ -113,7 +113,7 @@ export default function InventorySection() {
             <p className="text-sm text-muted-foreground">Total Items</p>
           </div>
         </div>
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-destructive" data-testid="stat-critical-stock">
               {criticalStock}
@@ -121,7 +121,7 @@ export default function InventorySection() {
             <p className="text-sm text-muted-foreground">Critical Stock</p>
           </div>
         </div>
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-yellow-600" data-testid="stat-low-stock">
               {lowStock}
@@ -129,7 +129,7 @@ export default function InventorySection() {
             <p className="text-sm text-muted-foreground">Low Stock</p>
           </div>
         </div>
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-green-600" data-testid="stat-sufficient-stock">
               {sufficientStock}

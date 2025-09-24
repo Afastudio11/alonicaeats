@@ -329,7 +329,7 @@ export default function KitchenSection() {
           <TabsContent value="kitchen" className="space-y-6">
             {/* Kitchen Statistics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="alonica-card p-6">
+              <div className="alonica-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Pesanan Baru</p>
@@ -341,7 +341,7 @@ export default function KitchenSection() {
                 </div>
               </div>
 
-              <div className="alonica-card p-6">
+              <div className="alonica-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Sedang Dimasak</p>
@@ -353,7 +353,7 @@ export default function KitchenSection() {
                 </div>
               </div>
 
-              <div className="alonica-card p-6">
+              <div className="alonica-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Aktif</p>
@@ -428,7 +428,7 @@ export default function KitchenSection() {
           <TabsContent value="bar" className="space-y-6">
             {/* Bar Statistics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="alonica-card p-6">
+              <div className="alonica-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Pesanan Baru</p>
@@ -440,7 +440,7 @@ export default function KitchenSection() {
                 </div>
               </div>
 
-              <div className="alonica-card p-6">
+              <div className="alonica-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Sedang Dibuat</p>
@@ -452,7 +452,7 @@ export default function KitchenSection() {
                 </div>
               </div>
 
-              <div className="alonica-card p-6">
+              <div className="alonica-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Aktif</p>

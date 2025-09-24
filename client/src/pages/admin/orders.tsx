@@ -157,12 +157,12 @@ export default function OrdersSection() {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="alonica-card p-6 animate-pulse">
+            <div key={i} className="alonica-card p-4 animate-pulse">
               <div className="h-16 bg-muted rounded"></div>
             </div>
           ))}
         </div>
-        <div className="alonica-card p-6 animate-pulse">
+        <div className="alonica-card p-4 animate-pulse">
           <div className="h-64 bg-muted rounded"></div>
         </div>
       </div>
@@ -173,7 +173,7 @@ export default function OrdersSection() {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total Orders Today</p>
@@ -185,7 +185,7 @@ export default function OrdersSection() {
           </div>
         </div>
 
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Completed Orders</p>
@@ -197,7 +197,7 @@ export default function OrdersSection() {
           </div>
         </div>
 
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Pending Orders</p>
@@ -209,7 +209,7 @@ export default function OrdersSection() {
           </div>
         </div>
 
-        <div className="alonica-card p-6">
+        <div className="alonica-card p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Revenue Today</p>

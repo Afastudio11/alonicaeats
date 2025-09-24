@@ -111,7 +111,7 @@ export default function AdminDashboard() {
         </header>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4">
           {renderSection()}
         </div>
       </div>

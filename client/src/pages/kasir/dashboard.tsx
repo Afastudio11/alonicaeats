@@ -105,7 +105,7 @@ export default function KasirDashboard() {
         </div>
         
         {/* Page Content */}
-        <div className="p-6">
+        <div className="p-4">
           {renderSection()}
         </div>
       </div>

@@ -134,7 +134,7 @@ export default function CategoriesSection() {
       {/* Categories Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {categories.map((category) => (
-          <div key={category.id} className="alonica-card p-6" data-testid={`card-category-${category.id}`}>
+          <div key={category.id} className="alonica-card p-4" data-testid={`card-category-${category.id}`}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">

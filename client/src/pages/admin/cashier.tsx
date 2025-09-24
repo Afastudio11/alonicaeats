@@ -703,7 +703,7 @@ export default function CashierSection() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="alonica-card p-6">
+      <div className="alonica-card p-4">
         <div className="flex items-center space-x-3">
           <Receipt className="h-8 w-8 text-primary" />
           <div>

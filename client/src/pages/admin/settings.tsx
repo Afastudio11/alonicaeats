@@ -130,7 +130,7 @@ export default function SettingsSection() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="alonica-card p-6 animate-pulse">
+        <div className="alonica-card p-4 animate-pulse">
           <div className="h-8 bg-muted rounded mb-6"></div>
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -148,7 +148,7 @@ export default function SettingsSection() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="alonica-card p-6">
+      <div className="alonica-card p-4">
         <div className="flex items-center space-x-3">
           <Building className="h-8 w-8 text-primary" />
           <div>
@@ -163,7 +163,7 @@ export default function SettingsSection() {
       </div>
 
       {/* Store Profile Form */}
-      <div className="alonica-card p-6">
+      <div className="alonica-card p-4">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Restaurant Name */}
@@ -260,7 +260,7 @@ export default function SettingsSection() {
       </div>
 
       {/* Preview Receipt Info */}
-      <div className="alonica-card p-6">
+      <div className="alonica-card p-4">
         <h2 className="text-lg font-semibold text-foreground mb-4">
           Preview Receipt Header
         </h2>
