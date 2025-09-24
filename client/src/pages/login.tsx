@@ -42,13 +42,37 @@ export default function LoginPage() {
         description: "Selamat datang kembali!",
       });
     } catch (err: any) {
-      const errorMessage = err?.message || "Login gagal. Periksa kembali username dan password Anda.";
-      setError(errorMessage);
-      toast({
-        title: "Login gagal",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // If login fails, try to initialize default users first
+      try {
+        const response = await fetch('/api/auth/init-default-users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Default users initialized:', result);
+          
+          // Now try to login again
+          await login(username, password);
+          toast({
+            title: "Login berhasil",
+            description: "User default berhasil dibuat dan login berhasil",
+          });
+        } else {
+          throw new Error('Failed to initialize default users');
+        }
+      } catch (initError) {
+        const errorMessage = err?.message || "Login gagal. Periksa kembali username dan password Anda.";
+        setError(errorMessage);
+        toast({
+          title: "Login gagal",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

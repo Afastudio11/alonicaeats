@@ -215,7 +215,8 @@ Kembali:                   17,000
         ]
       });
 
-      const server = await bluetoothDevice.gatt.connect();
+      const server = await bluetoothDevice.gatt?.connect();
+      if (!server) throw new Error('Failed to connect to GATT server');
       
       // Try to find a writable characteristic
       const services = await server.getPrimaryServices();
@@ -271,7 +272,7 @@ Kembali:                   17,000
           filters: [{ name: deviceRef.current.name }]
         });
         
-        if (device.gatt.connected) {
+        if (device.gatt?.connected) {
           device.gatt.disconnect();
         }
 
