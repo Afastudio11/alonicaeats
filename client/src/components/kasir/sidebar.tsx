@@ -7,6 +7,7 @@ import {
   Users, 
   Package, 
   Calendar,
+  Receipt,
   X,
   LogOut
 } from "lucide-react";
@@ -31,6 +32,7 @@ const menuItems = [
   { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
   { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
+  { id: 'expenses', label: 'Pencatatan Pengeluaran', icon: Receipt, path: '/kasir/expenses' },
   { id: 'daily-reports', label: 'Laporan Harian', icon: Calendar, path: '/kasir/daily-reports' },
 ];
 
