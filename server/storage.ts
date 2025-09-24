@@ -1637,6 +1637,35 @@ class MemStorage implements IStorage {
   async deletePrintSetting(id: string): Promise<boolean> {
     return this.printSettings.delete(id);
   }
+
+  // Stub implementations for new methods (MemStorage fallback)
+  async getShifts(): Promise<any[]> { return []; }
+  async getShiftsByCashier(cashierId: string): Promise<any[]> { return []; }
+  async getActiveShift(cashierId: string): Promise<any | undefined> { return undefined; }
+  async getShift(id: string): Promise<any | undefined> { return undefined; }
+  async createShift(shift: any): Promise<any> { throw new Error('Shift management not supported in MemStorage fallback'); }
+  async updateShift(id: string, shift: any): Promise<any | undefined> { throw new Error('Shift management not supported in MemStorage fallback'); }
+  async closeShift(id: string, finalCash: number, notes?: string): Promise<any | undefined> { throw new Error('Shift management not supported in MemStorage fallback'); }
+
+  async getCashMovements(): Promise<any[]> { return []; }
+  async getCashMovementsByShift(shiftId: string): Promise<any[]> { return []; }
+  async getCashMovement(id: string): Promise<any | undefined> { return undefined; }
+  async createCashMovement(movement: any): Promise<any> { throw new Error('Cash movements not supported in MemStorage fallback'); }
+  async updateCashMovement(id: string, movement: any): Promise<any | undefined> { throw new Error('Cash movements not supported in MemStorage fallback'); }
+  async deleteCashMovement(id: string): Promise<boolean> { throw new Error('Cash movements not supported in MemStorage fallback'); }
+
+  async getRefunds(): Promise<any[]> { return []; }
+  async getRefundsByOrder(orderId: string): Promise<any[]> { return []; }
+  async getRefund(id: string): Promise<any | undefined> { return undefined; }
+  async createRefund(refund: any): Promise<any> { throw new Error('Refunds not supported in MemStorage fallback'); }
+  async updateRefund(id: string, refund: any): Promise<any | undefined> { throw new Error('Refunds not supported in MemStorage fallback'); }
+  async authorizeRefund(id: string, authorizedBy: string, authCode: string): Promise<any | undefined> { throw new Error('Refunds not supported in MemStorage fallback'); }
+  async processRefund(id: string): Promise<any | undefined> { throw new Error('Refunds not supported in MemStorage fallback'); }
+
+  async getAuditLogs(): Promise<any[]> { return []; }
+  async getAuditLogsByUser(userId: string): Promise<any[]> { return []; }
+  async getAuditLogsByAction(action: string): Promise<any[]> { return []; }
+  async createAuditLog(log: any): Promise<any> { throw new Error('Audit logs not supported in MemStorage fallback'); }
 }
 
 // Wrapper that handles database fallback at runtime
@@ -1975,6 +2004,154 @@ class FallbackStorage implements IStorage {
   async deletePrintSetting(id: string): Promise<boolean> {
     return this.withFallback(async () => 
       this.usingMemStorage ? this.memStorage.deletePrintSetting(id) : this.dbStorage.deletePrintSetting(id)
+    );
+  }
+
+  // Shift management delegation methods
+  async getShifts(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getShifts() : this.dbStorage.getShifts()
+    );
+  }
+
+  async getShiftsByCashier(cashierId: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getShiftsByCashier(cashierId) : this.dbStorage.getShiftsByCashier(cashierId)
+    );
+  }
+
+  async getActiveShift(cashierId: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getActiveShift(cashierId) : this.dbStorage.getActiveShift(cashierId)
+    );
+  }
+
+  async getShift(id: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getShift(id) : this.dbStorage.getShift(id)
+    );
+  }
+
+  async createShift(shift: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createShift(shift) : this.dbStorage.createShift(shift)
+    );
+  }
+
+  async updateShift(id: string, shift: any): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.updateShift(id, shift) : this.dbStorage.updateShift(id, shift)
+    );
+  }
+
+  async closeShift(id: string, finalCash: number, notes?: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.closeShift(id, finalCash, notes) : this.dbStorage.closeShift(id, finalCash, notes)
+    );
+  }
+
+  // Cash movement delegation methods
+  async getCashMovements(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getCashMovements() : this.dbStorage.getCashMovements()
+    );
+  }
+
+  async getCashMovementsByShift(shiftId: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getCashMovementsByShift(shiftId) : this.dbStorage.getCashMovementsByShift(shiftId)
+    );
+  }
+
+  async getCashMovement(id: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getCashMovement(id) : this.dbStorage.getCashMovement(id)
+    );
+  }
+
+  async createCashMovement(movement: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createCashMovement(movement) : this.dbStorage.createCashMovement(movement)
+    );
+  }
+
+  async updateCashMovement(id: string, movement: any): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.updateCashMovement(id, movement) : this.dbStorage.updateCashMovement(id, movement)
+    );
+  }
+
+  async deleteCashMovement(id: string): Promise<boolean> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.deleteCashMovement(id) : this.dbStorage.deleteCashMovement(id)
+    );
+  }
+
+  // Refund delegation methods
+  async getRefunds(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getRefunds() : this.dbStorage.getRefunds()
+    );
+  }
+
+  async getRefundsByOrder(orderId: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getRefundsByOrder(orderId) : this.dbStorage.getRefundsByOrder(orderId)
+    );
+  }
+
+  async getRefund(id: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getRefund(id) : this.dbStorage.getRefund(id)
+    );
+  }
+
+  async createRefund(refund: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createRefund(refund) : this.dbStorage.createRefund(refund)
+    );
+  }
+
+  async updateRefund(id: string, refund: any): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.updateRefund(id, refund) : this.dbStorage.updateRefund(id, refund)
+    );
+  }
+
+  async authorizeRefund(id: string, authorizedBy: string, authCode: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.authorizeRefund(id, authorizedBy, authCode) : this.dbStorage.authorizeRefund(id, authorizedBy, authCode)
+    );
+  }
+
+  async processRefund(id: string): Promise<any | undefined> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.processRefund(id) : this.dbStorage.processRefund(id)
+    );
+  }
+
+  // Audit log delegation methods
+  async getAuditLogs(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getAuditLogs() : this.dbStorage.getAuditLogs()
+    );
+  }
+
+  async getAuditLogsByUser(userId: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getAuditLogsByUser(userId) : this.dbStorage.getAuditLogsByUser(userId)
+    );
+  }
+
+  async getAuditLogsByAction(action: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getAuditLogsByAction(action) : this.dbStorage.getAuditLogsByAction(action)
+    );
+  }
+
+  async createAuditLog(log: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createAuditLog(log) : this.dbStorage.createAuditLog(log)
     );
   }
 }

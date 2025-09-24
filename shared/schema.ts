@@ -214,7 +214,12 @@ export const shifts = pgTable("shifts", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  // Unique constraint: only one open shift per cashier
+  uniqueOpenShift: sql`CREATE UNIQUE INDEX IF NOT EXISTS "shifts_unique_open_per_cashier" ON "shifts" ("cashier_id") WHERE "status" = 'open'`,
+  // Index for cashier shift queries
+  cashierIdIdx: sql`CREATE INDEX IF NOT EXISTS "shifts_cashier_id_idx" ON "shifts" ("cashier_id", "start_time")`,
+}));
 
 // Cash movements table for tracking cash in/out during shifts
 export const cashMovements = pgTable("cash_movements", {
@@ -227,7 +232,12 @@ export const cashMovements = pgTable("cash_movements", {
   category: text("category").notNull().default("other"), // 'initial_deposit', 'expense', 'deposit', 'other'
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  // Index for shift cash movements
+  shiftIdIdx: sql`CREATE INDEX IF NOT EXISTS "cash_movements_shift_id_idx" ON "cash_movements" ("shift_id", "created_at")`,
+  // Index for reporting by date
+  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "cash_movements_created_at_idx" ON "cash_movements" ("created_at")`,
+}));
 
 // Refunds table for tracking refund/void transactions
 export const refunds = pgTable("refunds", {
@@ -238,14 +248,19 @@ export const refunds = pgTable("refunds", {
   refundType: text("refund_type").notNull(), // 'void', 'partial_refund', 'full_refund'
   reason: text("reason").notNull(),
   requestedBy: varchar("requested_by").notNull().references(() => users.id), // cashier who requested
-  authorizedBy: varchar("authorized_by").notNull().references(() => users.id), // admin who authorized
+  authorizedBy: varchar("authorized_by").references(() => users.id), // admin who authorized (nullable until approved)
   status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'completed'
-  authorizationCode: text("authorization_code"), // admin password verification
+  authorizationCode: text("authorization_code"), // admin verification code
   processedAt: timestamp("processed_at"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  // Index for queries on order refunds
+  orderIdIdx: sql`CREATE INDEX IF NOT EXISTS "refunds_order_id_idx" ON "refunds" ("order_id")`,
+  // Index for status and created_at queries
+  statusCreatedIdx: sql`CREATE INDEX IF NOT EXISTS "refunds_status_created_idx" ON "refunds" ("status", "created_at")`,
+}));
 
 // Audit logs table for tracking all admin authorization actions
 export const auditLogs = pgTable("audit_logs", {
@@ -258,7 +273,14 @@ export const auditLogs = pgTable("audit_logs", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  // Index for admin reporting by user
+  performedByIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_performed_by_idx" ON "audit_logs" ("performed_by", "created_at")`,
+  // Index for action-based queries
+  actionIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_action_idx" ON "audit_logs" ("action", "created_at")`,
+  // Index for chronological queries
+  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_created_at_idx" ON "audit_logs" ("created_at")`,
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -342,11 +364,14 @@ export const insertShiftSchema = createInsertSchema(shifts).omit({
 }).extend({
   startTime: z.coerce.date().optional(),
   endTime: z.coerce.date().optional(),
+  status: ShiftStatusEnum,
 });
 
 export const insertCashMovementSchema = createInsertSchema(cashMovements).omit({
   id: true,
   createdAt: true,
+}).extend({
+  type: CashMovementTypeEnum,
 });
 
 export const insertRefundSchema = createInsertSchema(refunds).omit({
@@ -355,6 +380,8 @@ export const insertRefundSchema = createInsertSchema(refunds).omit({
   updatedAt: true,
 }).extend({
   processedAt: z.coerce.date().optional(),
+  refundType: RefundTypeEnum,
+  status: RefundStatusEnum,
 });
 
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
