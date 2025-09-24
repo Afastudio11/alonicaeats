@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useErrorHandler } from "@/hooks/use-error-handler";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
+import { formatCurrency } from "@/lib/utils";
 import { insertExpenseSchema, type Expense, type InsertExpense } from "@shared/schema";
 
 // Form schema for expense recording
@@ -86,14 +88,6 @@ export default function ExpensesSection() {
     createExpenseMutation.mutate(data);
   };
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   // Get today's total expenses
   const todayTotal = expenses
@@ -217,14 +211,11 @@ export default function ExpensesSection() {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Jumlah Pengeluaran (IDR) *</FormLabel>
+                        <FormLabel>Jumlah Pengeluaran (Rp) *</FormLabel>
                         <FormControl>
-                          <Input
-                            type="number"
-                            min="1"
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            placeholder="0"
+                          <CurrencyInput
+                            value={field.value}
+                            onValueChange={field.onChange}
                             data-testid="input-expense-amount"
                           />
                         </FormControl>

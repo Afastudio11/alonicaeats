@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -459,11 +460,10 @@ function MenuItemForm({
 
       <div>
         <Label htmlFor="price">Price (Rp)</Label>
-        <Input
+        <CurrencyInput
           id="price"
-          type="number"
           value={formData.price}
-          onChange={(e) => setFormData(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
+          onValueChange={(value) => setFormData(prev => ({ ...prev, price: value }))}
           required
           data-testid="input-menu-price"
         />
