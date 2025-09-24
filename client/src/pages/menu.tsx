@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Search, Mic, Plus } from "lucide-react";
@@ -14,8 +14,10 @@ import type { MenuItem, Category } from "@shared/schema";
 export default function MenuPage() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { addToCart, totalItems } = useCart();
   const { toast } = useToast();
+  const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({});
 
   const { data: menuItems = [], isLoading: menuLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/menu"],
@@ -37,6 +39,19 @@ export default function MenuPage() {
     category,
     items: filteredItems.filter(item => item.categoryId === category.id)
   })).filter(group => group.items.length > 0);
+
+  const scrollToCategory = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    const element = sectionRefs.current[categoryId];
+    if (element) {
+      const headerHeight = 140; // Approximate height of header + search + category nav
+      const elementPosition = element.offsetTop - headerHeight;
+      window.scrollTo({
+        top: elementPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const handleAddToCart = (item: MenuItem) => {
     addToCart({
@@ -100,11 +115,45 @@ export default function MenuPage() {
         </div>
       </div>
 
+      {/* Category Navigation Bar */}
+      <div className="bg-white border-b px-6 py-3">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide">
+          <Button
+            variant={selectedCategory === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setSelectedCategory(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
+          >
+            Semua
+          </Button>
+          {categories.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => scrollToCategory(category.id)}
+              className="whitespace-nowrap flex-shrink-0 rounded-full px-4 py-2"
+            >
+              {category.name}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {/* Menu Content */}
       <div className="px-6">
         {/* Dynamic Category Sections */}
         {itemsByCategory.map((group, index) => (
-          <section key={group.category.id} className={index < itemsByCategory.length - 1 ? "mb-8" : ""}>
+          <section 
+            key={group.category.id} 
+            className={index < itemsByCategory.length - 1 ? "mb-8" : ""}
+            ref={(el) => {
+              sectionRefs.current[group.category.id] = el;
+            }}
+          >
             <h2 className="text-xl font-semibold text-foreground mb-4" data-testid={`text-section-${group.category.id}`}>
               {group.category.name}
             </h2>
