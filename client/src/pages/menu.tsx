@@ -139,51 +139,34 @@ export default function MenuPage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`
-                flex flex-col items-center justify-center p-2 rounded-xl cursor-pointer transition-all duration-300 group
+                flex items-center justify-center py-3 px-2 rounded-xl cursor-pointer transition-all duration-300 group
                 ${selectedCategory === null 
                   ? 'bg-primary text-white shadow-lg scale-105' 
                   : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
                 }
               `}
             >
-              <div className={`p-1.5 rounded-lg mb-1 transition-colors ${
-                selectedCategory === null ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
-              }`}>
-                <Utensils className={`w-3.5 h-3.5 ${selectedCategory === null ? 'text-white' : 'text-primary'}`} />
-              </div>
-              <span className="text-[10px] font-medium text-center leading-tight">Semua</span>
-              {selectedCategory === null && (
-                <div className="w-4 h-0.5 bg-white/50 rounded-full mt-0.5"></div>
-              )}
+              <span className="text-xs font-medium text-center">Semua</span>
             </div>
 
             {/* Category Items */}
             {categories.map((category) => {
-              const IconComponent = getCategoryIcon(category.name);
               const isActive = selectedCategory === category.id;
               return (
                 <div
                   key={category.id}
                   onClick={() => scrollToCategory(category.id)}
                   className={`
-                    flex flex-col items-center justify-center p-2 rounded-xl cursor-pointer transition-all duration-300 group
+                    flex items-center justify-center py-3 px-2 rounded-xl cursor-pointer transition-all duration-300 group
                     ${isActive 
                       ? 'bg-primary text-white shadow-lg scale-105' 
                       : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
                     }
                   `}
                 >
-                  <div className={`p-1.5 rounded-lg mb-1 transition-colors ${
-                    isActive ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
-                  }`}>
-                    <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-primary'}`} />
-                  </div>
-                  <span className="text-[10px] font-medium text-center leading-tight">
+                  <span className="text-xs font-medium text-center">
                     {category.name}
                   </span>
-                  {isActive && (
-                    <div className="w-4 h-0.5 bg-white/50 rounded-full mt-0.5"></div>
-                  )}
                 </div>
               );
             })}
