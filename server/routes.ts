@@ -747,7 +747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Omit server-controlled fields from validation
-      const shiftInputSchema = insertShiftSchema.omit({ cashierId: true });
+      const shiftInputSchema = insertShiftSchema.omit({ cashierId: true, status: true });
       const validatedData = shiftInputSchema.parse(req.body);
       
       // Inject the current cashier ID and set status to open
@@ -761,10 +761,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create audit log for shift opening
       await storage.createAuditLog({
-        userId: currentUser.id,
+        performedBy: currentUser.id,
         action: 'shift_opened',
-        resourceType: 'shift',
-        resourceId: shift.id,
+        targetType: 'shift',
+        targetId: shift.id,
         details: { startingCash: shift.startingCash }
       });
       
