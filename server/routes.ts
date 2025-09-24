@@ -341,6 +341,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Logged out successfully" });
   });
 
+  // Initialize default users for memory storage (development only)
+  app.post("/api/auth/init-default-users", async (req, res) => {
+    // Security: Only allow in development environment
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(403).json({ message: "This endpoint is only available in development mode" });
+    }
+    
+    try {
+      // Check if admin user already exists
+      const existingAdmin = await storage.getUserByUsername("admin");
+      
+      if (!existingAdmin) {
+        // Create admin user
+        const hashedAdminPassword = await hashPassword("admin123");
+        await storage.createUser({
+          username: "admin",
+          password: hashedAdminPassword,
+          role: "admin",
+          isActive: true
+        });
+        console.log("✅ Admin user created in memory storage");
+      }
+
+      // Create kasir users
+      const cashierAccounts = [
+        { username: "kasir1", password: "kasir123" },
+        { username: "kasir2", password: "kasir456" },
+        { username: "kasir3", password: "kasir789" },
+        { username: "kasir4", password: "kasir000" }
+      ];
+
+      let createdCount = 0;
+      for (const cashier of cashierAccounts) {
+        const existingKasir = await storage.getUserByUsername(cashier.username);
+        if (!existingKasir) {
+          const hashedKasirPassword = await hashPassword(cashier.password);
+          await storage.createUser({
+            username: cashier.username,
+            password: hashedKasirPassword,
+            role: "kasir",
+            isActive: true
+          });
+          createdCount++;
+          console.log(`✅ Kasir ${cashier.username} created in memory storage`);
+        }
+      }
+
+      res.json({ 
+        message: "Default users initialized successfully",
+        created: {
+          admin: !existingAdmin ? 1 : 0,
+          kasir: createdCount
+        }
+      });
+    } catch (error) {
+      console.error("❌ Error initializing default users:", error);
+      res.status(500).json({ message: "Failed to initialize default users" });
+    }
+  });
+
   // User Management (Admin only)
   app.get("/api/users", requireAuth, requireAdmin, async (req, res) => {
     try {
