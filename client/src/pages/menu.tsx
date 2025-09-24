@@ -129,9 +129,9 @@ export default function MenuPage() {
       </div>
 
       {/* Modern Category Navigation Bar - Sticky */}
-      <div className="bg-white/95 backdrop-blur-sm border-b shadow-sm px-4 py-3 sticky top-[72px] z-20">
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 border border-gray-200/50 shadow-inner">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+      <div className="bg-white/95 backdrop-blur-sm border-b shadow-sm px-2 py-3 sticky top-[72px] z-20">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-3 border border-gray-200/50 shadow-inner">
+          <div className="grid grid-cols-4 gap-1 sm:flex sm:gap-2 sm:justify-center">
             {/* Semua Category */}
             <div
               onClick={() => {
@@ -139,21 +139,21 @@ export default function MenuPage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`
-                flex flex-col items-center justify-center min-w-[80px] p-3 rounded-xl cursor-pointer transition-all duration-300 group
+                flex flex-col items-center justify-center p-2 rounded-xl cursor-pointer transition-all duration-300 group
                 ${selectedCategory === null 
                   ? 'bg-primary text-white shadow-lg scale-105' 
                   : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
                 }
               `}
             >
-              <div className={`p-2 rounded-lg mb-1 transition-colors ${
+              <div className={`p-1.5 rounded-lg mb-1 transition-colors ${
                 selectedCategory === null ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
               }`}>
-                <Utensils className={`w-4 h-4 ${selectedCategory === null ? 'text-white' : 'text-primary'}`} />
+                <Utensils className={`w-3.5 h-3.5 ${selectedCategory === null ? 'text-white' : 'text-primary'}`} />
               </div>
-              <span className="text-xs font-medium text-center leading-tight">Semua</span>
+              <span className="text-[10px] font-medium text-center leading-tight">Semua</span>
               {selectedCategory === null && (
-                <div className="w-6 h-0.5 bg-white/50 rounded-full mt-1"></div>
+                <div className="w-4 h-0.5 bg-white/50 rounded-full mt-0.5"></div>
               )}
             </div>
 
@@ -166,23 +166,23 @@ export default function MenuPage() {
                   key={category.id}
                   onClick={() => scrollToCategory(category.id)}
                   className={`
-                    flex flex-col items-center justify-center min-w-[80px] p-3 rounded-xl cursor-pointer transition-all duration-300 group
+                    flex flex-col items-center justify-center p-2 rounded-xl cursor-pointer transition-all duration-300 group
                     ${isActive 
                       ? 'bg-primary text-white shadow-lg scale-105' 
                       : 'bg-white hover:bg-gray-50 hover:shadow-md text-gray-700 hover:scale-102'
                     }
                   `}
                 >
-                  <div className={`p-2 rounded-lg mb-1 transition-colors ${
+                  <div className={`p-1.5 rounded-lg mb-1 transition-colors ${
                     isActive ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
                   }`}>
-                    <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-primary'}`} />
+                    <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-primary'}`} />
                   </div>
-                  <span className="text-xs font-medium text-center leading-tight">
+                  <span className="text-[10px] font-medium text-center leading-tight">
                     {category.name}
                   </span>
                   {isActive && (
-                    <div className="w-6 h-0.5 bg-white/50 rounded-full mt-1"></div>
+                    <div className="w-4 h-0.5 bg-white/50 rounded-full mt-0.5"></div>
                   )}
                 </div>
               );
