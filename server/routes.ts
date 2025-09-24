@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { ZodError } from 'zod';
 import { storage } from "./storage";
 import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, insertUserSchema, insertDiscountSchema, insertExpenseSchema, insertDailyReportSchema, insertPrintSettingSchema, insertShiftSchema, insertCashMovementSchema, insertRefundSchema, insertAuditLogSchema, type InsertOrder } from "@shared/schema";
+import { z } from 'zod';
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
@@ -49,6 +50,15 @@ function detectImageMimeType(buffer: Buffer): string | null {
   }
   return null;
 }
+
+// Validation schemas for user management endpoints
+const passwordResetSchema = z.object({
+  newPassword: z.string().min(6, "Password must be at least 6 characters long")
+});
+
+const userStatusSchema = z.object({
+  isActive: z.boolean()
+});
 
 // Error handling utilities
 interface ApiError {
@@ -109,10 +119,28 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ message: "Session expired or invalid" });
   }
 
+  // Re-check user status to ensure account is still active
+  try {
+    const currentUser = await storage.getUser(session.userId);
+    if (!currentUser || !currentUser.isActive) {
+      // User no longer exists or is disabled - invalidate session
+      activeSessions.delete(sessionToken);
+      return res.status(401).json({ message: "Account is disabled or no longer exists" });
+    }
+    
+    // Update session with current user data in case role changed
+    session.username = currentUser.username;
+    session.role = currentUser.role;
+  } catch (error) {
+    // If we can't check user status, invalidate session for security
+    activeSessions.delete(sessionToken);
+    return res.status(401).json({ message: "Authentication verification failed" });
+  }
+
   // Extend session expiry
   session.expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-  // Add user info to request
+  // Add user info to request with current data
   (req as any).user = { id: session.userId, username: session.username, role: session.role };
   next();
 }
@@ -260,6 +288,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      // Check if user account is active
+      if (!user.isActive) {
+        return res.status(401).json({ message: "Account is disabled. Please contact administrator." });
+      }
+      
       // If password needs rehashing, do it now (just-in-time migration)
       if (needsRehashing) {
         try {
@@ -322,6 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
     try {
+      const currentUser = (req as any).user;
       const validatedData = insertUserSchema.parse(req.body);
       
       // Hash password before storing
@@ -329,6 +363,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userWithHashedPassword = { ...validatedData, password: hashedPassword };
       
       const user = await storage.createUser(userWithHashedPassword);
+      
+      // Create audit log for user creation
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'user_created',
+        resourceType: 'user',
+        resourceId: user.id,
+        details: {
+          username: user.username,
+          role: user.role,
+          createdBy: currentUser.username
+        }
+      });
       
       // Remove password from response
       const { password, ...safeUser } = user;
@@ -341,7 +388,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
+      const currentUser = (req as any).user;
       const validatedData = insertUserSchema.partial().parse(req.body);
+      
+      // Get original user for audit comparison
+      const originalUser = await storage.getUser(id);
+      if (!originalUser) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Prevent admin from changing their own role to non-admin
+      if (currentUser.id === id && validatedData.role && validatedData.role !== 'admin') {
+        return sendErrorResponse(res, 400, "Cannot change your own role from admin");
+      }
       
       // Hash password if it's being updated
       let updateData = validatedData;
@@ -355,6 +414,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return sendErrorResponse(res, 404, "User not found");
       }
+      
+      // Create audit log for user update
+      const changedFields = Object.keys(validatedData).filter(key => key !== 'password');
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'user_updated',
+        resourceType: 'user',
+        resourceId: user.id,
+        details: {
+          username: user.username,
+          changedFields,
+          passwordChanged: !!validatedData.password,
+          updatedBy: currentUser.username
+        }
+      });
       
       // Remove password from response
       const { password, ...safeUser } = user;
@@ -374,15 +448,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sendErrorResponse(res, 400, "Cannot delete your own account");
       }
       
+      // Get user details for audit log before deletion
+      const userToDelete = await storage.getUser(id);
+      if (!userToDelete) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
       const deleted = await storage.deleteUser(id);
       
       if (!deleted) {
         return sendErrorResponse(res, 404, "User not found");
       }
       
+      // Create audit log for user deletion
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'user_deleted',
+        resourceType: 'user',
+        resourceId: userToDelete.id,
+        details: {
+          username: userToDelete.username,
+          role: userToDelete.role,
+          deletedBy: currentUser.username
+        }
+      });
+      
       res.status(204).send();
     } catch (error) {
       return handleApiError(res, error, "Failed to delete user");
+    }
+  });
+
+  // Cashier-specific User Management
+  app.get("/api/users/cashiers", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Filter to only cashier accounts and remove password field
+      const cashiers = users
+        .filter(user => user.role === 'kasir')
+        .map(({ password, ...user }) => user);
+      res.json(cashiers);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch cashier accounts");
+    }
+  });
+
+  app.put("/api/users/:id/password-reset", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      const validatedData = passwordResetSchema.parse(req.body);
+      
+      // Get user to verify they exist
+      const targetUser = await storage.getUser(id);
+      if (!targetUser) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Hash new password
+      const hashedPassword = await hashPassword(validatedData.newPassword);
+      const updatedUser = await storage.updateUserPassword(id, hashedPassword);
+      
+      if (!updatedUser) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Create audit log for password reset
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: 'password_reset_forced',
+        resourceType: 'user',
+        resourceId: targetUser.id,
+        details: {
+          username: targetUser.username,
+          resetBy: currentUser.username
+        }
+      });
+      
+      res.json({ message: "Password reset successfully", username: targetUser.username });
+    } catch (error) {
+      return handleApiError(res, error, "Failed to reset password");
+    }
+  });
+
+  app.get("/api/users/:id/activity", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { limit = 50, offset = 0 } = req.query;
+      
+      // Verify user exists
+      const user = await storage.getUser(id);
+      if (!user) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Get audit logs for this user
+      const auditLogs = await storage.getAuditLogsByUser(id);
+      
+      // Apply pagination
+      const limitNum = parseInt(limit as string, 10);
+      const offsetNum = parseInt(offset as string, 10);
+      const paginatedLogs = auditLogs
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(offsetNum, offsetNum + limitNum);
+      
+      res.json({
+        user: { id: user.id, username: user.username, role: user.role },
+        activity: paginatedLogs,
+        total: auditLogs.length,
+        limit: limitNum,
+        offset: offsetNum
+      });
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch user activity");
+    }
+  });
+
+  app.put("/api/users/:id/status", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = (req as any).user;
+      const validatedData = userStatusSchema.parse(req.body);
+      
+      // Prevent admin from deactivating themselves
+      if (currentUser.id === id && !validatedData.isActive) {
+        return sendErrorResponse(res, 400, "Cannot deactivate your own account");
+      }
+      
+      // Get user to verify they exist
+      const targetUser = await storage.getUser(id);
+      if (!targetUser) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Update user status
+      const updatedUser = await storage.updateUser(id, { isActive: validatedData.isActive });
+      
+      if (!updatedUser) {
+        return sendErrorResponse(res, 404, "User not found");
+      }
+      
+      // Create audit log for status change
+      await storage.createAuditLog({
+        userId: currentUser.id,
+        action: validatedData.isActive ? 'user_activated' : 'user_deactivated',
+        resourceType: 'user',
+        resourceId: targetUser.id,
+        details: {
+          username: targetUser.username,
+          newStatus: validatedData.isActive ? 'active' : 'inactive',
+          changedBy: currentUser.username
+        }
+      });
+      
+      // Remove password from response
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to update user status");
+    }
+  });
+
+  // Audit Log Management (Admin only)
+  app.get("/api/audit-logs", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { action, userId, limit = 100, offset = 0 } = req.query;
+      
+      let auditLogs;
+      if (userId) {
+        auditLogs = await storage.getAuditLogsByUser(userId as string);
+      } else if (action) {
+        auditLogs = await storage.getAuditLogsByAction(action as string);
+      } else {
+        auditLogs = await storage.getAuditLogs();
+      }
+      
+      // Apply pagination
+      const limitNum = parseInt(limit as string, 10);
+      const offsetNum = parseInt(offset as string, 10);
+      const paginatedLogs = auditLogs
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(offsetNum, offsetNum + limitNum);
+      
+      res.json({
+        logs: paginatedLogs,
+        total: auditLogs.length,
+        limit: limitNum,
+        offset: offsetNum
+      });
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch audit logs");
     }
   });
 
