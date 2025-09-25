@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: alonica_app:latest
+    container_name: alonica_app
+    restart: unless-stopped
+    # No external port mapping - only accessible via Nginx proxy
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env.production
+    volumes:
+      - ./logs:/app/logs
+      - uploads:/app/uploads
+    depends_on:
+      - postgres
+    networks:
+      - alonica_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: alonica_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alonica_production
+      POSTGRES_USER: alonica_user
+    env_file:
+      - .env.production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Removed port mapping for security - DB only accessible within Docker network
+    networks:
+      - alonica_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alonica_user -d alonica_production"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    container_name: alonica_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-available:/etc/nginx/sites-available:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - alonica_network
+
+  # Optional: Monitoring stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: alonica_prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"  # Only accessible from localhost
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - alonica_network
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: alonica_grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"  # Only accessible from localhost
+    env_file:
+      - .env.production
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - alonica_network
+    profiles:
+      - monitoring
+
+  # Redis untuk session storage (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: alonica_redis
+    restart: unless-stopped
+    # No external port mapping for security - internal only
+    volumes:
+      - redis_data:/data
+    env_file:
+      - .env.production
+    networks:
+      - alonica_network
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    profiles:
+      - cache
+
+volumes:
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+
+networks:
+  alonica_network:
+    driver: bridge
