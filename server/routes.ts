@@ -342,10 +342,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initialize default users for memory storage (development only)
-  app.post("/api/auth/init-default-users", async (req, res) => {
-    // Security: Only allow in development environment
+  app.post("/api/auth/init-default-users", authLimiter, async (req, res) => {
+    // Security: Only allow in development environment AND localhost
     if (process.env.NODE_ENV !== 'development') {
       return res.status(403).json({ message: "This endpoint is only available in development mode" });
+    }
+    
+    // Additional security: Only allow from localhost in development
+    const clientIP = req.ip || req.connection.remoteAddress;
+    if (process.env.NODE_ENV === 'development' && !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(clientIP || '')) {
+      console.warn(`[SECURITY] Blocked init-default-users attempt from IP: ${clientIP}`);
+      return res.status(403).json({ message: "This endpoint is restricted to localhost only" });
     }
     
     try {
