@@ -58,9 +58,9 @@ export default function AdminSidebar({ isOpen, onClose, currentSection }: AdminS
   return (
     <>
       <div 
-        className={`fixed left-0 top-0 w-64 h-full bg-white shadow-lg z-30 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 w-64 h-full bg-white border-r border-border shadow-lg z-30 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        } lg:translate-x-0 lg:static lg:transform-none`}
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-8">

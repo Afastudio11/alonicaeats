@@ -38,13 +38,32 @@ export default function AdminDashboard() {
     );
   }
 
-  // Show access denied only after auth is ready and user is not authenticated
+  // Show access denied only after auth is ready and user is not authenticated or not admin
   if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
           <p className="text-muted-foreground">Please login to access admin dashboard</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has admin role
+  if (user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
+          <p className="text-muted-foreground">Admin access required. Current role: {user.role}</p>
+          <button 
+            onClick={logout} 
+            className="mt-4 px-4 py-2 bg-primary text-white rounded"
+            data-testid="button-logout-access-denied"
+          >
+            Logout and Login as Admin
+          </button>
         </div>
       </div>
     );
@@ -84,7 +103,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <AdminSidebar 
         isOpen={sidebarOpen} 
@@ -93,7 +112,7 @@ export default function AdminDashboard() {
       />
 
       {/* Main Content */}
-      <div className="lg:ml-64">
+      <div className="flex-1 lg:ml-0">
         {/* Header */}
         <header className="bg-white shadow-sm px-6 py-4 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center">
