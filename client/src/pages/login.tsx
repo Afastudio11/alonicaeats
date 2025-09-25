@@ -309,7 +309,7 @@ export default function LoginPage() {
           </Tabs>
           
           <div className="border-t pt-4 space-y-2">
-            <div className="flex justify-center space-x-2">
+            <div className="flex justify-center">
               <Button
                 variant="ghost"
                 size="sm"
@@ -317,15 +317,6 @@ export default function LoginPage() {
                 data-testid="button-back-home"
               >
                 ← Kembali ke Beranda
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/printer')}
-                data-testid="button-printer"
-              >
-                <Printer className="w-4 h-4 mr-1" />
-                Printer Settings
               </Button>
             </div>
           </div>

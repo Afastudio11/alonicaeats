@@ -10,7 +10,8 @@ import {
   Receipt,
   Clock,
   X,
-  LogOut
+  LogOut,
+  Printer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,6 +37,7 @@ const menuItems = [
   { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
   { id: 'expenses', label: 'Pencatatan Pengeluaran', icon: Receipt, path: '/kasir/expenses' },
   { id: 'daily-reports', label: 'Laporan Harian', icon: Calendar, path: '/kasir/daily-reports' },
+  { id: 'printer', label: 'Printer Settings', icon: Printer, path: '/kasir/printer' },
 ];
 
 export default function KasirSidebar({ isOpen, onClose, currentSection, user }: KasirSidebarProps) {
