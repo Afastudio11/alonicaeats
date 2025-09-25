@@ -90,3 +90,23 @@ Preferred communication style: Simple, everyday language.
 - **TypeScript**: Static type checking across the stack
 - **Node.js**: Runtime environment for the backend
 - **npm**: Package management and script execution
+
+## Recent Changes
+
+### September 25, 2025 - Replit Environment Setup Complete
+- Successfully configured project for Replit environment
+- Verified frontend/backend integration with Vite development server
+- Configured workflow to serve on port 5000 with webview output
+- Set up deployment configuration for autoscale deployment target
+- Confirmed Vite server has `allowedHosts: true` for Replit proxy compatibility
+- Application running successfully with HMR (Hot Module Replacement)
+- FallbackStorage configured (DatabaseStorage -> MemStorage on error)
+- Midtrans payment integration configured for mock development mode
+
+### Project Status
+- ✅ Dependencies installed and up-to-date
+- ✅ Development server running on port 5000
+- ✅ Frontend/backend integration working
+- ✅ Vite HMR connected and functional
+- ✅ Deployment configuration ready for production
+- ✅ All core systems operational
