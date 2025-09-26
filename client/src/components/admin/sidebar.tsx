@@ -69,17 +69,11 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
     ]
   },
   {
-    label: "ACCOUNTS",
-    items: [
-      { key: 'audit-reports', label: 'Transactions', icon: CreditCard, path: '/admin/audit-reports' },
-    ]
-  },
-  {
     label: "REPORTS",
     items: [
+      { key: 'audit-reports', label: 'Credit Balance Report', icon: Building2, path: '/admin/audit-reports' },
       { key: 'analytics', label: 'Sales Report', icon: TrendingUp, path: '/admin/analytics' },
       { key: 'inventory', label: 'Items Report', icon: Package2, path: '/admin/inventory' },
-      { key: 'audit-reports', label: 'Credit Balance Report', icon: Building2, path: '/admin/audit-reports' },
     ]
   },
   {
@@ -88,6 +82,8 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
       { key: 'settings', label: 'Settings', icon: Cog, path: '/admin/settings' },
       { key: 'menu', label: 'Menu Management', icon: Utensils, path: '/admin/menu' },
       { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
+      { key: 'print-settings', label: 'Print Settings', icon: Printer, path: '/admin/print-settings' },
+      { key: 'printer', label: 'Printer Page', icon: Printer, path: '/admin/printer' },
     ]
   }
 ];
