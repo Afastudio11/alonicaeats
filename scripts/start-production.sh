@@ -123,7 +123,7 @@ start_server() {
     export NODE_ENV=production
     export PORT=$SERVER_PORT
     
-    # Start server in background
+    # Start server in background (use compiled dist for production)
     nohup node dist/index.js > "$LOG_FILE" 2>&1 &
     local server_pid=$!
     

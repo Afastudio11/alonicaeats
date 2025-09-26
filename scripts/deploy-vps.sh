@@ -81,7 +81,7 @@ update_code() {
     git pull origin main || error "Failed to pull latest code"
     
     # Install/update dependencies
-    npm ci --only=production || error "Failed to install dependencies"
+    npm ci || error "Failed to install dependencies"
     
     success "Code updated successfully"
 }

@@ -20,7 +20,27 @@ Internet → Nginx (SSL/Proxy) → Node.js App (Port 3000) → PostgreSQL Databa
 
 ---
 
-## 📦 LANGKAH 1: Persiapan Server VPS
+## 🚀 QUICK START (Otomatis)
+
+Untuk setup cepat, gunakan script otomatis:
+
+```bash
+# Download dan jalankan quick setup script (dari project directory)
+cd /path/to/your/alonica-project
+chmod +x scripts/vps-quick-setup.sh
+./scripts/vps-quick-setup.sh
+
+# ATAU jika belum clone project, download script dulu:
+# wget https://raw.githubusercontent.com/YOUR-USERNAME/YOUR-REPO/main/scripts/vps-quick-setup.sh
+# chmod +x vps-quick-setup.sh
+# ./vps-quick-setup.sh
+```
+
+> Script ini akan otomatis setup semua yang diperlukan. Jika ingin setup manual, lanjutkan ke langkah berikutnya.
+
+---
+
+## 📦 LANGKAH 1: Persiapan Server VPS (Manual Setup)
 
 ### 1.1 Update Sistem dan Install Dependencies
 
@@ -341,7 +361,14 @@ psql -h localhost -U alonica_user -d alonica_production -c "\dt"
 > **⚠️ INI LANGKAH PALING PENTING** - Tanpa ini akan error "Login gagal"!
 
 ```bash
-# Method 1: Menggunakan API endpoint (RECOMMENDED)
+# Method 1: Menggunakan seed script (RECOMMENDED)
+# Run the seed script directly
+npx tsx scripts/seed-users.ts
+
+# Verify users created
+psql -h localhost -U alonica_user -d alonica_production -c "SELECT username, role FROM users;"
+
+# Method 2: Menggunakan API endpoint (ALTERNATIVE)
 # Start aplikasi temporary
 NODE_ENV=production node dist/index.js &
 APP_PID=$!
@@ -353,15 +380,6 @@ curl -X POST http://localhost:3000/api/auth/init-default-users
 # Verify response (harus berisi "created":{"admin":1,"kasir":4})
 # Stop temporary server safely
 kill $APP_PID
-
-# Method 2: Menggunakan seed script (ALTERNATIVE)
-# Verify npm scripts available
-npm run --silent 2>/dev/null | grep -E "(seed|migrate|db:)"
-
-# IMPORTANT: Verify database migration command in package.json
-cat package.json | grep -A5 -B5 "scripts"
-# Look for commands like: "db:push", "migrate", "drizzle:push", etc.
-# Use the actual command name from package.json
 ```
 
 ### 6.3 Verify Database Data
@@ -628,9 +646,8 @@ psql -h localhost -U alonica_user -d alonica_production -c "SELECT username, rol
 # Method A: Via API (if app is running)
 curl -X POST http://localhost:3000/api/auth/init-default-users
 
-# Method B: Via npm script (if app not running)
-npm run seed:users
-# OR if no script: npx tsx scripts/seed-users.ts
+# Method B: Via seed script (RECOMMENDED)
+npx tsx scripts/seed-users.ts
 
 # 3. Verify users created:
 psql -h localhost -U alonica_user -d alonica_production -c "SELECT username, role FROM users;"
