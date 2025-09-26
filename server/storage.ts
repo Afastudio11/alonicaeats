@@ -1180,13 +1180,111 @@ export class DatabaseStorage implements IStorage {
   }
 
   async closeShift(id: string, finalCash: number, notes?: string): Promise<Shift | undefined> {
+    // First get the current shift data
+    const currentShift = await this.getShift(id);
+    if (!currentShift) {
+      return undefined;
+    }
+
+    const shiftStart = currentShift.startTime;
+    const shiftEnd = new Date();
+    const cashierId = currentShift.cashierId;
+    
+    // Get orders paid during shift period (proper revenue recognition timing)
+    const shiftOrders = await db.select().from(orders)
+      .where(sql`${orders.paidAt} >= ${shiftStart} 
+                 AND ${orders.paidAt} <= ${shiftEnd} 
+                 AND ${orders.paymentStatus} = 'paid' 
+                 AND ${orders.orderStatus} = 'served'`);
+
+    // Get cash movements for this shift
+    const cashMovements = await this.getCashMovementsByShift(id);
+    
+    // Get expenses during this shift by this cashier (recorded_by field)
+    const shiftExpenses = await db.select().from(expenses)
+      .where(sql`${expenses.createdAt} >= ${shiftStart} 
+                 AND ${expenses.createdAt} <= ${shiftEnd} 
+                 AND ${expenses.recordedBy} = ${cashierId}`);
+
+    // Get refunds during this shift by this cashier
+    const shiftRefunds = await db.select().from(refunds)
+      .where(sql`${refunds.createdAt} >= ${shiftStart} 
+                 AND ${refunds.createdAt} <= ${shiftEnd} 
+                 AND ${refunds.requestedBy} = ${cashierId}
+                 AND ${refunds.status} = 'processed'`);
+
+    // Calculate order totals
+    let grossRevenue = 0;
+    let grossCashRevenue = 0;
+    let grossNonCashRevenue = 0;
+    const totalOrders = shiftOrders.length;
+
+    for (const order of shiftOrders) {
+      const orderTotal = order.total || 0;
+      grossRevenue += orderTotal;
+      
+      if (order.paymentMethod === 'cash') {
+        grossCashRevenue += orderTotal;
+      } else {
+        grossNonCashRevenue += orderTotal;
+      }
+    }
+
+    // Calculate cash movements
+    let cashIn = 0;
+    let cashOut = 0;
+    for (const movement of cashMovements) {
+      const amount = movement.amount || 0;
+      if (movement.type === 'cash_in') {
+        cashIn += amount;
+      } else if (movement.type === 'cash_out') {
+        cashOut += amount;
+      }
+    }
+
+    // Calculate cash expenses
+    const cashExpenses = shiftExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+    
+    // Classify refunds by type (cash vs non-cash)
+    let cashRefunds = 0;
+    let nonCashRefunds = 0;
+    
+    for (const refund of shiftRefunds) {
+      const refundAmount = refund.refundAmount || 0;
+      // Check refund type - if it's 'cash' or original order was cash payment
+      if (refund.refundType === 'cash') {
+        cashRefunds += refundAmount;
+      } else {
+        nonCashRefunds += refundAmount;
+      }
+    }
+    
+    const totalRefunds = cashRefunds + nonCashRefunds;
+
+    // Calculate net revenue (subtract all refunds from gross revenue)
+    const totalRevenue = grossRevenue - totalRefunds;
+    const totalCashRevenue = grossCashRevenue - cashRefunds; // Only subtract cash refunds from cash revenue
+    const totalNonCashRevenue = grossNonCashRevenue - nonCashRefunds; // Only subtract non-cash refunds from non-cash revenue
+
+    // Calculate system cash: initial + cash sales + cash in - cash out - cash expenses
+    // Note: cashRefunds already subtracted from totalCashRevenue above
+    const initialCash = currentShift.initialCash || 0;
+    const systemCash = initialCash + totalCashRevenue + cashIn - cashOut - cashExpenses;
+    const cashDifference = finalCash - systemCash;
+
     const [updated] = await db
       .update(shifts)
       .set({ 
         finalCash,
-        endTime: new Date(),
+        endTime: shiftEnd,
         status: 'closed',
         notes,
+        totalOrders,
+        totalRevenue,
+        totalCashRevenue,
+        totalNonCashRevenue,
+        systemCash,
+        cashDifference,
         updatedAt: new Date()
       })
       .where(eq(shifts.id, id))
