@@ -104,6 +104,12 @@ Preferred communication style: Simple, everyday language.
 - ✅ **Payment Integration**: Midtrans configured for mock development mode
 - ✅ **Deployment Ready**: Autoscale deployment configuration set up for production publishing
 
+### Critical Bug Fixes for Production
+- ✅ **Order Validation Fix**: Fixed critical schema validation bug where `orderStatus` field was required by `insertOrderSchema` but not provided during API validation in both `/api/orders` (QRIS) and `/api/orders/cash` endpoints
+- ✅ **Production Payment Safety**: Added production guard to require `MIDTRANS_SERVER_KEY` and `MIDTRANS_CLIENT_KEY` environment variables in production, preventing mock payments in live environment
+- ✅ **Integration Testing**: Comprehensive API testing completed - all endpoints working correctly (auth, menu, orders, categories, shifts)
+- ✅ **Error Diagnostics**: No LSP errors found, all TypeScript code is clean and valid
+
 ### Project Status
 - ✅ Dependencies installed and up-to-date
 - ✅ Development server running on port 5000 
@@ -112,3 +118,37 @@ Preferred communication style: Simple, everyday language.
 - ✅ All security and CORS headers properly configured
 - ✅ Deployment configuration ready for production
 - ✅ GitHub import setup complete - ready for development
+- ✅ All critical bugs fixed - order creation working
+- ✅ Production safety guards implemented
+- ✅ Comprehensive integration testing completed
+
+### VPS Deployment Requirements
+
+**Critical Environment Variables for Production:**
+```bash
+# Required for payment processing
+MIDTRANS_SERVER_KEY=your_midtrans_server_key
+MIDTRANS_CLIENT_KEY=your_midtrans_client_key
+
+# Application settings
+NODE_ENV=production
+PORT=3000
+
+# Database (if using persistent storage)
+DATABASE_URL=your_database_connection_string
+```
+
+**Production Checklist:**
+- [ ] Set up persistent database (PostgreSQL recommended)
+- [ ] Configure real Midtrans payment keys
+- [ ] Set up HTTPS with valid SSL certificate
+- [ ] Configure Nginx reverse proxy
+- [ ] Set up PM2 for process management
+- [ ] Configure webhook URL at Midtrans dashboard
+- [ ] Test end-to-end payment flow
+
+**Security Notes:**
+- Mock payments are disabled in production
+- Application will exit if Midtrans keys are missing in production
+- All sensitive endpoints require authentication
+- Rate limiting is configured for security

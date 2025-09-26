@@ -10,17 +10,27 @@ import { ObjectPermission, canAccessObject } from "./objectAcl";
 import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
 import { MidtransService } from "./midtrans-service";
 
-// Initialize Midtrans service (graceful degradation for development)
+// Initialize Midtrans service with production safety
 let midtransService: MidtransService | null = null;
 try {
   if (process.env.MIDTRANS_SERVER_KEY && process.env.MIDTRANS_CLIENT_KEY) {
     midtransService = new MidtransService();
     console.log('✅ Midtrans payment service initialized successfully');
   } else {
+    // Production safety: require real payment service in production
+    if (process.env.NODE_ENV === 'production') {
+      console.error('🚨 CRITICAL: Midtrans keys required in production environment');
+      console.error('Set MIDTRANS_SERVER_KEY and MIDTRANS_CLIENT_KEY environment variables');
+      process.exit(1);
+    }
     console.log('ℹ️  Midtrans not configured - using mock QRIS for development');
   }
 } catch (error) {
   console.warn('⚠️  Midtrans service initialization failed:', error instanceof Error ? error.message : error);
+  if (process.env.NODE_ENV === 'production') {
+    console.error('🚨 CRITICAL: Payment service initialization failed in production');
+    process.exit(1);
+  }
   console.log('ℹ️  Using mock QRIS for development');
 }
 
@@ -1499,7 +1509,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subtotal,
         total: subtotal, // Server calculates total
         paymentMethod: 'qris', // Force QRIS for public endpoint
-        paymentStatus: 'pending'
+        paymentStatus: 'pending',
+        orderStatus: 'queued' // Add required orderStatus field
       });
 
       const total = subtotal; // No discounts for now
@@ -1668,7 +1679,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subtotal,
         total,
         paymentMethod: 'cash',
-        paymentStatus: 'paid' // Cash payments are immediately paid
+        paymentStatus: 'paid', // Cash payments are immediately paid
+        orderStatus: 'queued' // Add required orderStatus field
       });
 
       const orderData = {
