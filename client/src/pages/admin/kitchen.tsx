@@ -8,7 +8,7 @@ import { Tabs as TabsContainer, TabsContent, TabsList, TabsTrigger } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
-import { printKitchenTicket } from "@/utils/thermal-print";
+import { smartPrintKitchenTicket } from "@/utils/thermal-print";
 import type { Order, OrderItem, Category, MenuItem } from "@shared/schema";
 
 export default function KitchenSection() {
@@ -238,7 +238,7 @@ export default function KitchenSection() {
     }
   };
 
-  const handlePrintKitchenTicket = (order: Order, station?: "kitchen" | "bar") => {
+  const handlePrintKitchenTicket = async (order: Order, station?: "kitchen" | "bar") => {
     const orderItems = order.items as OrderItem[];
     
     // Filter items based on station type and enrich with menu item details
@@ -275,7 +275,7 @@ export default function KitchenSection() {
     }
 
     // Print the ticket with filtered items
-    printKitchenTicket(order, station, filteredItems);
+    await smartPrintKitchenTicket(order, station, filteredItems);
   };
 
   if (isLoading) {

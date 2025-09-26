@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useErrorHandler } from "@/hooks/use-error-handler";
 import { apiRequest } from "@/lib/queryClient";
 import { insertPrintSettingSchema, type PrintSetting } from "@shared/schema";
-import { printReceipt } from "@/utils/thermal-print";
+import { smartPrintReceipt } from "@/utils/thermal-print";
 
 // Form schema for print settings management
 const printSettingFormSchema = insertPrintSettingSchema;
@@ -163,7 +163,8 @@ export default function PrintSettingsSection() {
     setShowForm(true);
     form.reset({
       ...setting,
-      connectionString: setting.connectionString || ""
+      connectionString: setting.connectionString || "",
+      connectionType: setting.connectionType as "browser" | "usb" | "network" | "bluetooth"
     });
   };
 
@@ -254,13 +255,13 @@ export default function PrintSettingsSection() {
   };
 
   const handleConnectionTypeChange = (value: string) => {
-    form.setValue('connectionType', value, { shouldDirty: true });
+    form.setValue('connectionType', value as "browser" | "usb" | "network" | "bluetooth", { shouldDirty: true });
     if (value === 'bluetooth') {
       setShowBluetoothDialog(true);
     }
   };
 
-  const handleTestPrint = () => {
+  const handleTestPrint = async () => {
     const testOrder = {
       id: "TEST-ORDER",
       items: [
@@ -276,10 +277,10 @@ export default function PrintSettingsSection() {
       createdAt: new Date().toISOString()
     };
     
-    printReceipt(testOrder);
+    await smartPrintReceipt(testOrder);
     toast({
       title: "Test print dimulai",
-      description: "Window print test telah dibuka",
+      description: "Print test telah dikirim",
     });
   };
 

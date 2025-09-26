@@ -1,7 +1,45 @@
 /**
- * Simple thermal receipt printing utility
- * No complex CSS - just open new window and print plain HTML
+ * Thermal receipt printing utility
+ * Supports both Windows print dialog and direct Bluetooth printing
  */
+
+// Web Bluetooth API Type Definitions
+declare global {
+  interface Navigator {
+    bluetooth?: {
+      requestDevice(options: any): Promise<BluetoothDevice>;
+      getAvailability(): Promise<boolean>;
+    };
+  }
+
+  interface BluetoothDevice {
+    id: string;
+    name?: string;
+    gatt?: {
+      connected: boolean;
+      connect(): Promise<{
+        getPrimaryServices(): Promise<any[]>;
+        getPrimaryService(service: string): Promise<{
+          getCharacteristics(): Promise<any[]>;
+          getCharacteristic(characteristic: string): Promise<BluetoothRemoteGATTCharacteristic>;
+        }>;
+      }>;
+      disconnect(): void;
+    };
+  }
+
+  interface BluetoothRemoteGATTCharacteristic {
+    properties: {
+      write: boolean;
+      writeWithoutResponse: boolean;
+    };
+    writeValue(value: Uint8Array): Promise<void>;
+  }
+}
+
+// Global printer state
+let connectedBluetoothDevice: BluetoothDevice | null = null;
+let bluetoothCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
 
 // Escape HTML to prevent injection
 function escapeHTML(str: string): string {
@@ -185,8 +223,222 @@ function buildReceiptHTML(order: any): string {
   `;
 }
 
+// ESC/POS Commands for thermal printers
+const ESC = '\x1b';
+const GS = '\x1d';
+
+const ESC_POS_COMMANDS = {
+  INIT: ESC + '@',                    // Initialize printer
+  CENTER: ESC + 'a' + '\x01',         // Center align
+  LEFT: ESC + 'a' + '\x00',           // Left align
+  RIGHT: ESC + 'a' + '\x02',          // Right align
+  BOLD_ON: ESC + 'E' + '\x01',        // Bold on
+  BOLD_OFF: ESC + 'E' + '\x00',       // Bold off
+  UNDERLINE_ON: ESC + '-' + '\x01',   // Underline on
+  UNDERLINE_OFF: ESC + '-' + '\x00',  // Underline off
+  DOUBLE_HEIGHT: GS + '!' + '\x01',   // Double height
+  NORMAL_SIZE: GS + '!' + '\x00',     // Normal size
+  CUT_PAPER: GS + 'V' + '\x42' + '\x00', // Cut paper
+  LINE_FEED: '\n',
+  FORM_FEED: '\x0c'
+};
+
 /**
- * Simple receipt printing - open new window and print
+ * Connect to Bluetooth thermal printer
+ */
+export async function connectBluetoothPrinter(): Promise<boolean> {
+  try {
+    if (!navigator.bluetooth) {
+      alert('Web Bluetooth tidak didukung di browser ini. Gunakan Chrome atau Edge.');
+      return false;
+    }
+
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        '000018f0-0000-1000-8000-00805f9b34fb', // Printer Service
+        '00001801-0000-1000-8000-00805f9b34fb', // Generic Attribute Service
+        '00001800-0000-1000-8000-00805f9b34fb'  // Generic Access Service
+      ]
+    });
+
+    if (!device) return false;
+
+    const server = await device.gatt?.connect();
+    if (!server) return false;
+
+    // Find writable characteristic
+    const services = await server.getPrimaryServices();
+    let characteristic = null;
+
+    for (const service of services) {
+      const characteristics = await service.getCharacteristics();
+      for (const char of characteristics) {
+        if (char.properties.write || char.properties.writeWithoutResponse) {
+          characteristic = char;
+          break;
+        }
+      }
+      if (characteristic) break;
+    }
+
+    if (characteristic) {
+      connectedBluetoothDevice = device;
+      bluetoothCharacteristic = characteristic;
+      
+      // Store connection info in localStorage
+      localStorage.setItem('bluetooth_printer_connected', 'true');
+      localStorage.setItem('bluetooth_printer_name', device.name || 'Unknown Printer');
+      
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Bluetooth connection error:', error);
+    alert('Gagal terhubung ke printer Bluetooth. Pastikan printer dalam mode pairing.');
+    return false;
+  }
+}
+
+/**
+ * Check if Bluetooth printer is connected
+ */
+export function isBluetoothPrinterConnected(): boolean {
+  return connectedBluetoothDevice !== null && bluetoothCharacteristic !== null;
+}
+
+/**
+ * Get connected Bluetooth printer name
+ */
+export function getConnectedPrinterName(): string {
+  return localStorage.getItem('bluetooth_printer_name') || 'No printer connected';
+}
+
+/**
+ * Disconnect Bluetooth printer
+ */
+export function disconnectBluetoothPrinter(): void {
+  if (connectedBluetoothDevice && connectedBluetoothDevice.gatt?.connected) {
+    connectedBluetoothDevice.gatt.disconnect();
+  }
+  connectedBluetoothDevice = null;
+  bluetoothCharacteristic = null;
+  localStorage.removeItem('bluetooth_printer_connected');
+  localStorage.removeItem('bluetooth_printer_name');
+}
+
+/**
+ * Convert order to ESC/POS thermal printer commands
+ */
+function buildReceiptCommands(order: any): string {
+  const orderDate = new Date(order.createdAt);
+  
+  let commands = '';
+  
+  // Initialize printer
+  commands += ESC_POS_COMMANDS.INIT;
+  
+  // Header
+  commands += ESC_POS_COMMANDS.CENTER;
+  commands += ESC_POS_COMMANDS.BOLD_ON;
+  commands += ESC_POS_COMMANDS.DOUBLE_HEIGHT;
+  commands += 'ALONICA RESTAURANT\n';
+  commands += ESC_POS_COMMANDS.NORMAL_SIZE;
+  commands += ESC_POS_COMMANDS.BOLD_OFF;
+  commands += 'Jl. Ratulangi No.14, Bantaeng\n';
+  commands += 'Telp: 0515-4545\n';
+  commands += '================================\n';
+  
+  // Order info
+  commands += ESC_POS_COMMANDS.LEFT;
+  commands += `Tanggal: ${formatDate(orderDate)}\n`;
+  commands += `Customer: ${order.customerName || 'N/A'}\n`;
+  commands += `Meja: ${order.tableNumber || 'N/A'}\n`;
+  commands += `Order ID: #${order.id?.slice(-8)?.toUpperCase() || 'N/A'}\n`;
+  commands += '================================\n';
+  
+  // Items
+  commands += ESC_POS_COMMANDS.BOLD_ON;
+  commands += 'DETAIL PESANAN:\n';
+  commands += ESC_POS_COMMANDS.BOLD_OFF;
+  commands += '--------------------------------\n';
+  
+  if (order.items && Array.isArray(order.items)) {
+    order.items.forEach((item: any) => {
+      const itemTotal = (item.price || 0) * (item.quantity || 0);
+      const itemName = (item.name || 'Item').substring(0, 20);
+      const qty = item.quantity || 0;
+      const price = formatCurrency(item.price || 0);
+      const total = formatCurrency(itemTotal);
+      
+      commands += `${itemName}\n`;
+      commands += `  ${qty}x ${price}${' '.repeat(Math.max(0, 16 - total.length))}${total}\n`;
+      
+      if (item.notes) {
+        commands += `  Catatan: ${item.notes}\n`;
+      }
+    });
+  }
+  
+  commands += '--------------------------------\n';
+  
+  // Totals
+  commands += `Subtotal:${' '.repeat(16)}${formatCurrency(order.subtotal || 0)}\n`;
+  commands += ESC_POS_COMMANDS.BOLD_ON;
+  commands += `TOTAL:${' '.repeat(18)}${formatCurrency(order.total || 0)}\n`;
+  commands += ESC_POS_COMMANDS.BOLD_OFF;
+  commands += '================================\n';
+  
+  // Payment info
+  commands += `Metode: ${order.paymentMethod === 'cash' ? 'TUNAI' : 'QRIS'}\n`;
+  commands += `Status: ${order.status === 'completed' ? 'Selesai' : order.status === 'ready' ? 'Siap' : order.status === 'preparing' ? 'Diproses' : 'Pending'}\n`;
+  commands += '================================\n';
+  
+  // Footer
+  commands += ESC_POS_COMMANDS.CENTER;
+  commands += '\nTerima kasih telah berkunjung!\n';
+  commands += 'Alonica Restaurant\n';
+  commands += 'Cita Rasa Nusantara\n';
+  
+  // Cut paper and feed
+  commands += '\n\n\n';
+  commands += ESC_POS_COMMANDS.CUT_PAPER;
+  
+  return commands;
+}
+
+/**
+ * Print receipt via Bluetooth (direct printing)
+ */
+export async function printReceiptBluetooth(order: any): Promise<boolean> {
+  if (!isBluetoothPrinterConnected()) {
+    const connected = await connectBluetoothPrinter();
+    if (!connected) {
+      alert('Tidak dapat terhubung ke printer Bluetooth. Menggunakan print dialog Windows.');
+      printReceipt(order);
+      return false;
+    }
+  }
+
+  try {
+    const commands = buildReceiptCommands(order);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(commands);
+    
+    await bluetoothCharacteristic!.writeValue(data);
+    
+    return true;
+  } catch (error) {
+    console.error('Bluetooth print error:', error);
+    alert('Error saat print via Bluetooth. Menggunakan print dialog.');
+    printReceipt(order);
+    return false;
+  }
+}
+
+/**
+ * Simple receipt printing - open new window and print (fallback)
  */
 export function printReceipt(order: any): void {
   try {
@@ -204,6 +456,21 @@ export function printReceipt(order: any): void {
     console.error('Print error:', error);
     alert('Error saat print. Silakan coba lagi.');
   }
+}
+
+/**
+ * Smart print function - tries Bluetooth first, fallback to Windows dialog
+ */
+export async function smartPrintReceipt(order: any): Promise<void> {
+  if (isBluetoothPrinterConnected()) {
+    const success = await printReceiptBluetooth(order);
+    if (success) {
+      return; // Success with Bluetooth
+    }
+  }
+  
+  // Fallback to Windows print dialog
+  printReceipt(order);
 }
 
 // Legacy functions for compatibility (deprecated)
@@ -357,7 +624,105 @@ function buildKitchenTicketHTML(order: any, station?: string, filteredItems?: an
 }
 
 /**
- * Print kitchen ticket for specific station
+ * Convert order to ESC/POS kitchen ticket commands
+ */
+function buildKitchenTicketCommands(order: any, station?: string, filteredItems?: any[]): string {
+  const orderDate = new Date(order.createdAt);
+  const stationName = station === 'bar' ? 'BAR' : 'KITCHEN';
+  const itemsLabel = station === 'bar' ? 'DRINKS TO PREPARE:' : 'ITEMS TO PREPARE:';
+  const copyLabel = station === 'bar' ? '** BAR COPY **' : '** KITCHEN COPY **';
+  
+  const itemsToShow = filteredItems || order.items || [];
+  
+  let commands = '';
+  
+  // Initialize printer
+  commands += ESC_POS_COMMANDS.INIT;
+  
+  // Header
+  commands += ESC_POS_COMMANDS.CENTER;
+  commands += ESC_POS_COMMANDS.BOLD_ON;
+  commands += ESC_POS_COMMANDS.DOUBLE_HEIGHT;
+  commands += `ALONICA ${stationName}\n`;
+  commands += ESC_POS_COMMANDS.NORMAL_SIZE;
+  commands += `${stationName} ORDER TICKET\n`;
+  commands += ESC_POS_COMMANDS.BOLD_OFF;
+  commands += copyLabel + '\n';
+  commands += '================================\n';
+  
+  // Order info
+  commands += ESC_POS_COMMANDS.LEFT;
+  commands += `Order ID: ${order.id?.slice(-8) || 'N/A'}\n`;
+  commands += `Customer: ${order.customerName || 'N/A'}\n`;
+  commands += `Table: ${order.tableNumber || 'N/A'}\n`;
+  commands += `Time: ${formatDate(orderDate)}\n`;
+  commands += '================================\n';
+  
+  // Items
+  commands += ESC_POS_COMMANDS.BOLD_ON;
+  commands += itemsLabel + '\n';
+  commands += ESC_POS_COMMANDS.BOLD_OFF;
+  commands += '--------------------------------\n';
+  
+  itemsToShow.forEach((item: any) => {
+    commands += ESC_POS_COMMANDS.BOLD_ON;
+    commands += `${item.quantity}x ${item.name || 'Item'}\n`;
+    commands += ESC_POS_COMMANDS.BOLD_OFF;
+    
+    if (item.notes) {
+      commands += `Note: ${item.notes}\n`;
+    }
+    commands += '--------------------------------\n';
+  });
+  
+  // Instructions
+  commands += ESC_POS_COMMANDS.CENTER;
+  commands += '********************************\n';
+  commands += station === 'bar' ? 'Please prepare drinks as ordered\n' : 'Please prepare items as ordered\n';
+  commands += '********************************\n';
+  
+  // Footer
+  commands += ESC_POS_COMMANDS.CENTER;
+  commands += `Kitchen Ticket - ${new Date().toLocaleTimeString('id-ID')}\n`;
+  
+  // Cut paper and feed
+  commands += '\n\n\n';
+  commands += ESC_POS_COMMANDS.CUT_PAPER;
+  
+  return commands;
+}
+
+/**
+ * Print kitchen ticket via Bluetooth (direct printing)
+ */
+export async function printKitchenTicketBluetooth(order: any, station?: string, filteredItems?: any[]): Promise<boolean> {
+  if (!isBluetoothPrinterConnected()) {
+    const connected = await connectBluetoothPrinter();
+    if (!connected) {
+      alert('Tidak dapat terhubung ke printer Bluetooth. Menggunakan print dialog Windows.');
+      printKitchenTicket(order, station, filteredItems);
+      return false;
+    }
+  }
+
+  try {
+    const commands = buildKitchenTicketCommands(order, station, filteredItems);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(commands);
+    
+    await bluetoothCharacteristic!.writeValue(data);
+    
+    return true;
+  } catch (error) {
+    console.error('Bluetooth kitchen print error:', error);
+    alert('Error saat print kitchen ticket via Bluetooth. Menggunakan print dialog.');
+    printKitchenTicket(order, station, filteredItems);
+    return false;
+  }
+}
+
+/**
+ * Print kitchen ticket for specific station (fallback)
  */
 export function printKitchenTicket(order: any, station?: string, filteredItems?: any[]): void {
   try {
@@ -375,6 +740,21 @@ export function printKitchenTicket(order: any, station?: string, filteredItems?:
     console.error('Kitchen ticket print error:', error);
     alert('Error saat print kitchen ticket. Silakan coba lagi.');
   }
+}
+
+/**
+ * Smart kitchen print function - tries Bluetooth first, fallback to Windows dialog
+ */
+export async function smartPrintKitchenTicket(order: any, station?: string, filteredItems?: any[]): Promise<void> {
+  if (isBluetoothPrinterConnected()) {
+    const success = await printKitchenTicketBluetooth(order, station, filteredItems);
+    if (success) {
+      return; // Success with Bluetooth
+    }
+  }
+  
+  // Fallback to Windows print dialog
+  printKitchenTicket(order, station, filteredItems);
 }
 
 // Redirect old function to new kitchen print

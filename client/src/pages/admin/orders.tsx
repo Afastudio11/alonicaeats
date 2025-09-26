@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDate, getOrderStatusColor } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
-import { printReceipt } from "@/utils/thermal-print";
+import { smartPrintReceipt } from "@/utils/thermal-print";
 import type { Order, OrderItem } from "@shared/schema";
 
 export default function OrdersSection() {
@@ -144,8 +144,8 @@ export default function OrdersSection() {
       });
   }, [orders, statusFilter, dateFilter]);
 
-  const handlePrintReceipt = (order: Order) => {
-    printReceipt(order);
+  const handlePrintReceipt = async (order: Order) => {
+    await smartPrintReceipt(order);
   };
 
   const handleViewReceipt = (order: Order) => {
@@ -615,7 +615,7 @@ export default function OrdersSection() {
           {/* Print Button */}
           <div className="mt-4 print-hide">
             <Button
-              onClick={() => printReceipt(viewingReceipt)}
+              onClick={async () => await smartPrintReceipt(viewingReceipt)}
               className="w-full flex items-center gap-2"
             >
               <Printer className="h-4 w-4" />

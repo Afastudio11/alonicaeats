@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
-import { printReceipt } from "@/utils/thermal-print";
+import { smartPrintReceipt } from "@/utils/thermal-print";
 import type { MenuItem, Category, InsertOrder, Order } from "@shared/schema";
 
 interface CartItem {
@@ -359,9 +359,9 @@ export default function CashierSection() {
   };
   
   // Print receipt
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = async () => {
     if (paymentData?.order) {
-      printReceipt(paymentData.order);
+      await smartPrintReceipt(paymentData.order);
     }
   };
 
