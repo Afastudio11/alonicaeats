@@ -82,8 +82,7 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
       { key: 'settings', label: 'Settings', icon: Cog, path: '/admin/settings' },
       { key: 'menu', label: 'Menu Management', icon: Utensils, path: '/admin/menu' },
       { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
-      { key: 'print-settings', label: 'Print Settings', icon: Printer, path: '/admin/print-settings' },
-      { key: 'printer', label: 'Printer Page', icon: Printer, path: '/admin/printer' },
+      { key: 'printer', label: 'PRINT SETTING', icon: Printer, path: '/admin/printer' },
     ]
   }
 ];
