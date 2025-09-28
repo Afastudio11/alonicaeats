@@ -194,10 +194,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 50, // increased from 5 to 50 for multiple staff login attempts
+    max: process.env.NODE_ENV === 'production' ? 50 : 1000, // More lenient for development/VPS setup
     message: { message: "Too many login attempts, please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
+    skipSuccessfulRequests: true, // Don't count successful logins toward limit
   });
 
   const objectLimiter = rateLimit({

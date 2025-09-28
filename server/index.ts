@@ -15,7 +15,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"], // Allow inline styles for production
+      styleSrc: ["'self'", "https://fonts.googleapis.com", ...(isProduction ? [] : ["'unsafe-inline'", "data:"])], // Allow inline styles only in development
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "*.unsplash.com", "*.googleapis.com"],
       scriptSrc: ["'self'", ...(isProduction ? [] : ["'unsafe-inline'", "'unsafe-eval'"])], // Keep scripts restricted in production
