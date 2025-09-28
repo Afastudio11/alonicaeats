@@ -183,10 +183,10 @@ function requireAdminOrKasir(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Rate limiting middleware
+  // Rate limiting middleware - relaxed for production POS system
   const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 500, // increased from 100 to 500 for busy restaurant environment
     message: { message: "Too many requests, please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
@@ -194,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 login attempts per windowMs
+    max: 50, // increased from 5 to 50 for multiple staff login attempts
     message: { message: "Too many login attempts, please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
@@ -202,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const objectLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 30, // limit each IP to 30 object requests per minute
+    max: 100, // increased from 30 to 100 for frequent menu image uploads
     message: { message: "Too many file requests, please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
