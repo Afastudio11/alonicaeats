@@ -15,10 +15,10 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", ...(isProduction ? [] : ["'unsafe-inline'"])],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"], // Allow inline styles for production
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "*.unsplash.com", "*.googleapis.com"],
-      scriptSrc: ["'self'", ...(isProduction ? [] : ["'unsafe-inline'", "'unsafe-eval'"])], // Dev-only unsafe directives
+      scriptSrc: ["'self'", ...(isProduction ? [] : ["'unsafe-inline'", "'unsafe-eval'"])], // Keep scripts restricted in production
       connectSrc: ["'self'", ...(isProduction ? [] : ["wss:", "ws:"])], // WebSocket only in dev for HMR
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
