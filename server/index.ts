@@ -15,11 +15,13 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "https://fonts.googleapis.com", ...(isProduction ? [] : ["'unsafe-inline'", "data:"])], // Allow inline styles only in development
+      // More permissive CSP for VPS deployment while maintaining security
+      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'", "data:"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "*.unsplash.com", "*.googleapis.com"],
-      scriptSrc: ["'self'", ...(isProduction ? [] : ["'unsafe-inline'", "'unsafe-eval'"])], // Keep scripts restricted in production
-      connectSrc: ["'self'", ...(isProduction ? [] : ["wss:", "ws:"])], // WebSocket only in dev for HMR
+      // Allow necessary scripts for React/Vite application
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      connectSrc: ["'self'", "wss:", "ws:"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
