@@ -2234,18 +2234,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Object Storage Routes for Image Upload
+  // Check if we're using local storage for VPS deployment
+  const useLocalStorage = !process.env.PUBLIC_OBJECT_SEARCH_PATHS || !process.env.PRIVATE_OBJECT_DIR;
   
-  // Endpoint to get upload URL for object entity
-  app.post("/api/objects/upload", requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
-    } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+  if (useLocalStorage) {
+    // Use local file storage for VPS deployment
+    const { createCompatibleStorageRoutes, createLocalStorageRoutes } = await import('./localStorageRoutes');
+    const { LocalFileStorageService } = await import('./localFileStorage');
+    
+    // Add static file serving middleware
+    app.use('/images', LocalFileStorageService.createStaticMiddleware());
+    
+    // Use compatible storage routes that mimic object storage API
+    app.use('/api/objects', requireAuth, requireAdmin, createCompatibleStorageRoutes());
+    app.use('/api/storage', requireAuth, requireAdmin, createLocalStorageRoutes());
+    
+    console.log('📁 Using local file storage for VPS deployment');
+  } else {
+    // Original object storage implementation
+    // Endpoint to get upload URL for object entity
+    app.post("/api/objects/upload", requireAuth, requireAdmin, async (req, res) => {
+      try {
+        const objectStorageService = new ObjectStorageService();
+        const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+        res.json({ uploadURL });
+      } catch (error) {
+        console.error("Error getting upload URL:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 
   // Endpoint to finalize upload and set ACL policy
   app.post("/api/objects/finalize", requireAuth, requireAdmin, async (req, res) => {
@@ -2381,6 +2398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.sendStatus(500);
     }
   });
+  
+  } // Close else block for object storage
 
   // Endpoint to update menu item image after upload
   app.put("/api/menu/:id/image", requireAuth, requireAdmin, async (req, res) => {
