@@ -1,57 +1,53 @@
 # 🚀 Panduan Deploy Alonica ke VPS - UPDATED & TESTED
 
-Panduan lengkap deployment yang sudah diperbaiki - **TANPA ERROR LAGI!**
+Panduan lengkap deployment yang sudah diperbaiki - **TANPA ERROR!**
 
 **Info VPS Anda:**
 - 🌐 IP Address: `148.230.101.194`
 - 🔗 Domain: `kasirpos.space`
 - 📦 GitHub: https://github.com/Afastudio11/alonicaeats
-- 🗄️ Database Password: `[GUNAKAN_PASSWORD_KUAT_ANDA]`
-
-> ⚠️ **KEAMANAN**: Jangan commit password asli ke GitHub! Simpan di `.env` server saja.
 
 ---
 
-## ⚡ Cara Tercepat (Recommended!)
+## ⚡ Cara Tercepat - One Command Deploy!
 
-### Opsi 1: Setup Otomatis (VPS Baru)
+### Opsi 1: Fresh VPS Setup (Dari Nol)
 
-Jalankan setup script dengan satu command:
+Jalankan ini di VPS yang baru pertama kali:
 
 ```bash
-# Download dan jalankan setup script
+# Login ke VPS
+ssh root@148.230.101.194
+
+# Install semua dependencies & deploy aplikasi
 curl -fsSL https://raw.githubusercontent.com/Afastudio11/alonicaeats/main/scripts/setup-vps-fresh.sh | bash
 ```
 
-### Opsi 2: Manual dengan Script (VPS Sudah Ada Repo)
+### Opsi 2: Redeploy (Sudah Ada Aplikasi)
+
+Jika aplikasi sudah ada tapi error, gunakan quick deploy:
 
 ```bash
-# 1. Clone repo dulu
-mkdir -p /var/www/alonica
 cd /var/www/alonica
-git clone https://github.com/Afastudio11/alonicaeats.git .
-
-# 2. Fix masalah deployment
-bash scripts/fix-vps-deployment.sh
+bash scripts/vps-quick-deploy.sh
 ```
 
-**Script otomatis akan:**
-- ✅ Install semua software (Node.js, PostgreSQL, Nginx, PM2)
-- ✅ Setup database dengan permissions yang BENAR
-- ✅ Install drizzle-kit (yang sering hilang)
+Script otomatis akan:
+- ✅ Install/update dependencies
+- ✅ Setup database dengan permissions yang benar
 - ✅ Push schema & seed users
 - ✅ Build & restart aplikasi
+- ✅ Tidak ada error lagi!
 
 ---
 
 ## 📋 Daftar Isi
 
 1. [Setup VPS dari Nol](#1-setup-vps-dari-nol)
-2. [Setup Database (PENTING!)](#2-setup-database-penting)
-3. [Clone & Deploy Manual](#3-clone--deploy-manual)
-4. [Setup GitHub Actions (Auto Deploy)](#4-setup-github-actions-auto-deploy)
-5. [Setup Nginx & SSL](#5-setup-nginx--ssl)
-6. [Troubleshooting Masalah Umum](#6-troubleshooting-masalah-umum)
+2. [Clone & Deploy Aplikasi](#2-clone--deploy-aplikasi)
+3. [Setup Nginx & SSL](#3-setup-nginx--ssl)
+4. [Troubleshooting](#4-troubleshooting)
+5. [Monitoring & Maintenance](#5-monitoring--maintenance)
 
 ---
 
@@ -60,7 +56,6 @@ bash scripts/fix-vps-deployment.sh
 ### 1.1 Login ke VPS
 ```bash
 ssh root@148.230.101.194
-# Masukkan password dari Hostinger
 ```
 
 ### 1.2 Update System
@@ -107,31 +102,30 @@ sudo ufw --force enable
 
 ---
 
-## 2. Setup Database (PENTING!)
+## 2. Clone & Deploy Aplikasi
 
-### ⚠️ MASALAH UMUM: Missing Schema Privileges!
-
-**Error yang sering muncul:**
-- `permission denied for schema public`
-- `cannot access 'node_modules/drizzle-kit/'`
-
-**Root Cause:** Database privileges yang tidak lengkap untuk Drizzle ORM!
-
-### 2.1 Buat Database dengan Privileges yang BENAR
-
+### 2.1 Setup Directory
 ```bash
-# Login ke PostgreSQL
-sudo -u postgres psql
-
-# Jalankan SQL berikut:
+sudo mkdir -p /var/www/alonica
+cd /var/www/alonica
 ```
 
-```sql
+### 2.2 Clone Repository
+```bash
+git clone https://github.com/Afastudio11/alonicaeats.git .
+```
+
+### 2.3 Setup Database dengan Permissions yang Benar
+
+**CRITICAL: Ini yang sering lupa dan menyebabkan error!**
+
+```bash
+sudo -u postgres psql << 'EOF'
 -- Buat database
 CREATE DATABASE alonica_db;
 
--- Buat user dengan password KUAT (ganti YOUR_SECURE_PASSWORD)
-CREATE USER alonica_user WITH PASSWORD 'YOUR_SECURE_PASSWORD';
+-- Buat user dengan password
+CREATE USER alonica_user WITH PASSWORD 'Alonica2025.';
 
 -- Beri privileges DATABASE
 GRANT ALL PRIVILEGES ON DATABASE alonica_db TO alonica_user;
@@ -155,79 +149,44 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Test koneksi
 \c alonica_db alonica_user;
 SELECT 'Database setup successful!' as status;
-
--- Keluar
 \q
-```
-
-### 2.2 Test Database Connection
-```bash
-# Ganti YOUR_SECURE_PASSWORD dengan password database Anda
-psql "postgresql://alonica_user:YOUR_SECURE_PASSWORD@localhost:5432/alonica_db" -c "SELECT version();"
-```
-
-✅ **Berhasil** jika muncul versi PostgreSQL!
-
----
-
-## 3. Clone & Deploy Manual
-
-### 3.1 Clone Repository
-```bash
-mkdir -p /var/www/alonica
-cd /var/www/alonica
-git clone https://github.com/Afastudio11/alonicaeats.git .
-```
-
-**Jika repository private**, gunakan Personal Access Token:
-1. Buka GitHub → Settings → Developer settings → Personal access tokens → Generate new token (classic)
-2. Centang `repo` permission
-3. Copy token
-4. Clone dengan: `git clone https://YOUR_TOKEN@github.com/Afastudio11/alonicaeats.git .`
-
-### 3.2 Install Dependencies
-
-⚠️ **PENTING: Jangan pakai `--production`!**
-
-```bash
-# BENAR (install semua dependencies termasuk drizzle-kit):
-npm install
-
-# SALAH (akan menyebabkan error drizzle-kit hilang):
-# npm ci --production  ❌ JANGAN INI!
-```
-
-### 3.3 Setup Environment Variables
-```bash
-# PENTING: Ganti YOUR_SECURE_PASSWORD dengan password database Anda!
-cat > .env << 'EOF'
-NODE_ENV=production
-PORT=3000
-DATABASE_URL=postgresql://alonica_user:YOUR_SECURE_PASSWORD@localhost:5432/alonica_db
-SESSION_SECRET=your_session_secret_here
-JWT_SECRET=your_jwt_secret_here
-ALLOWED_ORIGINS=https://kasirpos.space,https://www.kasirpos.space
-FRONTEND_URL=https://kasirpos.space
-MIDTRANS_IS_PRODUCTION=false
-LOG_LEVEL=info
 EOF
-
-chmod 600 .env
 ```
 
-### 3.4 Push Database Schema
-
-⚠️ **PENTING: Gunakan script yang benar!**
-
+### 2.4 Verify Database Connection
 ```bash
-# BENAR (auto-install drizzle-kit jika hilang):
-npm run db:push:prod
-
-# SALAH (error jika drizzle-kit tidak ada):
-# npm run db:push  ❌ JANGAN INI!
+psql "postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db" -c "SELECT version();"
 ```
 
-### 3.5 Seed Initial Users
+✅ **Jika muncul versi PostgreSQL, database siap!**
+
+### 2.5 Update Ecosystem Config
+
+File `ecosystem.config.cjs` sudah otomatis ter-update dengan:
+- ✅ NODE_ENV=production
+- ✅ DATABASE_URL sudah benar
+- ✅ Semua env variables yang dibutuhkan
+
+**Jika perlu customize** (misalnya ganti password), edit:
+```bash
+nano ecosystem.config.cjs
+```
+
+Cari baris `DATABASE_URL` dan pastikan password sesuai.
+
+### 2.6 Install Dependencies
+```bash
+npm install
+```
+
+**PENTING:** Jangan pakai `npm ci --production` atau `--production` flag!
+
+### 2.7 Push Database Schema
+```bash
+npm run db:push:prod
+```
+
+### 2.8 Seed Initial Users
 ```bash
 npm run seed:users
 ```
@@ -239,14 +198,14 @@ Login credentials yang dibuat:
 - **Kasir3**: `kasir3` / `kasir123`
 - **Kasir4**: `kasir4` / `kasir123`
 
-### 3.6 Build Aplikasi
+### 2.9 Build Aplikasi
 ```bash
 npm run build
 ```
 
-### 3.7 Start dengan PM2
+### 2.10 Start dengan PM2
 ```bash
-pm2 start npm --name "alonica" -- start
+pm2 start ecosystem.config.cjs
 pm2 save
 
 # Setup auto-start on reboot
@@ -254,67 +213,25 @@ pm2 startup
 # Copy dan jalankan command yang muncul!
 ```
 
-### 3.8 Verify
+### 2.11 Verify Aplikasi Berjalan
 ```bash
+# Status harus "online"
 pm2 status
-pm2 logs alonica --lines 20
+
+# Lihat logs - seharusnya "serving on port 3000"
+pm2 logs alonica-production --lines 20
+
+# Test dari localhost
 curl http://localhost:3000
 ```
 
----
-
-## 4. Setup GitHub Actions (Auto Deploy)
-
-### 4.1 Setup SSH Key di VPS
-
-```bash
-# Generate SSH key
-ssh-keygen -t rsa -b 4096 -C "deploy@github"
-# Tekan Enter 3x (default location, no passphrase)
-
-# Copy private key (simpan untuk GitHub Secrets)
-cat ~/.ssh/id_rsa
-
-# Setup authorized_keys
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-```
-
-### 4.2 Tambahkan GitHub Secrets
-
-Buka repository di GitHub → Settings → Secrets and variables → Actions → New repository secret
-
-Tambahkan secrets berikut:
-
-| Secret Name | Value |
-|------------|-------|
-| `HOST` | `148.230.101.194` |
-| `USERNAME` | `root` (atau username SSH Anda) |
-| `SSH_PRIVATE_KEY` | (paste output dari `cat ~/.ssh/id_rsa`) |
-| `APP_PATH` | `/var/www/alonica` |
-| `DATABASE_URL` | `postgresql://alonica_user:YOUR_PASSWORD@localhost:5432/alonica_db` |
-| `NODE_ENV` | `production` |
-| `PORT` | `3000` |
-| `MIDTRANS_SERVER_KEY` | (optional, untuk production) |
-| `MIDTRANS_CLIENT_KEY` | (optional, untuk production) |
-
-### 4.3 Workflow File Sudah Ada!
-
-File `.github/workflows/deploy.yml` sudah dibuat dengan konfigurasi yang BENAR:
-- ✅ Menggunakan `npm ci` (tanpa --production)
-- ✅ Menggunakan `npm run db:push:prod`
-- ✅ Auto restart PM2
-
-**Cara trigger deployment:**
-1. Edit file apapun di project
-2. Commit & push ke GitHub
-3. GitHub Actions akan otomatis deploy ke VPS!
+✅ **Jika `curl` mengembalikan HTML, aplikasi sukses!**
 
 ---
 
-## 5. Setup Nginx & SSL
+## 3. Setup Nginx & SSL
 
-### 5.1 Buat Nginx Configuration
+### 3.1 Buat Nginx Configuration
 ```bash
 sudo nano /etc/nginx/sites-available/alonica
 ```
@@ -356,7 +273,7 @@ server {
 
 Simpan: `Ctrl + X`, `Y`, `Enter`
 
-### 5.2 Enable Site
+### 3.2 Enable Site
 ```bash
 sudo ln -sf /etc/nginx/sites-available/alonica /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -364,7 +281,16 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 5.3 Setup SSL (Recommended)
+### 3.3 Test Akses
+```bash
+# Test via IP
+curl http://148.230.101.194
+
+# Atau buka di browser
+# http://148.230.101.194
+```
+
+### 3.4 Setup SSL (Recommended)
 ```bash
 sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d kasirpos.space -d www.kasirpos.space
@@ -375,38 +301,33 @@ Ikuti instruksi:
 2. Agree to terms
 3. Pilih option 2 (Redirect HTTP to HTTPS)
 
-### 5.4 Test Auto Renewal
+### 3.5 Test Auto Renewal
 ```bash
 sudo certbot renew --dry-run
 ```
 
 ---
 
-## 6. Troubleshooting Masalah Umum
+## 4. Troubleshooting
 
-### ❌ Error: "cannot access 'node_modules/drizzle-kit/'"
+### ❌ Error: Database Connection Failed
 
-**Penyebab:** Drizzle-kit tidak ter-install (karena pakai `npm ci --production`)
-
-**Solusi:**
+**Cek status PostgreSQL:**
 ```bash
-cd /var/www/alonica
-
-# Opsi 1: Install drizzle-kit manual
-npm install drizzle-kit
-
-# Opsi 2: Install ulang semua dependencies
-npm install
-
-# Lalu push schema dengan script yang aman
-npm run db:push:prod
+sudo systemctl status postgresql
 ```
 
-### ❌ Error: "permission denied for schema public"
+**Restart PostgreSQL:**
+```bash
+sudo systemctl restart postgresql
+```
 
-**Penyebab:** Database privileges tidak lengkap
+**Test connection:**
+```bash
+psql "postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db" -c "SELECT 1;"
+```
 
-**Solusi:**
+**Jika masih gagal, reset database permissions:**
 ```bash
 sudo -u postgres psql -d alonica_db << 'EOF'
 GRANT ALL ON SCHEMA public TO alonica_user;
@@ -414,112 +335,80 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO alonica_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO alonica_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO alonica_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO alonica_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO alonica_user;
 EOF
 ```
 
-### ❌ Error: "Password authentication is not supported"
+### ❌ Error: 502 Bad Gateway
 
-**Penyebab:** GitHub tidak support password untuk push sejak 2021
-
-**Solusi:**
-
-**⚠️ POLICY: JANGAN PERNAH PUSH DARI VPS!**
-
-VPS adalah **production server**, bukan development environment. Workflow yang benar:
-
-1. ✅ Edit kode di **lokal** atau **Replit**
-2. ✅ Push ke **GitHub** dari lokal
-3. ✅ **GitHub Actions** otomatis deploy ke VPS
-4. ✅ VPS **HANYA** `git pull` (read-only)
-
-**Keuntungan workflow ini:**
-- ✅ History git yang bersih
-- ✅ No risk commit credentials
-- ✅ Automated testing before deploy
-- ✅ Rollback mudah via GitHub
-- ✅ Audit trail lengkap
-
-**Jika ada perubahan darurat:**
-```bash
-# Edit langsung di VPS hanya untuk emergency
-cd /var/www/alonica
-nano file_yang_perlu_diedit.js
-
-# JANGAN git add/commit/push!
-# Setelah fix, copy changes ke lokal dan push normal
-```
-
-### ❌ Error: "502 Bad Gateway"
-
-**Penyebab:** Aplikasi tidak running atau PM2 error
+**Penyebab:** Aplikasi tidak running atau crash
 
 **Solusi:**
 ```bash
-# Cek status
+# Cek status PM2
 pm2 status
 
-# Cek logs
-pm2 logs alonica --lines 50
+# Lihat error logs
+pm2 logs alonica-production --lines 100 | grep -i error
 
-# Restart
-pm2 restart alonica
+# Restart aplikasi
+pm2 restart alonica-production
 
-# Atau start ulang
-pm2 delete alonica
-pm2 start npm --name "alonica" -- start
-pm2 save
+# Atau redeploy lengkap
+cd /var/www/alonica
+bash scripts/vps-quick-deploy.sh
 ```
 
-### ❌ Error: "Port 3000 already in use"
+### ❌ Error: Port 3000 Already in Use
 
 **Solusi:**
 ```bash
 # Lihat proses di port 3000
 sudo lsof -i :3000
 
-# Kill proses (ganti PID)
+# Kill proses (ganti PID dari output di atas)
 kill -9 PID
 
 # Atau stop PM2 dulu
-pm2 stop alonica
-pm2 delete alonica
+pm2 delete all
+pm2 start ecosystem.config.cjs
+pm2 save
 ```
 
-### ❌ Error: "Cannot connect to database"
+### ❌ Error: "Using FallbackStorage"
+
+**Penyebab:** Database tidak ter-konfigurasi dengan benar
 
 **Solusi:**
 ```bash
-# Cek PostgreSQL running
-sudo systemctl status postgresql
+# Cek ecosystem.config.cjs
+cat ecosystem.config.cjs | grep DATABASE_URL
 
-# Restart PostgreSQL
-sudo systemctl restart postgresql
-
-# Test connection
-psql "postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db" -c "SELECT 1;"
+# Pastikan DATABASE_URL ada dan benar
+# Restart PM2
+pm2 restart alonica-production
 ```
 
-### 🔧 Gunakan Script Fix Otomatis
+### 🔧 Script Perbaikan Otomatis
 
 Untuk memperbaiki semua masalah sekaligus:
 ```bash
 cd /var/www/alonica
-bash scripts/fix-vps-deployment.sh
+bash scripts/vps-quick-deploy.sh
 ```
 
 ---
 
-## 📊 Monitoring & Maintenance
+## 5. Monitoring & Maintenance
 
 ### Perintah PM2 Berguna
 ```bash
-pm2 status                    # Status aplikasi
-pm2 logs alonica              # Lihat logs real-time
-pm2 logs alonica --lines 100  # Lihat 100 baris terakhir
-pm2 restart alonica           # Restart aplikasi
-pm2 stop alonica              # Stop aplikasi
-pm2 monit                     # Monitor resource usage
+pm2 status                            # Status aplikasi
+pm2 logs alonica-production           # Lihat logs real-time
+pm2 logs alonica-production --lines 100  # 100 baris terakhir
+pm2 restart alonica-production        # Restart aplikasi
+pm2 stop alonica-production           # Stop aplikasi
+pm2 monit                             # Monitor resource usage
+pm2 flush                             # Clear logs
 ```
 
 ### Perintah Nginx Berguna
@@ -528,15 +417,23 @@ sudo nginx -t                                   # Test konfigurasi
 sudo systemctl reload nginx                     # Reload config
 sudo systemctl restart nginx                    # Restart Nginx
 sudo tail -f /var/log/nginx/alonica_error.log   # Monitor error logs
+sudo tail -f /var/log/nginx/alonica_access.log  # Monitor access logs
 ```
 
 ### Database Backup
 ```bash
 # Backup database
-pg_dump -U alonica_user alonica_db > backup_$(date +%Y%m%d).sql
+pg_dump -U alonica_user -d alonica_db > backup_$(date +%Y%m%d).sql
 
 # Restore database
-psql -U alonica_user alonica_db < backup_20250930.sql
+psql -U alonica_user -d alonica_db < backup_20250930.sql
+```
+
+### Update Aplikasi (dari GitHub)
+```bash
+cd /var/www/alonica
+git pull origin main
+bash scripts/vps-quick-deploy.sh
 ```
 
 ---
@@ -544,7 +441,6 @@ psql -U alonica_user alonica_db < backup_20250930.sql
 ## ✅ Checklist Deployment
 
 **VPS Setup:**
-- [ ] VPS accessible via SSH
 - [ ] Node.js 20 installed
 - [ ] PostgreSQL installed & running
 - [ ] Nginx installed & running
@@ -553,32 +449,24 @@ psql -U alonica_user alonica_db < backup_20250930.sql
 
 **Database Setup:**
 - [ ] Database `alonica_db` created
-- [ ] User `alonica_user` created with password `Alonica2025.`
-- [ ] Database privileges granted
-- [ ] **Schema privileges granted** (CRITICAL!)
-- [ ] Default privileges granted
+- [ ] User `alonica_user` created
+- [ ] Schema privileges granted ✅ CRITICAL
+- [ ] Default privileges granted ✅ CRITICAL
 - [ ] Connection tested successfully
 
 **Application Setup:**
 - [ ] Repository cloned to `/var/www/alonica`
-- [ ] Dependencies installed with `npm install` (NOT `--production`)
-- [ ] Environment variables configured in `.env`
-- [ ] Database schema pushed with `npm run db:push:prod`
+- [ ] Dependencies installed (NOT with --production)
+- [ ] Database schema pushed successfully
 - [ ] Users seeded successfully
 - [ ] Application built successfully
 - [ ] PM2 running and saved
 - [ ] PM2 startup configured
 
-**GitHub Actions:**
-- [ ] SSH key generated on VPS
-- [ ] All 7-9 secrets added to GitHub
-- [ ] `.github/workflows/deploy.yml` exists with correct config
-- [ ] Test deployment successful
-
 **Nginx & SSL:**
 - [ ] Nginx configured for domain
 - [ ] Site enabled and tested
-- [ ] SSL certificate installed (optional but recommended)
+- [ ] SSL certificate installed (optional)
 - [ ] Auto-renewal configured
 
 **Testing:**
@@ -586,13 +474,11 @@ psql -U alonica_user alonica_db < backup_20250930.sql
 - [ ] Application accessible via domain: https://kasirpos.space
 - [ ] Login works (admin/admin123)
 - [ ] Database operations working
-- [ ] GitHub Actions auto-deploy working
+- [ ] No errors in PM2 logs
 
 ---
 
 ## 🎉 Selesai!
-
-Deployment Anda sudah siap! Setiap kali push ke GitHub, aplikasi akan otomatis ter-deploy.
 
 **Access URLs:**
 - **HTTP**: http://148.230.101.194
@@ -602,29 +488,28 @@ Deployment Anda sudah siap! Setiap kali push ke GitHub, aplikasi akan otomatis t
 - Admin: `admin` / `admin123`
 - Kasir1: `kasir1` / `kasir123`
 
-**Management Commands:**
+**Quick Deploy Commands:**
 ```bash
+# Redeploy aplikasi
+cd /var/www/alonica && bash scripts/vps-quick-deploy.sh
+
 # Check status
 pm2 status && sudo systemctl status nginx
 
 # View logs
-pm2 logs alonica --lines 50
+pm2 logs alonica-production --lines 50
 
 # Restart everything
-pm2 restart alonica && sudo systemctl reload nginx
-
-# Fix deployment issues
-bash scripts/fix-vps-deployment.sh
+pm2 restart alonica-production && sudo systemctl reload nginx
 ```
 
 ---
 
 ## 📞 Butuh Bantuan?
 
-1. Cek logs: `pm2 logs alonica`
+1. Cek logs: `pm2 logs alonica-production --lines 100`
 2. Cek Nginx logs: `sudo tail -f /var/log/nginx/alonica_error.log`
-3. Cek GitHub Actions: Tab "Actions" di repository
-4. Lihat Troubleshooting section di atas
-5. Gunakan fix script: `bash scripts/fix-vps-deployment.sh`
+3. Gunakan script perbaikan: `bash scripts/vps-quick-deploy.sh`
+4. Lihat section Troubleshooting di atas
 
 **Happy deploying! 🚀**
