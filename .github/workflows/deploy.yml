@@ -32,9 +32,9 @@ jobs:
             echo "📥 Mengambil kode terbaru..."
             git pull origin main
             
-            # 3. Install dependencies
+            # 3. Install dependencies (PENTING: tanpa --production agar drizzle-kit ter-install!)
             echo "📦 Menginstall dependencies..."
-            npm ci --production
+            npm ci
             
             # 4. Build aplikasi
             echo "🔨 Building aplikasi..."
@@ -48,9 +48,9 @@ jobs:
             echo "MIDTRANS_SERVER_KEY=${{ secrets.MIDTRANS_SERVER_KEY }}" >> .env
             echo "MIDTRANS_CLIENT_KEY=${{ secrets.MIDTRANS_CLIENT_KEY }}" >> .env
             
-            # 6. Push database schema (jika ada perubahan)
+            # 6. Push database schema (jika ada perubahan) - menggunakan script prod yang aman
             echo "🗄️  Push database schema..."
-            npm run db:push || echo "Database sudah up to date"
+            npm run db:push:prod || echo "Database sudah up to date"
             
             # 7. Restart aplikasi dengan PM2
             echo "🔄 Restart aplikasi..."
