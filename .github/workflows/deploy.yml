@@ -1,0 +1,65 @@
+name: Deploy ke VPS Hostinger
+
+on:
+  push:
+    branches: [main]  # Trigger ketika push ke branch main
+  workflow_dispatch:  # Bisa trigger manual dari GitHub
+
+jobs:
+  deploy:
+    name: Deploy Aplikasi
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Deploy ke VPS
+      - name: Deploy ke VPS via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🚀 Memulai deployment..."
+            
+            # 1. Masuk ke folder aplikasi
+            cd ${{ secrets.APP_PATH }}
+            
+            # 2. Pull latest code dari GitHub
+            echo "📥 Mengambil kode terbaru..."
+            git pull origin main
+            
+            # 3. Install dependencies
+            echo "📦 Menginstall dependencies..."
+            npm ci --production
+            
+            # 4. Build aplikasi
+            echo "🔨 Building aplikasi..."
+            npm run build
+            
+            # 5. Update environment variables
+            echo "⚙️  Update environment variables..."
+            echo "NODE_ENV=${{ secrets.NODE_ENV }}" > .env
+            echo "PORT=${{ secrets.PORT }}" >> .env
+            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+            echo "MIDTRANS_SERVER_KEY=${{ secrets.MIDTRANS_SERVER_KEY }}" >> .env
+            echo "MIDTRANS_CLIENT_KEY=${{ secrets.MIDTRANS_CLIENT_KEY }}" >> .env
+            
+            # 6. Push database schema (jika ada perubahan)
+            echo "🗄️  Push database schema..."
+            npm run db:push || echo "Database sudah up to date"
+            
+            # 7. Restart aplikasi dengan PM2
+            echo "🔄 Restart aplikasi..."
+            pm2 restart alonica || pm2 start npm --name "alonica" -- start
+            
+            # 8. Save PM2 configuration
+            pm2 save
+            
+            echo "✅ Deployment selesai!"
+            
+            # 9. Tampilkan status
+            pm2 status
