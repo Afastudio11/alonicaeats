@@ -50,7 +50,7 @@ Gunakan checklist ini untuk memastikan tidak ada yang terlewat!
 ## 🔐 Setup di GitHub
 
 ### Repository Secrets (Settings → Secrets and variables → Actions):
-- [ ] `HOST` → IP Address VPS
+- [ ] `HOST` → `148.230.101.194`
 - [ ] `USERNAME` → Username SSH (biasanya `root`)
 - [ ] `SSH_PRIVATE_KEY` → Private SSH key lengkap
 - [ ] `APP_PATH` → `/var/www/alonica`
@@ -77,9 +77,9 @@ Gunakan checklist ini untuk memastikan tidak ada yang terlewat!
 - [ ] Nginx berjalan normal: `sudo systemctl status nginx`
 
 ### Test dari Browser:
-- [ ] Website bisa diakses via IP: `http://YOUR_VPS_IP`
+- [ ] Website bisa diakses via IP: `http://148.230.101.194`
 - [ ] Halaman "Welcome to Alonica" muncul
-- [ ] Login page bisa diakses: `http://YOUR_VPS_IP/login`
+- [ ] Login page bisa diakses: `http://148.230.101.194/login`
 - [ ] Bisa login dengan user `admin` password `admin123`
 
 ### Test GitHub Actions:
@@ -94,13 +94,13 @@ Gunakan checklist ini untuk memastikan tidak ada yang terlewat!
 
 ## 🌐 Setup Domain & SSL (Optional)
 
-Jika sudah punya domain:
-- [ ] Domain sudah di-point ke IP VPS (A Record)
-- [ ] DNS propagation sudah selesai (cek dengan `nslookup your-domain.com`)
-- [ ] Nginx config sudah update dengan domain
+Setup domain kasirpos.space:
+- [ ] Domain sudah di-point ke IP VPS 148.230.101.194 (A Record)
+- [ ] DNS propagation sudah selesai (cek dengan `nslookup kasirpos.space`)
+- [ ] Nginx config sudah update dengan domain kasirpos.space
 - [ ] Certbot sudah diinstall
-- [ ] SSL certificate sudah di-generate (`sudo certbot --nginx -d your-domain.com`)
-- [ ] Website bisa diakses via HTTPS: `https://your-domain.com`
+- [ ] SSL certificate sudah di-generate (`sudo certbot --nginx -d kasirpos.space -d www.kasirpos.space`)
+- [ ] Website bisa diakses via HTTPS: `https://kasirpos.space`
 - [ ] Auto redirect HTTP → HTTPS sudah aktif
 
 ---

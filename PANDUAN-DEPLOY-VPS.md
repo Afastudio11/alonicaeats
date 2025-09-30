@@ -22,8 +22,10 @@ Panduan lengkap untuk pemula - step by step tanpa error!
 
 ### 1.1 Login ke VPS
 1. Buka **Panel Hostinger** → pilih VPS Anda
-2. Catat informasi berikut:
-   - **IP Address VPS**: misal `123.456.78.90`
+2. Informasi VPS Anda:
+   - **IP Address VPS**: `148.230.101.194`
+   - **Domain**: `kasirpos.space`
+   - **GitHub Repository**: https://github.com/Afastudio11/alonicaeats
    - **Username**: biasanya `root` atau `ubuntu`
    - **Password**: dari email Hostinger
 
@@ -31,7 +33,7 @@ Panduan lengkap untuk pemula - step by step tanpa error!
 Buka terminal/command prompt di komputer Anda:
 
 ```bash
-ssh root@123.456.78.90
+ssh root@148.230.101.194
 # Masukkan password ketika diminta
 ```
 
@@ -178,8 +180,8 @@ cd /var/www/alonica
 
 ### 5.2 Clone Repository
 ```bash
-# Ganti URL dengan URL repository GitHub Anda
-git clone https://github.com/USERNAME/NAMA-REPO.git .
+# Clone repository Anda
+git clone https://github.com/Afastudio11/alonicaeats.git .
 
 # Catatan: Titik (.) di akhir penting! Artinya clone ke folder saat ini
 ```
@@ -188,7 +190,7 @@ git clone https://github.com/USERNAME/NAMA-REPO.git .
 1. Buka GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
 2. Generate new token → Beri nama dan centang `repo`
 3. Copy token
-4. Gunakan format: `https://TOKEN@github.com/USERNAME/NAMA-REPO.git`
+4. Gunakan format: `https://TOKEN@github.com/Afastudio11/alonicaeats.git .`
 
 ### 5.3 Install Dependencies
 ```bash
@@ -263,7 +265,7 @@ pm2 startup
 
 #### Secret 1: HOST
 - **Name**: `HOST`
-- **Value**: IP Address VPS Anda (misal: `123.456.78.90`)
+- **Value**: `148.230.101.194`
 
 #### Secret 2: USERNAME
 - **Name**: `USERNAME`
@@ -503,8 +505,8 @@ curl http://localhost:3000
 
 ### 10.2 Test dari Browser
 Buka browser dan akses:
-- **Dengan domain**: `http://your-domain.com` atau `https://your-domain.com`
-- **Tanpa domain**: `http://123.456.78.90` (ganti dengan IP VPS Anda)
+- **Dengan IP**: `http://148.230.101.194`
+- **Dengan domain** (setelah setup SSL): `https://kasirpos.space`
 
 ✅ **Berhasil** jika muncul halaman "Welcome to Alonica"
 
