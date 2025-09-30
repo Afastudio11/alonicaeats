@@ -13,7 +13,7 @@ GitHub: https://github.com/Afastudio11/alonicaeats
 App Path: /var/www/alonica
 Database: alonica_db
 DB User: alonica_user
-DB Password: Alonica2025.
+DB Password: [SIMPAN_DI_.ENV_SERVER_SAJA]
 ```
 
 ---
@@ -110,8 +110,8 @@ sudo tail -f /var/log/nginx/alonica_access.log
 
 ### Database Commands
 ```bash
-# Connect to database
-psql "postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db"
+# Connect to database (ganti YOUR_PASSWORD dengan password Anda)
+psql "postgresql://alonica_user:YOUR_PASSWORD@localhost:5432/alonica_db"
 
 # Or with sudo
 sudo -u postgres psql -d alonica_db
@@ -209,8 +209,8 @@ sudo systemctl status postgresql
 # Restart PostgreSQL
 sudo systemctl restart postgresql
 
-# Test connection
-psql "postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db" -c "SELECT 1;"
+# Test connection (ganti YOUR_PASSWORD)
+psql "postgresql://alonica_user:YOUR_PASSWORD@localhost:5432/alonica_db" -c "SELECT 1;"
 ```
 
 ### Error: "Git pull failed" atau "Git auth failed"

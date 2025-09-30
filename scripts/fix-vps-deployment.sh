@@ -25,9 +25,31 @@ NC='\033[0m' # No Color
 APP_PATH="/var/www/alonica"
 DB_USER="alonica_user"
 DB_NAME="alonica_db"
-DB_PASSWORD="Alonica2025."
+DB_PASSWORD="${DB_PASSWORD:-}"  # Set via env var atau prompt
 DB_HOST="localhost"
 DB_PORT="5432"
+
+# Get DATABASE_URL from .env or construct from DB_PASSWORD
+if [ -f "$APP_PATH/.env" ]; then
+    DATABASE_URL=$(grep "^DATABASE_URL=" "$APP_PATH/.env" | cut -d= -f2-)
+    if [ -n "$DATABASE_URL" ]; then
+        echo -e "${GREEN}✅ Found DATABASE_URL in .env file${NC}"
+    fi
+fi
+
+# If no DATABASE_URL and DB_PASSWORD is set, construct it
+if [ -z "$DATABASE_URL" ] && [ -n "$DB_PASSWORD" ]; then
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+    echo -e "${GREEN}✅ Constructed DATABASE_URL from DB_PASSWORD${NC}"
+fi
+
+# Final check
+if [ -z "$DATABASE_URL" ]; then
+    echo -e "${RED}Error: DATABASE_URL not found!${NC}"
+    echo "Please ensure .env exists with DATABASE_URL or set DB_PASSWORD environment variable"
+    echo "Example: DB_PASSWORD='your_password' bash scripts/fix-vps-deployment.sh"
+    exit 1
+fi
 
 echo -e "${BLUE}"
 echo "================================================"
@@ -79,7 +101,11 @@ fi
 # 3. Setup Environment Variables
 #######################################################
 echo -e "\n${YELLOW}[3/7] Setting up environment variables...${NC}"
-DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+
+# Use existing DATABASE_URL or construct it
+if [ -z "$DATABASE_URL" ]; then
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+fi
 
 cat > .env << EOF
 # Production Environment Configuration
@@ -150,15 +176,19 @@ fi
 # 6. Seed Initial Data
 #######################################################
 echo -e "\n${YELLOW}[6/7] Seeding initial users...${NC}"
+echo -e "${RED}⚠️  WARNING: This will create users with DEFAULT PASSWORDS!${NC}"
+echo -e "${RED}⚠️  IMMEDIATELY change these passwords after first login in production!${NC}"
 npm run seed:users
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Initial users seeded${NC}"
+    echo -e "${YELLOW}   ⚠️  DEFAULT CREDENTIALS (CHANGE IMMEDIATELY IN PRODUCTION):${NC}"
     echo "   - Admin: admin / admin123"
     echo "   - Kasir1: kasir1 / kasir123"
     echo "   - Kasir2: kasir2 / kasir123"
     echo "   - Kasir3: kasir3 / kasir123"
     echo "   - Kasir4: kasir4 / kasir123"
+    echo -e "${RED}   ⚠️  These are TEST credentials - change them NOW!${NC}"
 else
     echo -e "${YELLOW}⚠️  User seeding failed (might already exist)${NC}"
 fi

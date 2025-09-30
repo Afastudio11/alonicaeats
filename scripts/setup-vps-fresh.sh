@@ -29,9 +29,23 @@ GITHUB_REPO="https://github.com/Afastudio11/alonicaeats.git"
 APP_PATH="/var/www/alonica"
 DB_USER="alonica_user"
 DB_NAME="alonica_db"
-DB_PASSWORD="Alonica2025."
+DB_PASSWORD="${DB_PASSWORD:-}"  # Set via env var atau akan di-prompt
 DOMAIN="kasirpos.space"
 VPS_IP="148.230.101.194"
+
+# Prompt for password if not set
+if [ -z "$DB_PASSWORD" ]; then
+    echo -e "${YELLOW}Enter database password for PostgreSQL user '$DB_USER':${NC}"
+    read -s DB_PASSWORD
+    echo
+    
+    if [ -z "$DB_PASSWORD" ]; then
+        echo -e "${RED}Error: Password cannot be empty!${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✅ Password set${NC}"
+fi
 
 echo -e "${BLUE}"
 echo "================================================"
@@ -105,11 +119,18 @@ echo -e "${GREEN}✅ PostgreSQL installed: $PSQL_VERSION${NC}"
 #######################################################
 echo -e "\n${YELLOW}[6/10] Setting up database...${NC}"
 sudo -u postgres psql << EOF
--- Create database
-CREATE DATABASE $DB_NAME;
+-- Create database (skip if exists)
+SELECT 'CREATE DATABASE $DB_NAME'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
 
--- Create user
-CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+-- Create user (skip if exists)
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_user WHERE usename = '$DB_USER') THEN
+    CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+  END IF;
+END
+\$\$;
 
 -- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;

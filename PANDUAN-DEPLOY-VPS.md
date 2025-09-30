@@ -6,20 +6,32 @@ Panduan lengkap deployment yang sudah diperbaiki - **TANPA ERROR LAGI!**
 - 🌐 IP Address: `148.230.101.194`
 - 🔗 Domain: `kasirpos.space`
 - 📦 GitHub: https://github.com/Afastudio11/alonicaeats
-- 🗄️ Database Password: `Alonica2025.`
+- 🗄️ Database Password: `[GUNAKAN_PASSWORD_KUAT_ANDA]`
+
+> ⚠️ **KEAMANAN**: Jangan commit password asli ke GitHub! Simpan di `.env` server saja.
 
 ---
 
 ## ⚡ Cara Tercepat (Recommended!)
 
-Gunakan script otomatis yang sudah kami buat:
+### Opsi 1: Setup Otomatis (VPS Baru)
+
+Jalankan setup script dengan satu command:
 
 ```bash
-# 1. Setup VPS dari nol (hanya sekali)
-cd /var/www/alonica
-bash scripts/setup-vps-fresh.sh
+# Download dan jalankan setup script
+curl -fsSL https://raw.githubusercontent.com/Afastudio11/alonicaeats/main/scripts/setup-vps-fresh.sh | bash
+```
 
-# 2. Fix masalah deployment (jika ada error)
+### Opsi 2: Manual dengan Script (VPS Sudah Ada Repo)
+
+```bash
+# 1. Clone repo dulu
+mkdir -p /var/www/alonica
+cd /var/www/alonica
+git clone https://github.com/Afastudio11/alonicaeats.git .
+
+# 2. Fix masalah deployment
 bash scripts/fix-vps-deployment.sh
 ```
 
@@ -118,8 +130,8 @@ sudo -u postgres psql
 -- Buat database
 CREATE DATABASE alonica_db;
 
--- Buat user dengan password ANDA
-CREATE USER alonica_user WITH PASSWORD 'Alonica2025.';
+-- Buat user dengan password KUAT (ganti YOUR_SECURE_PASSWORD)
+CREATE USER alonica_user WITH PASSWORD 'YOUR_SECURE_PASSWORD';
 
 -- Beri privileges DATABASE
 GRANT ALL PRIVILEGES ON DATABASE alonica_db TO alonica_user;
@@ -150,7 +162,8 @@ SELECT 'Database setup successful!' as status;
 
 ### 2.2 Test Database Connection
 ```bash
-psql "postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db" -c "SELECT version();"
+# Ganti YOUR_SECURE_PASSWORD dengan password database Anda
+psql "postgresql://alonica_user:YOUR_SECURE_PASSWORD@localhost:5432/alonica_db" -c "SELECT version();"
 ```
 
 ✅ **Berhasil** jika muncul versi PostgreSQL!
@@ -186,10 +199,11 @@ npm install
 
 ### 3.3 Setup Environment Variables
 ```bash
+# PENTING: Ganti YOUR_SECURE_PASSWORD dengan password database Anda!
 cat > .env << 'EOF'
 NODE_ENV=production
 PORT=3000
-DATABASE_URL=postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db
+DATABASE_URL=postgresql://alonica_user:YOUR_SECURE_PASSWORD@localhost:5432/alonica_db
 SESSION_SECRET=your_session_secret_here
 JWT_SECRET=your_jwt_secret_here
 ALLOWED_ORIGINS=https://kasirpos.space,https://www.kasirpos.space
@@ -278,7 +292,7 @@ Tambahkan secrets berikut:
 | `USERNAME` | `root` (atau username SSH Anda) |
 | `SSH_PRIVATE_KEY` | (paste output dari `cat ~/.ssh/id_rsa`) |
 | `APP_PATH` | `/var/www/alonica` |
-| `DATABASE_URL` | `postgresql://alonica_user:Alonica2025.@localhost:5432/alonica_db` |
+| `DATABASE_URL` | `postgresql://alonica_user:YOUR_PASSWORD@localhost:5432/alonica_db` |
 | `NODE_ENV` | `production` |
 | `PORT` | `3000` |
 | `MIDTRANS_SERVER_KEY` | (optional, untuk production) |
@@ -408,15 +422,32 @@ EOF
 
 **Penyebab:** GitHub tidak support password untuk push sejak 2021
 
-**Solusi:** JANGAN push dari VPS! Workflow yang benar:
-1. ✅ Edit kode di lokal/Replit
-2. ✅ Push ke GitHub dari lokal
-3. ✅ GitHub Actions auto-deploy ke VPS
-4. ✅ VPS hanya `git pull`, bukan push
+**Solusi:**
 
-Jika HARUS push dari VPS, gunakan Personal Access Token:
+**⚠️ POLICY: JANGAN PERNAH PUSH DARI VPS!**
+
+VPS adalah **production server**, bukan development environment. Workflow yang benar:
+
+1. ✅ Edit kode di **lokal** atau **Replit**
+2. ✅ Push ke **GitHub** dari lokal
+3. ✅ **GitHub Actions** otomatis deploy ke VPS
+4. ✅ VPS **HANYA** `git pull` (read-only)
+
+**Keuntungan workflow ini:**
+- ✅ History git yang bersih
+- ✅ No risk commit credentials
+- ✅ Automated testing before deploy
+- ✅ Rollback mudah via GitHub
+- ✅ Audit trail lengkap
+
+**Jika ada perubahan darurat:**
 ```bash
-git remote set-url origin https://YOUR_PAT@github.com/Afastudio11/alonicaeats.git
+# Edit langsung di VPS hanya untuk emergency
+cd /var/www/alonica
+nano file_yang_perlu_diedit.js
+
+# JANGAN git add/commit/push!
+# Setelah fix, copy changes ke lokal dan push normal
 ```
 
 ### ❌ Error: "502 Bad Gateway"
