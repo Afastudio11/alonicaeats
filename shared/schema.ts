@@ -285,6 +285,51 @@ export const auditLogs = pgTable("audit_logs", {
   createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_created_at_idx" ON "audit_logs" ("created_at")`,
 }));
 
+// Deletion logs table for tracking deleted order items from Open Bills
+export const deletionLogs = pgTable("deletion_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id), // Order/Bill ID
+  itemName: text("item_name").notNull(), // Deleted item name
+  itemQuantity: integer("item_quantity").notNull(), // Quantity deleted
+  itemPrice: integer("item_price").notNull(), // Price of deleted item
+  requestedBy: varchar("requested_by").notNull().references(() => users.id), // Kasir who requested deletion
+  authorizedBy: varchar("authorized_by").notNull().references(() => users.id), // Admin who approved
+  requestTime: timestamp("request_time").notNull().default(sql`now()`), // When deletion was requested
+  approvalTime: timestamp("approval_time").notNull().default(sql`now()`), // When admin approved
+  reason: text("reason"), // Reason for deletion (optional)
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  // Index for queries by order
+  orderIdIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_logs_order_id_idx" ON "deletion_logs" ("order_id")`,
+  // Index for queries by kasir
+  requestedByIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_logs_requested_by_idx" ON "deletion_logs" ("requested_by", "created_at")`,
+  // Index for chronological queries
+  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_logs_created_at_idx" ON "deletion_logs" ("created_at")`,
+}));
+
+// Notifications table for admin approval requests
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull(), // 'deletion_request', 'refund_request', etc.
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  requestedBy: varchar("requested_by").notNull().references(() => users.id), // Who made the request
+  relatedId: varchar("related_id"), // ID of related entity (order, item, etc.)
+  relatedData: jsonb("related_data"), // Additional data (item details, etc.)
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  processedBy: varchar("processed_by").references(() => users.id), // Admin who processed
+  processedAt: timestamp("processed_at"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  // Index for status queries
+  statusIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_status_idx" ON "notifications" ("status", "created_at")`,
+  // Index for unread notifications
+  unreadIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_unread_idx" ON "notifications" ("is_read", "status")`,
+  // Index for chronological queries
+  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_created_at_idx" ON "notifications" ("created_at")`,
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -394,6 +439,20 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
+export const insertDeletionLogSchema = createInsertSchema(deletionLogs).omit({
+  id: true,
+  requestTime: true,
+  approvalTime: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  processedAt: z.coerce.date().optional(),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -442,6 +501,12 @@ export type InsertRefund = z.infer<typeof insertRefundSchema>;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+export type DeletionLog = typeof deletionLogs.$inferSelect;
+export type InsertDeletionLog = z.infer<typeof insertDeletionLogSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // Cart item type for frontend
 export interface CartItem {
