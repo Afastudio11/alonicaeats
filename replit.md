@@ -93,6 +93,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 1, 2025 - Menu UX Enhancements and Admin Approval System
+- ✅ **Horizontal Scrollable Categories**: Changed menu category display from vertical to horizontal scrollable layout for faster navigation
+- ✅ **Menu Search Functionality**: Added search bar with real-time filtering for menu items by name, making item lookup significantly faster
+- ✅ **Admin Approval for Item Cancellation**: Implemented security feature requiring admin credentials (username/password verification) when cashiers need to cancel items from open bills
+- ✅ **Admin Verification Endpoint**: Created `/api/auth/verify-admin` endpoint with rate limiting for secure admin authentication
+- ✅ **Improved Item Management**: Added delete button for each item in open bills with admin approval workflow
+- ✅ **Enhanced Security**: Prevents unauthorized item removal from bills with clear audit trail showing which admin approved cancellations
+- ✅ **User Experience**: Warning dialog explains the need for admin approval before allowing item cancellation
+- ✅ **Responsive Design**: Search and category scrolling works seamlessly on mobile and desktop devices
+
 ### October 1, 2025 - Fresh GitHub Import Successfully Configured for Replit
 - ✅ **GitHub Repository Imported**: Successfully imported Alonica restaurant system to Replit
 - ✅ **PostgreSQL Database Provisioned**: Created fresh Replit PostgreSQL database with all environment variables
