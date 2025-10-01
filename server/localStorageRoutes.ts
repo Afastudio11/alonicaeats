@@ -82,35 +82,52 @@ export function createCompatibleStorageRoutes() {
   const storageService = new LocalFileStorageService();
 
   // Mimic the existing /api/objects/upload endpoint
-  router.post('/upload', async (req, res) => {
+  // This endpoint will accept direct file upload instead of pre-signed URL
+  router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
     try {
-      // For VPS, we'll return a simple upload endpoint URL
-      // This endpoint will be used by the frontend
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const uploadURL = `${baseUrl}/api/storage/upload-simple`;
-      
-      res.json({ uploadURL });
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Validate file is actually an image
+      if (!storageService.isValidImageFile(req.file.buffer, req.file.originalname)) {
+        return res.status(400).json({ error: 'Invalid image file' });
+      }
+
+      // Generate unique filename and save
+      const filename = storageService.generateFileName(req.file.originalname);
+      const imageUrl = await storageService.saveFile(req.file.buffer, filename);
+
+      // Return the uploaded file URL
+      res.json({ 
+        success: true,
+        uploadURL: imageUrl,
+        path: imageUrl
+      });
+
     } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Internal server error" });
+      console.error('Upload error:', error);
+      res.status(500).json({ error: 'Failed to upload file' });
     }
   });
 
   // Mimic the existing /api/objects/finalize endpoint
   router.post('/finalize', async (req, res) => {
     try {
-      const { imageUrl } = req.body;
+      const { rawPath, imageUrl } = req.body;
+      const finalPath = rawPath || imageUrl;
       
-      if (!imageUrl) {
-        return res.status(400).json({ error: "imageUrl is required" });
+      if (!finalPath) {
+        return res.status(400).json({ error: "rawPath or imageUrl is required" });
       }
 
       // For local storage, we just return the URL as-is
       // since the file is already saved and accessible
       res.json({ 
         success: true,
-        finalizedUrl: imageUrl,
-        publicUrl: imageUrl
+        path: finalPath,
+        finalizedUrl: finalPath,
+        publicUrl: finalPath
       });
 
     } catch (error) {

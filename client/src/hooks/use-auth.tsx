@@ -65,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       localStorage.removeItem('alonica-user');
       localStorage.removeItem('alonica-token');
+      // Redirect to welcome page after logout
+      window.location.href = '/';
     },
   });
 

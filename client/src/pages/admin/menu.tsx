@@ -10,12 +10,10 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ObjectUploader } from "@/components/ObjectUploader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
 import type { MenuItem, InsertMenuItem, Category } from "@shared/schema";
-import type { UploadResult } from "@uppy/core";
 
 export default function MenuSection() {
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -350,88 +348,72 @@ function MenuItemForm({
     }
   }, [formData, initialData]);
 
-  // Upload handlers
-  const handleGetUploadParameters = async () => {
-    try {
-      const response = await apiRequest('POST', '/api/objects/upload');
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Upload URL request failed: ${response.status} ${response.statusText}. ${errorData.error || errorData.message || 'Unknown error'}`);
-      }
-      
-      const data = await response.json();
-      
-      if (!data.uploadURL) {
-        throw new Error('No upload URL received from server');
-      }
-      
-      return {
-        method: 'PUT' as const,
-        url: data.uploadURL,
-      };
-    } catch (error) {
-      console.error('Error getting upload parameters:', error);
+  // Simple file upload handler for VPS
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
       toast({
-        title: "Upload gagal",
-        description: error instanceof Error ? error.message : "Tidak bisa mendapatkan URL upload",
+        title: "File tidak valid",
+        description: "Hanya file gambar yang diperbolehkan",
         variant: "destructive",
       });
-      throw error;
+      return;
     }
-  };
 
-  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File terlalu besar",
+        description: "Ukuran maksimal file adalah 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
     try {
-      if (result.successful && result.successful.length > 0) {
-        const uploadedFile = result.successful[0];
-        const rawImageURL = uploadedFile.uploadURL;
-        
-        // Finalize upload and set ACL policy
-        const finalizeResponse = await apiRequest('POST', '/api/objects/finalize', {
-          rawPath: rawImageURL,
-        });
-        
-        if (!finalizeResponse.ok) {
-          throw new Error('Failed to finalize upload');
-        }
-        
-        const { path: finalizedPath } = await finalizeResponse.json();
-        
-        // If we're editing an existing item, update its image
-        if (initialData?.id) {
-          const updateResponse = await apiRequest('PUT', `/api/menu/${initialData.id}/image`, {
-            imageURL: finalizedPath,
-          });
-          
-          if (updateResponse.ok) {
-            queryClient.invalidateQueries({ queryKey: ['/api/menu'] });
-            const updatedItem = await updateResponse.json();
-            setFormData(prev => ({ ...prev, image: updatedItem.image }));
-            toast({
-              title: "Upload berhasil",
-              description: "Foto menu telah diupload",
-            });
-          }
-        } else {
-          // For new items, use the finalized path
-          setFormData(prev => ({ ...prev, image: finalizedPath }));
-          toast({
-            title: "Upload berhasil", 
-            description: "Foto menu telah diupload",
-          });
-        }
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload directly to /api/objects/upload
+      const response = await fetch('/api/objects/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('alonica-token')}`
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
       }
+
+      const data = await response.json();
+      const imageUrl = data.path || data.uploadURL;
+
+      // Update form data with new image URL
+      setFormData(prev => ({ ...prev, image: imageUrl }));
+      
+      toast({
+        title: "Upload berhasil",
+        description: "Foto menu telah diupload",
+      });
     } catch (error) {
       console.error('Upload error:', error);
       toast({
         title: "Upload gagal",
-        description: "Silakan coba lagi",
+        description: error instanceof Error ? error.message : "Silakan coba lagi",
         variant: "destructive",
       });
     } finally {
       setIsUploading(false);
+      // Reset input
+      event.target.value = '';
     }
   };
 
@@ -503,24 +485,38 @@ function MenuItemForm({
           {formData.image && (
             <div className="relative">
               <img 
-                src={formData.image.startsWith('/objects/') ? formData.image : formData.image} 
+                src={formData.image} 
                 alt="Current menu image"
                 className="w-32 h-32 object-cover rounded-lg border"
               />
             </div>
           )}
           
-          {/* Upload button with loading state */}
-          <ObjectUploader
-            maxNumberOfFiles={1}
-            maxFileSize={5242880} // 5MB
-            onGetUploadParameters={handleGetUploadParameters}
-            onComplete={handleUploadComplete}
-            buttonClassName="w-full"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {isUploading ? 'Uploading...' : (formData.image ? 'Ganti Foto' : 'Upload Foto')}
-          </ObjectUploader>
+          {/* Simple file upload */}
+          <div>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              disabled={isUploading}
+              className="hidden"
+              id="menu-image-upload"
+              data-testid="input-menu-image"
+            />
+            <Label htmlFor="menu-image-upload">
+              <Button 
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isUploading}
+                onClick={() => document.getElementById('menu-image-upload')?.click()}
+                data-testid="button-upload-image"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? 'Uploading...' : (formData.image ? 'Ganti Foto' : 'Upload Foto')}
+              </Button>
+            </Label>
+          </div>
           
           {isUploading && (
             <p className="text-sm text-muted-foreground text-center">
