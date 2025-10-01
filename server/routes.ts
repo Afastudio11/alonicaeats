@@ -1852,12 +1852,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/open-bills", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const allOrders = await storage.getOrders();
-      // More robust filtering for open bills to handle boolean conversion issues
+      // Show all open bills regardless of cooking status (queued, pending, preparing, served)
+      // as long as they are payLater=true and not yet paid
       const openBills = allOrders.filter(order => {
         const isPayLater = Boolean(order.payLater);
         const isNotPaid = order.paymentStatus !== 'paid';
-        const isQueued = order.orderStatus === 'queued' || order.orderStatus === 'pending';
-        return isPayLater && isNotPaid && isQueued;
+        return isPayLater && isNotPaid;
       });
       res.json(openBills);
     } catch (error) {
