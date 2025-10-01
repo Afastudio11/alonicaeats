@@ -256,8 +256,8 @@ function MenuItemCard({ item, onAddToCart }: { item: MenuItem; onAddToCart: (ite
         <div className="flex items-center justify-between">
           <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-xl px-4 py-3 shadow-sm" data-testid={`text-price-${item.id}`}>
             <div className="flex items-baseline gap-1">
-              <span className="text-sm font-semibold text-primary/80">Rp</span>
-              <span className="text-xl font-bold text-primary">
+              <span className="text-xs font-semibold text-primary/80">Rp</span>
+              <span className="text-base font-bold text-primary">
                 {item.price.toLocaleString('id-ID')}
               </span>
             </div>
