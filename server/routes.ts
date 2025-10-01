@@ -2242,8 +2242,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { createCompatibleStorageRoutes, createLocalStorageRoutes } = await import('./localStorageRoutes');
     const { LocalFileStorageService } = await import('./localFileStorage');
     
-    // Add static file serving middleware
-    app.use('/images', LocalFileStorageService.createStaticMiddleware());
+    // Add static file serving middleware for uploaded images
+    // Serve from 'public' directory so /images/file.jpg maps to public/images/file.jpg
+    app.use(LocalFileStorageService.createStaticMiddleware());
     
     // Use compatible storage routes that mimic object storage API
     app.use('/api/objects', requireAuth, requireAdmin, createCompatibleStorageRoutes());

@@ -394,14 +394,20 @@ function MenuItemForm({
       }
 
       const data = await response.json();
+      console.log('Upload response:', data);
       const imageUrl = data.path || data.uploadURL;
+      console.log('Image URL:', imageUrl);
+
+      if (!imageUrl) {
+        throw new Error('Server tidak mengembalikan URL gambar');
+      }
 
       // Update form data with new image URL
       setFormData(prev => ({ ...prev, image: imageUrl }));
       
       toast({
         title: "Upload berhasil",
-        description: "Foto menu telah diupload",
+        description: `Foto tersimpan: ${imageUrl}`,
       });
     } catch (error) {
       console.error('Upload error:', error);
