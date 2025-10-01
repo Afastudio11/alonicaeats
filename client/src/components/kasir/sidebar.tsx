@@ -34,7 +34,7 @@ const menuItems = [
   { id: 'orders', label: 'Orders', icon: ClipboardList, path: '/kasir/orders' },
   { id: 'kitchen', label: 'Sistem Dapur (KDS)', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Point of Sale (POS)', icon: CreditCard, path: '/kasir/cashier' },
-  { id: 'reservations', label: 'Meja/Reservasi', icon: Users, path: '/kasir/reservations' },
+  { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
   { id: 'expenses', label: 'Pencatatan Pengeluaran', icon: Receipt, path: '/kasir/expenses' },
   { id: 'daily-reports', label: 'Laporan Penjualan', icon: Calendar, path: '/kasir/daily-reports' },
   { id: 'printer', label: 'Pengaturan Printer', icon: Printer, path: '/kasir/printer' },
@@ -48,53 +48,52 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
     <>
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:transform-none",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:transform-none flex flex-col",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-border">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <CreditCard className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-playfair text-lg font-bold text-foreground">Alonica Kasir</h1>
-                <p className="text-xs text-muted-foreground">Alonica Restaurant</p>
-              </div>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
+              <span className="text-white font-bold text-sm">A</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="lg:hidden"
-              data-testid="button-close-sidebar"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <h1 className="text-base font-semibold text-foreground" data-testid="text-sidebar-brand">Alonica</h1>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="lg:hidden h-8 w-8"
+            data-testid="button-close-sidebar"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-          {/* User Info */}
-          <div className="px-6 py-4 border-b border-border bg-muted/30">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-primary-foreground">
-                  {user?.username?.[0]?.toUpperCase() ?? '?'}
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Welcome, {user?.username}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
-              </div>
+        {/* User Info */}
+        <div className="px-4 py-3 border-b border-border">
+          <div className="flex items-center space-x-2">
+            <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center">
+              <span className="text-xs font-semibold text-primary">
+                {user?.username?.[0]?.toUpperCase() ?? '?'}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground truncate">{user?.username}</p>
+              <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
             </div>
           </div>
+        </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1">
-            {/* Shift Toggle */}
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {/* Shift Toggle */}
+          <div className="mb-3">
             <ShiftToggle />
-            
-            {/* Menu Items */}
+          </div>
+          
+          {/* Menu Items */}
+          <div className="space-y-0.5">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentSection === item.id;
@@ -104,10 +103,10 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
                   key={item.id} 
                   href={item.path}
                   className={cn(
-                    "flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-normal transition-colors",
                     isActive 
-                      ? "bg-primary text-primary-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      ? "bg-primary/10 text-primary" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                   data-testid={`nav-${item.id}`}
                   onClick={onClose}
@@ -117,21 +116,20 @@ export default function KasirSidebar({ isOpen, onClose, currentSection, user }: 
                 </Link>
               );
             })}
-          </nav>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-border">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={logout}
-              className="w-full justify-start"
-              data-testid="button-logout-sidebar"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
           </div>
+        </nav>
+
+        {/* Footer - Fixed */}
+        <div className="border-t border-border p-3">
+          <Button
+            variant="ghost"
+            onClick={logout}
+            className="w-full justify-start px-3 py-2 h-9 text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm"
+            data-testid="button-logout-sidebar"
+          >
+            <LogOut className="h-4 w-4 mr-3 flex-shrink-0" />
+            <span>Logout</span>
+          </Button>
         </div>
       </div>
     </>

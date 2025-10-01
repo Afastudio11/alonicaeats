@@ -1,0 +1,41 @@
+Instruksi Utama (Branding & Color Scheme):
+
+    Wajib menggunakan warna primary yang sudah ada (merah/maroon gelap) sebagai warna aksen utama untuk: highlight menu aktif, tombol utama (Simpan, Order Now, Buat Order), summary cards yang menunjukkan metrik positif (seperti Revenue Today), dan elemen visual penting lainnya.
+
+1. Redesign Menu Sidebar Admin & Kasir (Konsistensi dan Kerapian)
+
+Tujuan: Menerapkan struktur dan tampilan sidebar yang rapi ala ShopZen, dengan ikon yang sinkron dan penamaan yang ringkas.
+
+    Struktur dan Gaya: Terapkan styling ShopZen (bersih, minimalis, fixed pada scroll).
+
+    Ikon dan Penamaan:
+
+        Ubah "Manajemen Meja/Reservasi" menjadi "Reservasi".
+
+        Ubah "Daftar Pesanan POS" menjadi "Orders" atau "Daftar Pesanan".
+
+        Pastikan ikon untuk Reservasi diganti menjadi ikon yang sesuai (bukan ikon gelas/cangkir).
+
+2. Redesign Dashboard Order Admin (Orders List)
+
+Tujuan: Mengubah tampilan dashboard order menjadi lebih modern, bersih, dan informatif, meniru layout tabel ShopZen.
+
+    Summary Cards: Redesain cards (Total Orders, Revenue Today, dll.) agar ringkas, berestetika, dan menggunakan warna primary untuk penekanan.
+
+    Tabel Order: Terapkan layout tabel ShopZen, dengan:
+
+        Search Bar yang menonjol.
+
+        Penggunaan badge/tag berwarna untuk kolom STATUS.
+
+        Penyajian data ITEMS yang lebih ringkas (misalnya X items), dengan detail tersedia melalui detail view.
+
+3. Redesign Dashboard Utama (Menu Pemesanan/POS)
+
+Tujuan: Mengubah tampilan menu pemesanan menjadi fresh dan modern (mobile-first look), seperti contoh gambar.
+
+    Tampilan & Konten: Sesuaikan layout (Customer Info, Search Bar, Menu Grid) ke desain baru, tetapi gunakan konten menu dan fungsionalitas backend lama.
+
+    Visual Diskon: Buat bagian khusus untuk menu diskon ("Special Discount Today"). Tampilkan persentase diskon, harga coret (harga lama), dan harga baru pada item yang didiskon.
+
+    Modul Keranjang (Current Order): Tampilkan Summary (Subtotal, Tax, Total Diskon, Total Akhir) dan tombol Metode Pembayaran (QRis, Cash, dll.) dengan desain yang bersih.
