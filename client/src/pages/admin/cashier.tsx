@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
@@ -50,6 +51,7 @@ export default function CashierSection() {
   const [showPaymentCalculator, setShowPaymentCalculator] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "qris">("cash");
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   
   // Open bills state
@@ -237,16 +239,19 @@ export default function CashierSection() {
       return;
     }
 
-    if (cashAmountNumber < paymentContext.total) {
-      toast({
-        title: "Uang tidak cukup",
-        description: "Jumlah uang yang diberikan kurang dari total pesanan",
-        variant: "destructive",
-      });
-      return;
+    // Validate cash payment
+    if (paymentMethod === "cash") {
+      if (cashAmountNumber < paymentContext.total) {
+        toast({
+          title: "Uang tidak cukup",
+          description: "Jumlah uang yang diberikan kurang dari total pesanan",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
-    const change = cashAmountNumber - paymentContext.total;
+    const change = paymentMethod === "cash" ? (cashAmountNumber - paymentContext.total) : 0;
     
     const orderData = {
       customerName: paymentContext.customerName || customerName.trim(),
@@ -261,8 +266,8 @@ export default function CashierSection() {
       subtotal: paymentContext.total,
       discount: 0,
       total: paymentContext.total,
-      paymentMethod: "cash",
-      cashReceived: cashAmountNumber,
+      paymentMethod: paymentMethod,
+      cashReceived: paymentMethod === "cash" ? cashAmountNumber : paymentContext.total,
       change: change,
       status: "pending"
     };
@@ -353,6 +358,7 @@ export default function CashierSection() {
     setCart([]);
     setNotes({});
     setCashAmount("");
+    setPaymentMethod("cash");
     setPaymentData(null);
     setShowPaymentCalculator(false);
     setShowReceipt(false);
@@ -834,37 +840,32 @@ export default function CashierSection() {
                 
                 {categories.map((category) => (
                   <TabsContent key={category.id} value={category.id} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {menuByCategory[category.id]?.map((item) => (
                         <Card key={item.id} className="hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-semibold text-foreground flex-1 mr-3" data-testid={`menu-item-${item.id}`}>
+                          <CardContent className="p-3">
+                            <div className="flex flex-col space-y-2">
+                              <h3 className="font-semibold text-sm text-foreground line-clamp-2 min-h-[2.5rem]" data-testid={`menu-item-${item.id}`}>
                                 {item.name}
                               </h3>
-                              <div className="bg-gray-100 rounded-lg px-3 py-2 border border-gray-200 flex-shrink-0" data-testid={`price-${item.id}`}>
-                                <div className="flex items-baseline gap-1">
+                              <div className="bg-gray-100 rounded-lg px-2 py-1.5 border border-gray-200" data-testid={`price-${item.id}`}>
+                                <div className="flex items-baseline gap-1 justify-center">
                                   <span className="text-xs font-medium text-gray-600">Rp</span>
                                   <span className="text-sm font-bold text-primary">
                                     {item.price.toLocaleString('id-ID')}
                                   </span>
                                 </div>
                               </div>
+                              <Button
+                                onClick={() => addToCart(item)}
+                                className="w-full"
+                                size="sm"
+                                data-testid={`button-add-${item.id}`}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Tambah
+                              </Button>
                             </div>
-                            {item.description && (
-                              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                                {item.description}
-                              </p>
-                            )}
-                            <Button
-                              onClick={() => addToCart(item)}
-                              className="w-full"
-                              size="sm"
-                              data-testid={`button-add-${item.id}`}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Tambah ke Cart
-                            </Button>
                           </CardContent>
                         </Card>
                       ))}
@@ -1134,19 +1135,46 @@ export default function CashierSection() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="cashAmount">Uang yang Diberikan</Label>
-              <Input
-                id="cashAmount"
-                type="number"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                placeholder="Masukkan jumlah uang"
-                className="text-lg text-center"
-                data-testid="input-cash-amount"
-              />
+              <Label htmlFor="paymentMethod">Metode Pembayaran</Label>
+              <Select value={paymentMethod} onValueChange={(value: "cash" | "qris") => setPaymentMethod(value)}>
+                <SelectTrigger data-testid="select-payment-method">
+                  <SelectValue placeholder="Pilih metode pembayaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">💵 Cash</SelectItem>
+                  <SelectItem value="qris">📱 QRIS</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            {cashAmountNumber > 0 && (
+            {paymentMethod === "cash" && (
+              <div className="space-y-2">
+                <Label htmlFor="cashAmount">Uang yang Diberikan</Label>
+                <Input
+                  id="cashAmount"
+                  type="number"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  placeholder="Masukkan jumlah uang"
+                  className="text-lg text-center"
+                  data-testid="input-cash-amount"
+                />
+              </div>
+            )}
+            
+            {paymentMethod === "qris" && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center space-x-2 text-blue-700">
+                  <span className="text-2xl">📱</span>
+                  <div>
+                    <p className="font-semibold">Pembayaran QRIS</p>
+                    <p className="text-sm">Customer akan membayar dengan QRIS</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {paymentMethod === "cash" && cashAmountNumber > 0 && (
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="flex justify-between text-sm mb-2">
                   <span>Uang Diterima:</span>
@@ -1181,10 +1209,10 @@ export default function CashierSection() {
             </Button>
             <Button 
               onClick={handlePaymentCalculation}
-              disabled={cashAmountNumber < total}
+              disabled={paymentMethod === "cash" && cashAmountNumber < total}
               data-testid="button-confirm-payment"
             >
-              Konfirmasi Pembayaran
+              Konfirmasi Pembayaran {paymentMethod === "qris" ? "QRIS" : "Cash"}
             </Button>
           </DialogFooter>
         </DialogContent>
