@@ -51,9 +51,9 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
   {
     label: "POS & ORDERS",
     items: [
-      { key: 'cashier', label: 'POS', icon: Monitor, path: '/admin/cashier' },
-      { key: 'orders', label: 'POS Orders', icon: ShoppingCart, path: '/admin/orders' },
-      { key: 'reservations', label: 'Table Orders', icon: Coffee, path: '/admin/reservations' },
+      { key: 'cashier', label: 'Point of Sale (POS)', icon: Monitor, path: '/admin/cashier' },
+      { key: 'orders', label: 'Daftar Pesanan POS', icon: ShoppingCart, path: '/admin/orders' },
+      { key: 'reservations', label: 'Manajemen Meja/Reservasi', icon: Coffee, path: '/admin/reservations' },
     ]
   },
   {
@@ -72,7 +72,7 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
     label: "REPORTS",
     items: [
       { key: 'audit-reports', label: 'Credit Balance Report', icon: Building2, path: '/admin/audit-reports' },
-      { key: 'analytics', label: 'Sales Report', icon: TrendingUp, path: '/admin/analytics' },
+      { key: 'analytics', label: 'Laporan Penjualan', icon: TrendingUp, path: '/admin/analytics' },
       { key: 'inventory', label: 'Items Report', icon: Package2, path: '/admin/inventory' },
     ]
   },
@@ -82,7 +82,7 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
       { key: 'settings', label: 'Settings', icon: Cog, path: '/admin/settings' },
       { key: 'menu', label: 'Menu Management', icon: Utensils, path: '/admin/menu' },
       { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
-      { key: 'printer', label: 'Print Settings', icon: Printer, path: '/admin/printer' },
+      { key: 'printer', label: 'Pengaturan Printer', icon: Printer, path: '/admin/printer' },
     ]
   }
 ];

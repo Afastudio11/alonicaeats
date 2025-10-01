@@ -75,8 +75,9 @@ export default function CashierSection() {
   const [splitParts, setSplitParts] = useState<{id: number, items: CartItem[], customerName: string, paid?: boolean}[]>([]);
   const [currentSplit, setCurrentSplit] = useState(1);
   const [paymentContext, setPaymentContext] = useState<{
-    mode: 'cart' | 'split',
+    mode: 'cart' | 'split' | 'open_bill',
     splitId?: number,
+    billId?: string,
     total: number,
     items: CartItem[],
     customerName?: string

@@ -576,7 +576,9 @@ export class DatabaseStorage implements IStorage {
 
   async updateOpenBillItems(id: string, newItems: any[], additionalSubtotal: number): Promise<Order | undefined> {
     const currentOrder = await this.getOrder(id);
-    if (!currentOrder || currentOrder.orderStatus !== 'queued') {
+    // Allow adding items as long as it's an open bill and not paid yet
+    // (regardless of order status - could be pending, preparing, etc.)
+    if (!currentOrder || !currentOrder.payLater || currentOrder.paymentStatus === 'paid') {
       return undefined;
     }
 
@@ -600,7 +602,9 @@ export class DatabaseStorage implements IStorage {
 
   async replaceOpenBillItems(id: string, newItems: any[], newSubtotal: number): Promise<Order | undefined> {
     const currentOrder = await this.getOrder(id);
-    if (!currentOrder || currentOrder.orderStatus !== 'queued') {
+    // Allow replacing items as long as it's an open bill and not paid yet
+    // (regardless of order status - could be pending, preparing, etc.)
+    if (!currentOrder || !currentOrder.payLater || currentOrder.paymentStatus === 'paid') {
       return undefined;
     }
 
@@ -623,7 +627,7 @@ export class DatabaseStorage implements IStorage {
     const [order] = await db
       .select()
       .from(orders)
-      .where(sql`${orders.tableNumber} = ${tableNumber} AND ${orders.orderStatus} = 'queued'`)
+      .where(sql`${orders.tableNumber} = ${tableNumber} AND ${orders.payLater} = true AND ${orders.paymentStatus} != 'paid'`)
       .orderBy(desc(orders.createdAt))
       .limit(1);
     return order || undefined;

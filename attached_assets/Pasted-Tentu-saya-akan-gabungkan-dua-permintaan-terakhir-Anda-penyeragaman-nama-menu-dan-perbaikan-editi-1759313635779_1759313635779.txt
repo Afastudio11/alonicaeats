@@ -1,0 +1,48 @@
+Tentu, saya akan gabungkan dua permintaan terakhir Anda (penyeragaman nama menu dan perbaikan *editing*/'Open Bill') ke dalam satu *prompt* yang komprehensif untuk Replit AI.
+
+Berikut adalah *prompt* gabungan yang terstruktur dan memprioritaskan perbaikan keamanan serta konsistensi UI/UX:
+
+```
+**Request Gabungan: Konsistensi Menu UI/UX dan Penguatan Fitur 'Open Bill'**
+
+Kami memerlukan perubahan pada antarmuka pengguna (UI/UX) untuk konsistensi nama menu dan perbaikan kritis pada logika bisnis fitur 'Open Bill' untuk meningkatkan keamanan dan fleksibilitas.
+
+---
+
+## 1. Penyeragaman Nama Fitur di Menu Dashboard (Admin & Kasir)
+
+**Tujuan:** Menghilangkan kebingungan pengguna dengan menyeragamkan semua nama fitur/menu yang mengacu pada fungsi yang sama di menu navigasi Admin dan Kasir.
+
+**Detail Perubahan:**
+
+Lakukan penyeragaman pada menu navigasi **Admin** dan **Kasir** (Sidebar Menu) sesuai dengan usulan nama baru yang konsisten berikut:
+
+| Fungsi/Aksi | Nama Menu Lama (Contoh) | Nama Menu BARU & Seragam |
+| :--- | :--- | :--- |
+| Halaman Utama Transaksi | Kasir Manual / POS | **Point of Sale (POS)** |
+| Daftar Pesanan (Antrian) | Menu Order / POS Orders | **Daftar Pesanan POS** |
+| Tampilan Dapur | Dapur | **Sistem Dapur (KDS)** |
+| Laporan Penjualan | Laporan Harian / Sales Report | **Laporan Penjualan** |
+| Pengaturan Printer | Printer Settings / Print Settings | **Pengaturan Printer** |
+| Pengaturan Meja/Booking | Reservasi / Table Orders | **Manajemen Meja/Reservasi** |
+
+---
+
+## 2. Perbaikan Fleksibilitas Editing dan Penguatan Keamanan di 'Open Bill'
+
+Kami menemukan dua masalah kritis di fitur Open Bill yang perlu segera diperbaiki:
+
+### 2.1. Memungkinkan Penambahan Item Pesanan ke Open Bill Kapan Saja
+
+* **Masalah Saat Ini:** Kasir tidak dapat menambahkan pesanan tambahan (*add-on*) ke Open Bill setelah beberapa item sebelumnya sudah disajikan.
+* **Fungsi yang Diharapkan:** Open Bill harus **selalu dapat diedit** (ditambahkan item baru) selama statusnya masih 'Open' dan belum dibayar, **terlepas dari status penyajian** item-item sebelumnya.
+* **Logika:** Setiap penambahan item baru harus memicu notifikasi order baru ke Sistem Dapur (KDS), namun tetap terikat pada ID Open Bill yang sama.
+
+### 2.2. Implementasi Wajib Persetujuan Admin untuk Penghapusan Item (Koreksi Celah Keamanan)
+
+* **Masalah Saat Ini (Celah Fatal):** Ketika Kasir menekan tombol hapus pada item di Open Bill, item tersebut **langsung terhapus** tanpa meminta persetujuan.
+* **Fungsi yang Wajib Diimplementasikan:** Setiap upaya penghapusan atau pembatalan item pesanan di Open Bill harus **memblokir aksi tersebut** dan **TIDAK boleh langsung terhapus**.
+* **Prosedur Keamanan:** Sistem harus segera memicu **Prosedur Persetujuan Admin** yang meliputi:
+    * Mengirim notifikasi *real-time* ke **Dashboard Admin**.
+    * Membutuhkan **persetujuan eksplisit (Approve/Reject)** dari Admin sebelum pembatalan dapat diselesaikan.
+```

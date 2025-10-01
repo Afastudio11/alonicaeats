@@ -31,13 +31,13 @@ interface KasirSidebarProps {
 }
 
 const menuItems = [
-  { id: 'orders', label: 'Menu Order', icon: ClipboardList, path: '/kasir/orders' },
-  { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
-  { id: 'cashier', label: 'Kasir Manual', icon: CreditCard, path: '/kasir/cashier' },
-  { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
+  { id: 'orders', label: 'Daftar Pesanan POS', icon: ClipboardList, path: '/kasir/orders' },
+  { id: 'kitchen', label: 'Sistem Dapur (KDS)', icon: ChefHat, path: '/kasir/kitchen' },
+  { id: 'cashier', label: 'Point of Sale (POS)', icon: CreditCard, path: '/kasir/cashier' },
+  { id: 'reservations', label: 'Manajemen Meja/Reservasi', icon: Users, path: '/kasir/reservations' },
   { id: 'expenses', label: 'Pencatatan Pengeluaran', icon: Receipt, path: '/kasir/expenses' },
-  { id: 'daily-reports', label: 'Laporan Harian', icon: Calendar, path: '/kasir/daily-reports' },
-  { id: 'printer', label: 'Printer Settings', icon: Printer, path: '/kasir/printer' },
+  { id: 'daily-reports', label: 'Laporan Penjualan', icon: Calendar, path: '/kasir/daily-reports' },
+  { id: 'printer', label: 'Pengaturan Printer', icon: Printer, path: '/kasir/printer' },
 ];
 
 export default function KasirSidebar({ isOpen, onClose, currentSection, user }: KasirSidebarProps) {
