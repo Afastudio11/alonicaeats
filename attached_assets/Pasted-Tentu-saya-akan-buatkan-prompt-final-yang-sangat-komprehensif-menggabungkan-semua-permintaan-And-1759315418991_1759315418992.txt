@@ -1,0 +1,67 @@
+Tentu, saya akan buatkan *prompt* final yang sangat komprehensif, menggabungkan semua permintaan Anda: konsistensi UI, perbaikan *bug* fatal, mekanisme persetujuan Admin, dan yang terbaru, **pelacakan (logging) order yang dihapus.**
+
+Berikut adalah *prompt* lengkap yang dapat Anda berikan kepada Replit AI:
+
+-----
+
+```
+**REQUEST FINAL: PENGUATAN SISTEM POS (UI/UX, Open Bill Logic, dan Audit Trail)**
+
+Kami memerlukan implementasi dan perbaikan kritis pada tiga area utama: konsistensi antarmuka pengguna, perbaikan logika bisnis pada 'Open Bill', dan sistem audit untuk pembatalan pesanan.
+
+---
+
+## 1. Konsolidasi UI/UX: Penyeragaman Nama Menu & Icon
+
+**Tujuan:** Menciptakan pengalaman pengguna yang konsisten dan efisien dengan menyeragamkan nama dan ikon menu di dashboard Admin dan Kasir, serta memperpendek label menu.
+
+**Detail Perubahan:**
+
+* **Penyeragaman Nama Menu (Diperpendek):**
+    * **Point of Sale (POS):** Tetap.
+    * **Daftar Pesanan POS:** Ubah menjadi **Orders** atau **Daftar Pesanan**.
+    * **Manajemen Meja/Reservasi:** Ubah menjadi **Meja/Reservasi**.
+    * **Sistem Dapur (KDS):** Tetap.
+* **Penyeragaman Icon Admin:** Icon di menu *sidebar* **Admin** harus diseragamkan agar konsisten dengan icon-icon di *sidebar* Kasir untuk fungsi yang setara.
+
+---
+
+## 2. Perbaikan Logika Bisnis Fitur 'Open Bill'
+
+Kami menemukan dua masalah kritis di fitur Open Bill yang perlu segera diperbaiki:
+
+### 2.1. Perbaikan Bug Fatal: Open Bill Hilang Setelah Diedit
+
+* **Masalah Saat Ini:** Open Bill hilang dari daftar setelah Kasir mengeditnya (misalnya menambahkan item baru) dan melakukan *update*, terutama jika item lama sudah berstatus 'Tersaji'.
+* **Fungsi yang Diharapkan:** Setelah item tambahan di-*update*, Open Bill **harus tetap tercatat** dalam daftar Open Bill. Order baru dikirim ke dapur, dan status Open Bill secara keseluruhan harus tetap 'Open' hingga dibayar.
+
+### 2.2. Implementasi Wajib Persetujuan Admin untuk Penghapusan Item (Keamanan)
+
+* **Masalah Saat Ini:** Penghapusan item pada Open Bill dapat dilakukan Kasir tanpa verifikasi.
+* **Fungsi Wajib:** Setiap upaya penghapusan atau pembatalan item pesanan di Open Bill harus **memblokir aksi** tersebut dan memicu **Prosedur Persetujuan Admin**.
+
+---
+
+## 3. Fitur Notifikasi Admin dan Audit Trail Pembatalan
+
+**Tujuan:** Menyediakan mekanisme notifikasi *real-time* untuk persetujuan dan memastikan adanya riwayat audit (pelacakan) untuk semua pesanan yang dihapus.
+
+### 3.1. Implementasi Notifikasi Persetujuan di Dashboard Admin
+
+* **Fitur Notifikasi:** Tambahkan fitur **Notifikasi** (misalnya ikon lonceng) yang menonjol di **Dashboard Admin**.
+* **Integrasi Persetujuan:** Semua permintaan persetujuan (terutama penghapusan Open Bill) dari Kasir *wajib* masuk ke fitur **Notifikasi Admin** ini.
+* **Aksi Admin:** Admin melihat notifikasi, mengecek detail, dan memiliki opsi **'Approve'** atau **'Reject'**. Penghapusan item Kasir hanya terkonfirmasi jika Admin memilih **'Approve'**.
+
+### 3.2. Wajib Logging dan Pelacakan Riwayat Order yang Dihapus
+
+* **Persyaratan Audit:** Setiap item yang berhasil **dihapus/dibatalkan** dari Open Bill (setelah disetujui Admin) harus dicatat secara permanen.
+* **Modul Pelacakan:** Buatkan modul terpisah di **Dashboard Admin** (Contoh: "Log Pembatalan Pesanan" atau "Audit Hapus Order") yang dapat diakses kapan saja.
+* **Data Log Wajib:** Log ini harus mencatat detail minimum berikut untuk setiap item yang dihapus:
+    * ID Order/Bill
+    * Nama Item yang Dihapus
+    * Jumlah Item yang Dihapus
+    * Nama Kasir yang Meminta Penghapusan
+    * Nama Admin yang Memberikan Persetujuan
+    * Tanggal dan Waktu Permintaan Penghapusan
+    * Tanggal dan Waktu Persetujuan Admin
+```
