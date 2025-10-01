@@ -1112,61 +1112,56 @@ export default function CashierSection() {
         </Card>
       </div>
 
+      {/* Prominent Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
+        <Input
+          type="text"
+          placeholder="Find food or beverages"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-12 h-12 text-sm border-0 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary"
+          data-testid="input-search-menu"
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Menu Selection */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <ShoppingCart className="h-5 w-5" />
-                <span>Menu Items</span>
-              </CardTitle>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Explore Our Best Menu</CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
-              {/* Search Bar */}
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Cari menu item..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                    data-testid="input-search-menu"
-                  />
-                </div>
-              </div>
-
               {/* Horizontal Scrollable Categories */}
               <div className="mb-4">
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    {/* All Categories Button */}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {/* All Categories Button */}
+                  <Button
+                    variant={selectedCategory === null ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className={`whitespace-nowrap flex-shrink-0 h-8 ${selectedCategory === null ? 'bg-primary text-white' : ''}`}
+                    data-testid="button-category-all"
+                  >
+                    All
+                  </Button>
+                  
+                  {/* Category Buttons */}
+                  {categories.map((category) => (
                     <Button
-                      variant={selectedCategory === null ? "default" : "outline"}
+                      key={category.id}
+                      variant={selectedCategory === category.id ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setSelectedCategory(null)}
-                      className="whitespace-nowrap flex-shrink-0"
-                      data-testid="button-category-all"
+                      onClick={() => setSelectedCategory(category.id)}
+                      className={`whitespace-nowrap flex-shrink-0 h-8 ${selectedCategory === category.id ? 'bg-primary text-white' : ''}`}
+                      data-testid={`button-category-${category.name.toLowerCase()}`}
                     >
-                      Semua
+                      {category.name}
                     </Button>
-                    
-                    {/* Category Buttons */}
-                    {categories.map((category) => (
-                      <Button
-                        key={category.id}
-                        variant={selectedCategory === category.id ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedCategory(category.id)}
-                        className="whitespace-nowrap flex-shrink-0"
-                        data-testid={`button-category-${category.name.toLowerCase()}`}
-                      >
-                        {category.name}
-                      </Button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
               
