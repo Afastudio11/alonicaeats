@@ -18,6 +18,7 @@ import PrinterPage from "../printer";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import NotificationBell from "@/components/admin/notification-bell";
 
 export default function AdminDashboard() {
   const [location] = useLocation();
@@ -135,13 +136,16 @@ export default function AdminDashboard() {
               <p className="text-sm text-muted-foreground">Welcome, {user.username}</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={logout}
-            data-testid="button-logout"
-          >
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <Button 
+              variant="outline" 
+              onClick={logout}
+              data-testid="button-logout"
+            >
+              Logout
+            </Button>
+          </div>
         </header>
 
         {/* Content */}

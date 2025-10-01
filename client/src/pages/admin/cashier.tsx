@@ -63,12 +63,10 @@ export default function CashierSection() {
   const [viewingBill, setViewingBill] = useState<Order | null>(null);
   const [editingBill, setEditingBill] = useState<Order | null>(null);
   
-  // Admin approval state for item cancellation
-  const [showAdminApproval, setShowAdminApproval] = useState(false);
-  const [adminUsername, setAdminUsername] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-  const [pendingCancellation, setPendingCancellation] = useState<{billId: string, itemIndex: number} | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
+  // Deletion request state (new notification-based system)
+  const [showDeletionReason, setShowDeletionReason] = useState(false);
+  const [deletionReason, setDeletionReason] = useState("");
+  const [pendingDeletion, setPendingDeletion] = useState<{billId: string, itemIndex: number} | null>(null);
   
   // Split bill state
   const [showSplitBill, setShowSplitBill] = useState(false);
@@ -202,133 +200,50 @@ export default function CashierSection() {
     }
   });
 
-  // Handle item cancellation request (triggers admin approval)
-  const handleRequestItemCancellation = (billId: string, itemIndex: number) => {
-    setPendingCancellation({ billId, itemIndex });
-    setShowAdminApproval(true);
-    setAdminUsername("");
-    setAdminPassword("");
+  // Request deletion mutation (new notification-based system)
+  const requestDeletionMutation = useMutation({
+    mutationFn: async ({ orderId, itemIndex, reason }: { orderId: string, itemIndex: number, reason: string }) => {
+      const response = await apiRequest('POST', '/api/orders/request-deletion', {
+        orderId,
+        itemIndex,
+        reason
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Permintaan Terkirim",
+        description: "Permintaan penghapusan item telah dikirim ke admin untuk persetujuan",
+      });
+      setShowDeletionReason(false);
+      setPendingDeletion(null);
+      setDeletionReason("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Gagal mengirim permintaan",
+        description: error.message || "Terjadi kesalahan saat mengirim permintaan penghapusan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle item deletion request (opens reason dialog)
+  const handleRequestItemDeletion = (billId: string, itemIndex: number) => {
+    setPendingDeletion({ billId, itemIndex });
+    setShowDeletionReason(true);
+    setDeletionReason("");
   };
 
-  // Verify admin credentials and process cancellation
-  const handleAdminApproval = async () => {
-    if (!adminUsername.trim() || !adminPassword.trim()) {
-      toast({
-        title: "Input tidak lengkap",
-        description: "Mohon masukkan username dan password admin",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Submit deletion request with reason
+  const handleSubmitDeletionRequest = () => {
+    if (!pendingDeletion) return;
 
-    if (!pendingCancellation) {
-      toast({
-        title: "Error",
-        description: "Tidak ada pending cancellation",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsVerifying(true);
-
-    try {
-      // Verify admin credentials
-      const verifyResponse = await apiRequest('POST', '/api/auth/verify-admin', {
-        username: adminUsername,
-        password: adminPassword
-      });
-
-      const verifyResult = await verifyResponse.json();
-
-      if (!verifyResult.verified) {
-        toast({
-          title: "Verifikasi gagal",
-          description: "Kredensial admin tidak valid",
-          variant: "destructive",
-        });
-        setIsVerifying(false);
-        return;
-      }
-
-      // Find the bill and remove the item
-      const bill = openBills.find(b => b.id === pendingCancellation.billId);
-      if (!bill) {
-        toast({
-          title: "Bill tidak ditemukan",
-          description: "Bill mungkin sudah dihapus",
-          variant: "destructive",
-        });
-        setIsVerifying(false);
-        setShowAdminApproval(false);
-        setPendingCancellation(null);
-        return;
-      }
-
-      // Create updated items array without the cancelled item
-      const updatedItems = Array.isArray(bill.items) 
-        ? bill.items.filter((_, index) => index !== pendingCancellation.itemIndex)
-        : [];
-
-      if (updatedItems.length === 0) {
-        toast({
-          title: "Tidak dapat cancel",
-          description: "Tidak bisa menghapus semua item. Gunakan delete bill untuk menghapus seluruh bill.",
-          variant: "destructive",
-        });
-        setIsVerifying(false);
-        return;
-      }
-
-      // Recalculate totals
-      const newSubtotal = updatedItems.reduce((sum: number, item: any) => 
-        sum + ((item.price || 0) * (item.quantity || 0)), 0);
-      
-      // Update the bill with new items
-      const updateResponse = await apiRequest('PUT', `/api/orders/${bill.id}`, {
-        items: updatedItems,
-        subtotal: newSubtotal,
-        total: newSubtotal,
-        discount: 0
-      });
-
-      if (!updateResponse.ok) {
-        throw new Error("Failed to update bill");
-      }
-
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
-
-      toast({
-        title: "Item berhasil dicancel",
-        description: `Item telah dihapus dari bill dengan approval admin ${verifyResult.adminUsername}`,
-      });
-
-      // Close dialogs and reset state
-      setShowAdminApproval(false);
-      setPendingCancellation(null);
-      setAdminUsername("");
-      setAdminPassword("");
-      
-      // Refresh the viewing bill if it's still open
-      if (viewingBill && viewingBill.id === bill.id) {
-        const updatedBill = await (await apiRequest('GET', `/api/orders/${bill.id}`)).json();
-        setViewingBill(updatedBill);
-      }
-
-      refetchOpenBills();
-
-    } catch (error) {
-      console.error("Admin approval error:", error);
-      toast({
-        title: "Gagal memverifikasi admin",
-        description: "Terjadi kesalahan saat memverifikasi kredensial admin",
-        variant: "destructive",
-      });
-    } finally {
-      setIsVerifying(false);
-    }
+    requestDeletionMutation.mutate({
+      orderId: pendingDeletion.billId,
+      itemIndex: pendingDeletion.itemIndex,
+      reason: deletionReason.trim() || "Tidak ada alasan"
+    });
   };
 
   // Cart functions
@@ -1624,7 +1539,7 @@ export default function CashierSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRequestItemCancellation(viewingBill.id, index)}
+                        onClick={() => handleRequestItemDeletion(viewingBill.id, index)}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
                         data-testid={`button-cancel-item-${index}`}
                       >
@@ -1877,55 +1792,40 @@ export default function CashierSection() {
         </DialogContent>
       </Dialog>
 
-      {/* Admin Approval Dialog for Item Cancellation */}
-      <Dialog open={showAdminApproval} onOpenChange={setShowAdminApproval}>
+      {/* Deletion Reason Dialog (New Notification-Based System) */}
+      <Dialog open={showDeletionReason} onOpenChange={setShowDeletionReason}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              <span>Persetujuan Admin Diperlukan</span>
+              <span>Permintaan Penghapusan Item</span>
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                <strong>Peringatan:</strong> Anda mencoba mencancel item dari Open Bill. 
-                Tindakan ini memerlukan persetujuan admin untuk mencegah kesalahan atau penghapusan yang tidak sah.
+                <strong>Informasi:</strong> Penghapusan item dari Open Bill memerlukan persetujuan admin. 
+                Mohon berikan alasan penghapusan, dan admin akan menerima notifikasi untuk menyetujui permintaan Anda.
               </p>
             </div>
 
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="adminUsername">Username Admin</Label>
-                <Input
-                  id="adminUsername"
-                  type="text"
-                  value={adminUsername}
-                  onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="Masukkan username admin"
-                  disabled={isVerifying}
-                  data-testid="input-admin-username"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="adminPassword">Password Admin</Label>
-                <Input
-                  id="adminPassword"
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Masukkan password admin"
-                  disabled={isVerifying}
-                  data-testid="input-admin-password"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isVerifying) {
-                      handleAdminApproval();
-                    }
-                  }}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="deletionReason">Alasan Penghapusan (Opsional)</Label>
+              <Input
+                id="deletionReason"
+                type="text"
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                placeholder="Contoh: Customer berubah pikiran"
+                disabled={requestDeletionMutation.isPending}
+                data-testid="input-deletion-reason"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !requestDeletionMutation.isPending) {
+                    handleSubmitDeletionRequest();
+                  }
+                }}
+              />
             </div>
           </div>
           
@@ -1933,23 +1833,22 @@ export default function CashierSection() {
             <Button 
               variant="outline" 
               onClick={() => {
-                setShowAdminApproval(false);
-                setPendingCancellation(null);
-                setAdminUsername("");
-                setAdminPassword("");
+                setShowDeletionReason(false);
+                setPendingDeletion(null);
+                setDeletionReason("");
               }}
-              disabled={isVerifying}
-              data-testid="button-cancel-admin-approval"
+              disabled={requestDeletionMutation.isPending}
+              data-testid="button-cancel-deletion-request"
             >
               Batal
             </Button>
             <Button 
-              onClick={handleAdminApproval}
-              disabled={isVerifying || !adminUsername.trim() || !adminPassword.trim()}
-              className="bg-destructive hover:bg-destructive/90"
-              data-testid="button-confirm-admin-approval"
+              onClick={handleSubmitDeletionRequest}
+              disabled={requestDeletionMutation.isPending}
+              className="bg-primary hover:bg-primary/90"
+              data-testid="button-submit-deletion-request"
             >
-              {isVerifying ? "Memverifikasi..." : "Verifikasi & Cancel Item"}
+              {requestDeletionMutation.isPending ? "Mengirim..." : "Kirim Permintaan"}
             </Button>
           </DialogFooter>
         </DialogContent>
