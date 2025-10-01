@@ -1210,158 +1210,139 @@ export default function CashierSection() {
           </Card>
         </div>
 
-        {/* Order Summary & Customer Info */}
-        <div className="space-y-6">
-          {/* Customer Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <User className="h-5 w-5" />
-                  <span>Info Customer</span>
-                  {editingBill && (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                      Edit Mode
-                    </Badge>
-                  )}
-                </div>
-                {editingBill && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingBill(null);
-                      setCustomerName("");
-                      setTableNumber("");
-                      setCart([]);
-                      setNotes({});
-                      toast({
-                        title: "Edit dibatalkan",
-                        description: "Kembali ke mode buat pesanan baru",
-                      });
-                    }}
-                    data-testid="button-cancel-edit"
-                  >
-                    Batal Edit
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customerName">Nama Customer</Label>
-                <Input
-                  id="customerName"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Masukkan nama customer"
-                  data-testid="input-customer-name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tableNumber" className="flex items-center space-x-2">
-                  <Table className="h-4 w-4" />
-                  <span>Nomor Meja</span>
-                </Label>
-                <Input
-                  id="tableNumber"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  placeholder="Masukkan nomor meja"
-                  disabled={!!editingBill}
-                  data-testid="input-table-number"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Cart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  <span>Cart</span>
-                </div>
-                <Badge variant="secondary" data-testid="cart-count">
-                  {cart.length} items
-                </Badge>
-              </CardTitle>
+        {/* Current Order - Modern Design */}
+        <div className="space-y-4">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Current Order</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {cart.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground" data-testid="empty-cart-message">
-                    Cart masih kosong
+                  <p className="text-sm text-muted-foreground" data-testid="empty-cart-message">
+                    No items in cart yet
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {/* Cart Items */}
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                     {cart.map((item) => (
-                      <div key={item.id} className="border rounded-lg p-3" data-testid={`cart-item-${item.id}`}>
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium text-sm">{item.name}</h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFromCart(item.id)}
-                            className="text-destructive hover:text-destructive h-6 w-6 p-0"
-                            data-testid={`button-remove-${item.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
+                      <div key={item.id} className="flex gap-3 pb-3 border-b border-border/50" data-testid={`cart-item-${item.id}`}>
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="text-sm font-medium text-foreground">{item.name}</h4>
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="h-6 w-6 p-0"
-                              data-testid={`button-decrease-${item.id}`}
+                              onClick={() => removeFromCart(item.id)}
+                              className="text-muted-foreground hover:text-destructive h-6 w-6 p-0 -mt-1"
+                              data-testid={`button-remove-${item.id}`}
                             >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-sm font-medium w-8 text-center" data-testid={`quantity-${item.id}`}>
-                              {item.quantity}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="h-6 w-6 p-0"
-                              data-testid={`button-increase-${item.id}`}
-                            >
-                              <Plus className="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
-                          <span className="text-sm font-semibold" data-testid={`item-total-${item.id}`}>
-                            {formatCurrency(item.price * item.quantity)}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-primary" data-testid={`item-total-${item.id}`}>
+                              {formatCurrency(item.price * item.quantity)} x{item.quantity}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                className="h-7 w-7 p-0 rounded-full"
+                                data-testid={`button-decrease-${item.id}`}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="text-sm font-medium w-6 text-center" data-testid={`quantity-${item.id}`}>
+                                {item.quantity}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                className="h-7 w-7 p-0 rounded-full bg-primary text-white hover:bg-primary/90 hover:text-white border-primary"
+                                data-testid={`button-increase-${item.id}`}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          {item.notes && (
+                            <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
+                          )}
                         </div>
-
-                        <Input
-                          placeholder="Catatan (opsional)"
-                          value={item.notes}
-                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
-                          className="text-xs"
-                          data-testid={`input-notes-${item.id}`}
-                        />
                       </div>
                     ))}
                   </div>
 
-                  {/* Order Summary */}
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal:</span>
-                      <span data-testid="subtotal">{formatCurrency(subtotal)}</span>
+                  {/* Payment Summary */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-sm font-semibold text-foreground">Summary</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span data-testid="subtotal">{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Discount sales</span>
+                        <span className="text-primary">-Rp 0</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Total tax</span>
+                        <span>Rp 0</span>
+                      </div>
+                      <div className="flex justify-between text-base font-bold text-foreground pt-2 border-t">
+                        <span>Total</span>
+                        <span className="text-primary" data-testid="total">{formatCurrency(total)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-lg font-semibold border-t pt-2">
-                      <span>Total:</span>
-                      <span data-testid="total">{formatCurrency(total)}</span>
+                  </div>
+
+                  {/* Payment Method */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground">Payment Method</h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      <button
+                        onClick={() => setPaymentMethod("qris")}
+                        className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                          paymentMethod === "qris" 
+                            ? "bg-primary text-white border-primary" 
+                            : "bg-background border-border hover:border-primary/50"
+                        }`}
+                        data-testid="button-payment-qris"
+                      >
+                        <QrCode className="h-5 w-5 mb-1" />
+                        <span className="text-xs font-medium">Qris</span>
+                      </button>
+                      <button
+                        onClick={() => setPaymentMethod("cash")}
+                        className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+                          paymentMethod === "cash" 
+                            ? "bg-primary text-white border-primary" 
+                            : "bg-background border-border hover:border-primary/50"
+                        }`}
+                        data-testid="button-payment-cash"
+                      >
+                        <Banknote className="h-5 w-5 mb-1" />
+                        <span className="text-xs font-medium">Cash</span>
+                      </button>
+                      <button
+                        className="flex flex-col items-center justify-center p-3 rounded-lg border border-border bg-background/50 opacity-50 cursor-not-allowed"
+                        disabled
+                      >
+                        <CreditCardIcon className="h-5 w-5 mb-1" />
+                        <span className="text-xs font-medium">Debit</span>
+                      </button>
+                      <button
+                        className="flex flex-col items-center justify-center p-3 rounded-lg border border-border bg-background/50 opacity-50 cursor-not-allowed"
+                        disabled
+                      >
+                        <Wallet className="h-5 w-5 mb-1" />
+                        <span className="text-xs font-medium">e-Money</span>
+                      </button>
                     </div>
                   </div>
 
@@ -1369,8 +1350,8 @@ export default function CashierSection() {
                   <div className="space-y-2">
                     {/* Show split warning if unpaid assignments exist */}
                     {getUnpaidAssignedCount() > 0 && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className="text-sm text-yellow-800">
+                      <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
                           <strong>Split Bill Aktif:</strong> {getUnpaidAssignedCount()} items di-assign ke unpaid splits.
                         </p>
                         <Button
@@ -1384,41 +1365,44 @@ export default function CashierSection() {
                       </div>
                     )}
                     
+                    {/* Main Order Now Button */}
                     <Button
                       onClick={handleSubmitOrder}
                       disabled={createOrderMutation.isPending || getUnpaidAssignedCount() > 0}
-                      className="w-full"
+                      className="w-full bg-primary hover:bg-primary/90 text-white h-12 text-base font-semibold rounded-xl"
                       data-testid="button-submit-order"
                     >
-                      <Calculator className="h-4 w-4 mr-2" />
-                      {createOrderMutation.isPending ? "Memproses..." : "Hitung Pembayaran"}
+                      {createOrderMutation.isPending ? "Processing..." : "Order Now"}
                     </Button>
                     
-                    <Button
-                      onClick={handleCreateOpenBill}
-                      disabled={createOpenBillMutation.isPending || getUnpaidAssignedCount() > 0}
-                      variant="outline"
-                      className="w-full"
-                      data-testid="button-create-open-bill"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      {createOpenBillMutation.isPending 
-                        ? "Menyimpan..." 
-                        : editingBill 
-                          ? "Update Open Bill" 
-                          : "Simpan sebagai Open Bill"}
-                    </Button>
-                    
-                    <Button
-                      onClick={initiateSplitBill}
-                      variant="outline"
-                      className="w-full"
-                      data-testid="button-split-bill"
-                      disabled={splitParts.length > 0}
-                    >
-                      <Split className="h-4 w-4 mr-2" />
-                      {splitParts.length > 0 ? "Split Bill Aktif" : "Split Bill"}
-                    </Button>
+                    {/* Secondary Actions */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        onClick={handleCreateOpenBill}
+                        disabled={createOpenBillMutation.isPending || getUnpaidAssignedCount() > 0}
+                        variant="outline"
+                        className="h-9 text-xs"
+                        data-testid="button-create-open-bill"
+                      >
+                        <FileText className="h-3.5 w-3.5 mr-1.5" />
+                        {createOpenBillMutation.isPending 
+                          ? "Saving..." 
+                          : editingBill 
+                            ? "Update Bill" 
+                            : "Open Bill"}
+                      </Button>
+                      
+                      <Button
+                        onClick={initiateSplitBill}
+                        variant="outline"
+                        className="h-9 text-xs"
+                        data-testid="button-split-bill"
+                        disabled={splitParts.length > 0}
+                      >
+                        <Split className="h-3.5 w-3.5 mr-1.5" />
+                        {splitParts.length > 0 ? "Split Active" : "Split Bill"}
+                      </Button>
+                    </div>
                   </div>
                 </>
               )}
