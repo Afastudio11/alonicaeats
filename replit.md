@@ -93,6 +93,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 1, 2025 - Duplicate Order Bug Fix and Open Bill Payment Enhancement
+- ✅ **Fixed Duplicate Order Bug**: Orders are now sent to kitchen ONLY once when bill is opened, not again when paid
+- ✅ **New Payment Endpoint**: Created `/api/orders/:id/pay` endpoint to update existing open bill payment without creating duplicates
+- ✅ **Payment Status Update**: Open bills now properly update payment information (status, method, amounts) without changing order status
+- ✅ **Enhanced UI**: Added "Bayar Bill" (Pay Bill) buttons to open bills list and bill viewing dialog
+- ✅ **Smart Payment Detection**: Frontend automatically detects open bill payments and uses the correct endpoint
+- ✅ **Proper Cache Invalidation**: Payment updates invalidate both orders and open-bills queries for instant UI refresh
+- ✅ **Edge Case Handling**: Proper validation for already paid bills, non-existent orders, and non-open bills
+- ✅ **Authorization**: Payment endpoint protected with requireAuth and requireAdminOrKasir middleware
+- ✅ **Storage Layer Update**: Extended `updateOrderPayment` interface to include paymentMethod field
+- ✅ **Admin Approval Verified**: Confirmed item deletion from open bills requires admin credentials via `/api/auth/verify-admin` endpoint
+- ✅ **Architecture Review**: Passed final architect review confirming duplicate prevention and proper implementation
+
+**Technical Implementation:**
+- Orders created with `payLater=true` go directly to kitchen with `orderStatus='pending'`
+- When paying open bill, ONLY payment fields are updated (paymentStatus, paymentMethod, cashReceived, change, paidAt)
+- Order status remains unchanged to avoid re-sending to kitchen
+- Frontend payment context distinguishes between new orders and open bill payments
+- Clean separation between order creation flow and payment update flow
+
 ### October 1, 2025 - Menu UX Enhancements and Admin Approval System
 - ✅ **Horizontal Scrollable Categories**: Changed menu category display from vertical to horizontal scrollable layout for faster navigation
 - ✅ **Menu Search Functionality**: Added search bar with real-time filtering for menu items by name, making item lookup significantly faster
