@@ -352,6 +352,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Logged out successfully" });
   });
 
+  // Admin verification endpoint (for sensitive operations like item cancellation)
+  app.post("/api/auth/verify-admin", authLimiter, async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Check if user is admin
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      // Check if password is hashed or plaintext and verify accordingly
+      let isValidPassword = false;
+      
+      if (user.password.match(/^\$2[aby]\$/)) {
+        // Password is already hashed with bcrypt
+        isValidPassword = await verifyPassword(password, user.password);
+      } else {
+        // Legacy plaintext password - check directly
+        isValidPassword = (user.password === password);
+      }
+      
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Check if user account is active
+      if (!user.isActive) {
+        return res.status(403).json({ message: "Account is disabled. Please contact administrator." });
+      }
+      
+      // Return success with admin info (no token needed for quick verification)
+      res.json({ 
+        verified: true,
+        adminId: user.id,
+        adminUsername: user.username
+      });
+    } catch (error) {
+      console.error("❌ Admin verification error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Initialize default users for memory storage (development only)
   app.post("/api/auth/init-default-users", authLimiter, async (req, res) => {
     // Security: Only allow in development environment AND localhost

@@ -63,6 +63,13 @@ export default function CashierSection() {
   const [viewingBill, setViewingBill] = useState<Order | null>(null);
   const [editingBill, setEditingBill] = useState<Order | null>(null);
   
+  // Admin approval state for item cancellation
+  const [showAdminApproval, setShowAdminApproval] = useState(false);
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [pendingCancellation, setPendingCancellation] = useState<{billId: string, itemIndex: number} | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  
   // Split bill state
   const [showSplitBill, setShowSplitBill] = useState(false);
   const [splitParts, setSplitParts] = useState<{id: number, items: CartItem[], customerName: string, paid?: boolean}[]>([]);
@@ -193,6 +200,135 @@ export default function CashierSection() {
       });
     }
   });
+
+  // Handle item cancellation request (triggers admin approval)
+  const handleRequestItemCancellation = (billId: string, itemIndex: number) => {
+    setPendingCancellation({ billId, itemIndex });
+    setShowAdminApproval(true);
+    setAdminUsername("");
+    setAdminPassword("");
+  };
+
+  // Verify admin credentials and process cancellation
+  const handleAdminApproval = async () => {
+    if (!adminUsername.trim() || !adminPassword.trim()) {
+      toast({
+        title: "Input tidak lengkap",
+        description: "Mohon masukkan username dan password admin",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!pendingCancellation) {
+      toast({
+        title: "Error",
+        description: "Tidak ada pending cancellation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      // Verify admin credentials
+      const verifyResponse = await apiRequest('POST', '/api/auth/verify-admin', {
+        username: adminUsername,
+        password: adminPassword
+      });
+
+      const verifyResult = await verifyResponse.json();
+
+      if (!verifyResult.verified) {
+        toast({
+          title: "Verifikasi gagal",
+          description: "Kredensial admin tidak valid",
+          variant: "destructive",
+        });
+        setIsVerifying(false);
+        return;
+      }
+
+      // Find the bill and remove the item
+      const bill = openBills.find(b => b.id === pendingCancellation.billId);
+      if (!bill) {
+        toast({
+          title: "Bill tidak ditemukan",
+          description: "Bill mungkin sudah dihapus",
+          variant: "destructive",
+        });
+        setIsVerifying(false);
+        setShowAdminApproval(false);
+        setPendingCancellation(null);
+        return;
+      }
+
+      // Create updated items array without the cancelled item
+      const updatedItems = Array.isArray(bill.items) 
+        ? bill.items.filter((_, index) => index !== pendingCancellation.itemIndex)
+        : [];
+
+      if (updatedItems.length === 0) {
+        toast({
+          title: "Tidak dapat cancel",
+          description: "Tidak bisa menghapus semua item. Gunakan delete bill untuk menghapus seluruh bill.",
+          variant: "destructive",
+        });
+        setIsVerifying(false);
+        return;
+      }
+
+      // Recalculate totals
+      const newSubtotal = updatedItems.reduce((sum: number, item: any) => 
+        sum + ((item.price || 0) * (item.quantity || 0)), 0);
+      
+      // Update the bill with new items
+      const updateResponse = await apiRequest('PUT', `/api/orders/${bill.id}`, {
+        items: updatedItems,
+        subtotal: newSubtotal,
+        total: newSubtotal,
+        discount: 0
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to update bill");
+      }
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+
+      toast({
+        title: "Item berhasil dicancel",
+        description: `Item telah dihapus dari bill dengan approval admin ${verifyResult.adminUsername}`,
+      });
+
+      // Close dialogs and reset state
+      setShowAdminApproval(false);
+      setPendingCancellation(null);
+      setAdminUsername("");
+      setAdminPassword("");
+      
+      // Refresh the viewing bill if it's still open
+      if (viewingBill && viewingBill.id === bill.id) {
+        const updatedBill = await (await apiRequest('GET', `/api/orders/${bill.id}`)).json();
+        setViewingBill(updatedBill);
+      }
+
+      refetchOpenBills();
+
+    } catch (error) {
+      console.error("Admin approval error:", error);
+      toast({
+        title: "Gagal memverifikasi admin",
+        description: "Terjadi kesalahan saat memverifikasi kredensial admin",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   // Cart functions
   const addToCart = (menuItem: MenuItem) => {
@@ -1417,16 +1553,27 @@ export default function CashierSection() {
               <div className="space-y-2">
                 <h4 className="font-medium">Items:</h4>
                 {Array.isArray(viewingBill.items) && viewingBill.items.map((item: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center py-2 border-b">
-                    <div>
+                  <div key={index} className="flex justify-between items-start py-2 border-b">
+                    <div className="flex-1">
                       <span className="font-medium">{item.quantity}x {item.name}</span>
                       {item.notes && (
                         <p className="text-sm text-muted-foreground">Note: {item.notes}</p>
                       )}
                     </div>
-                    <span className="font-medium">
-                      {formatCurrency((item.price || 0) * (item.quantity || 0))}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium">
+                        {formatCurrency((item.price || 0) * (item.quantity || 0))}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRequestItemCancellation(viewingBill.id, index)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                        data-testid={`button-cancel-item-${index}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1659,6 +1806,84 @@ export default function CashierSection() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSplitBill(false)}>
               Batal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Approval Dialog for Item Cancellation */}
+      <Dialog open={showAdminApproval} onOpenChange={setShowAdminApproval}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              <span>Persetujuan Admin Diperlukan</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Peringatan:</strong> Anda mencoba mencancel item dari Open Bill. 
+                Tindakan ini memerlukan persetujuan admin untuk mencegah kesalahan atau penghapusan yang tidak sah.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="adminUsername">Username Admin</Label>
+                <Input
+                  id="adminUsername"
+                  type="text"
+                  value={adminUsername}
+                  onChange={(e) => setAdminUsername(e.target.value)}
+                  placeholder="Masukkan username admin"
+                  disabled={isVerifying}
+                  data-testid="input-admin-username"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminPassword">Password Admin</Label>
+                <Input
+                  id="adminPassword"
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="Masukkan password admin"
+                  disabled={isVerifying}
+                  data-testid="input-admin-password"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isVerifying) {
+                      handleAdminApproval();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAdminApproval(false);
+                setPendingCancellation(null);
+                setAdminUsername("");
+                setAdminPassword("");
+              }}
+              disabled={isVerifying}
+              data-testid="button-cancel-admin-approval"
+            >
+              Batal
+            </Button>
+            <Button 
+              onClick={handleAdminApproval}
+              disabled={isVerifying || !adminUsername.trim() || !adminPassword.trim()}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-admin-approval"
+            >
+              {isVerifying ? "Memverifikasi..." : "Verifikasi & Cancel Item"}
             </Button>
           </DialogFooter>
         </DialogContent>
