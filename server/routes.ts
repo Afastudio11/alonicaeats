@@ -1986,6 +1986,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pay open bill (update existing order, NOT create new) (Admin/Kasir only)
+  app.post("/api/orders/:id/pay", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentMethod, cashReceived, change } = req.body;
+      
+      const order = await storage.getOrder(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Verify this is an open bill (payLater = true)
+      if (!order.payLater) {
+        return res.status(400).json({ message: "This is not an open bill" });
+      }
+      
+      // Verify it's not already paid
+      if (order.paymentStatus === 'paid') {
+        return res.status(400).json({ message: "Bill already paid" });
+      }
+      
+      // Update payment info WITHOUT changing orderStatus
+      // The order was already sent to kitchen when bill was created
+      // We ONLY update payment status, NOT create duplicate order
+      await storage.updateOrderPayment(id, {
+        paymentStatus: 'paid',
+        paymentMethod: paymentMethod || 'cash',
+        paidAt: new Date()
+      });
+      
+      const updatedOrder = await storage.getOrder(id);
+      
+      res.json({ 
+        success: true, 
+        order: updatedOrder,
+        payment: {
+          method: paymentMethod || 'cash',
+          received: cashReceived || order.total,
+          change: change || 0,
+          status: 'paid'
+        }
+      });
+    } catch (error) {
+      console.error('Pay open bill error:', error);
+      res.status(500).json({ message: "Failed to pay open bill" });
+    }
+  });
+
   // Payment status check endpoint (public access for customers)
   app.get("/api/orders/:id/payment-status", async (req, res) => {
     try {

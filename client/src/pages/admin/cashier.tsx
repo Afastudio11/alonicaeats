@@ -384,6 +384,29 @@ export default function CashierSection() {
   const currentPaymentTotal = paymentContext ? paymentContext.total : total;
   const change = cashAmountNumber >= currentPaymentTotal ? cashAmountNumber - currentPaymentTotal : 0;
   
+  // Handle payment for open bills
+  const handlePayOpenBill = (bill: Order) => {
+    // Set payment context for open bill
+    setPaymentContext({
+      mode: 'open_bill' as any,
+      billId: bill.id,
+      total: bill.total,
+      items: Array.isArray(bill.items) ? bill.items.map((item: any) => ({
+        id: item.itemId || item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        notes: item.notes || ""
+      })) : [],
+      customerName: bill.customerName
+    });
+    
+    // Show payment calculator
+    setShowPaymentCalculator(true);
+    setCashAmount("");
+    setPaymentMethod("cash");
+  };
+
   // Handle payment calculation
   const handlePaymentCalculation = async () => {
     if (!paymentContext) {
@@ -409,29 +432,52 @@ export default function CashierSection() {
     
     const change = paymentMethod === "cash" ? (cashAmountNumber - paymentContext.total) : 0;
     
-    const orderData = {
-      customerName: paymentContext.customerName || customerName.trim(),
-      tableNumber: tableNumber.trim(),
-      items: paymentContext.items.map(item => ({
-        itemId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        notes: item.notes || ""
-      })),
-      subtotal: paymentContext.total,
-      discount: 0,
-      total: paymentContext.total,
-      paymentMethod: paymentMethod,
-      cashReceived: paymentMethod === "cash" ? cashAmountNumber : paymentContext.total,
-      change: change,
-      status: "pending"
-    };
-    
     try {
-      const response = await apiRequest('POST', '/api/orders/cash', orderData);
-      const result = await response.json();
-      const createdOrder = result.order; // Extract actual order object
+      let result;
+      
+      // Check if this is an open bill payment
+      if ((paymentContext as any).mode === 'open_bill' && (paymentContext as any).billId) {
+        // Pay existing open bill - DO NOT create duplicate order
+        const response = await apiRequest('POST', `/api/orders/${(paymentContext as any).billId}/pay`, {
+          paymentMethod: paymentMethod,
+          cashReceived: paymentMethod === "cash" ? cashAmountNumber : paymentContext.total,
+          change: change
+        });
+        result = await response.json();
+        
+        // Invalidate open bills query
+        queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+        
+        toast({
+          title: "Open bill berhasil dibayar",
+          description: "Pembayaran telah dicatat, pesanan sudah di dapur",
+        });
+      } else {
+        // Regular new order payment
+        const orderData = {
+          customerName: paymentContext.customerName || customerName.trim(),
+          tableNumber: tableNumber.trim(),
+          items: paymentContext.items.map(item => ({
+            itemId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            notes: item.notes || ""
+          })),
+          subtotal: paymentContext.total,
+          discount: 0,
+          total: paymentContext.total,
+          paymentMethod: paymentMethod,
+          cashReceived: paymentMethod === "cash" ? cashAmountNumber : paymentContext.total,
+          change: change,
+          status: "pending"
+        };
+        
+        const response = await apiRequest('POST', '/api/orders/cash', orderData);
+        result = await response.json();
+      }
+      
+      const createdOrder = result.order;
       
       setPaymentData({
         cashAmount: cashAmountNumber,
@@ -442,7 +488,7 @@ export default function CashierSection() {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
 
       // Handle split payment success
-      if (paymentContext.mode === 'split' && paymentContext.splitId) {
+      if (paymentContext.mode === 'split' && (paymentContext as any).splitId) {
         // Decrement cart quantities by the paid split's items
         setCart(prevCart => {
           return prevCart.map(cartItem => {
@@ -460,7 +506,7 @@ export default function CashierSection() {
         // Mark this split as paid (do NOT modify other splits)
         setSplitParts(prev => {
           const updatedParts = prev.map(part => {
-            if (part.id === paymentContext.splitId) {
+            if (part.id === (paymentContext as any).splitId) {
               return { ...part, paid: true };
             }
             // Leave other splits unchanged
@@ -482,11 +528,16 @@ export default function CashierSection() {
           
           return updatedParts;
         });
-      } else {
-        // Regular cart payment - clear everything
+      } else if ((paymentContext as any).mode !== 'open_bill') {
+        // Regular cart payment - clear everything (not for open bill)
         setCustomerName("");
         setTableNumber("");
         setCart([]);
+      }
+
+      // Close viewing bill dialog if paying from there
+      if ((paymentContext as any).mode === 'open_bill') {
+        setViewingBill(null);
       }
 
       // Reset payment context
@@ -494,13 +545,9 @@ export default function CashierSection() {
       setShowPaymentCalculator(false);
       setShowReceipt(true);
       
-      toast({
-        title: "Pesanan berhasil dibuat",
-        description: "Pesanan telah disimpan ke sistem",
-      });
     } catch (error) {
       toast({
-        title: "Gagal membuat pesanan",
+        title: "Gagal memproses pembayaran",
         description: "Silakan coba lagi",
         variant: "destructive",
       });
@@ -949,6 +996,15 @@ export default function CashierSection() {
                               Edit
                             </Button>
                           </div>
+                          <Button
+                            size="sm"
+                            className="w-full bg-primary hover:bg-primary/90"
+                            onClick={() => handlePayOpenBill(bill)}
+                            data-testid={`button-pay-bill-${bill.id}`}
+                          >
+                            <Calculator className="h-4 w-4 mr-1" />
+                            Bayar Bill
+                          </Button>
                           <div className="w-full bg-green-50 border border-green-200 rounded-md p-2 text-center">
                             <div className="flex items-center justify-center text-green-700">
                               <Send className="h-4 w-4 mr-1" />
@@ -1588,14 +1644,23 @@ export default function CashierSection() {
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
               variant="outline" 
               onClick={() => setViewingBill(null)}
+              className="flex-1"
             >
               Tutup
             </Button>
-            <div className="bg-green-50 border border-green-200 rounded-md px-4 py-2">
+            <Button
+              onClick={() => viewingBill && handlePayOpenBill(viewingBill)}
+              className="flex-1 bg-primary hover:bg-primary/90"
+              data-testid="button-pay-viewing-bill"
+            >
+              <Calculator className="h-4 w-4 mr-2" />
+              Bayar Bill
+            </Button>
+            <div className="bg-green-50 border border-green-200 rounded-md px-4 py-2 w-full">
               <div className="flex items-center text-green-700">
                 <Send className="h-4 w-4 mr-2" />
                 <span className="text-sm font-medium">Sudah Masuk ke Dapur</span>

@@ -1,0 +1,37 @@
+Tentu, ini adalah *prompt* tambahan yang menggabungkan kedua permintaan tersebut, fokus pada perbaikan alur kerja dan keamanan pada fitur **Open Bill**.
+
+*Prompt* ini menggunakan struktur yang jelas agar model AI dapat mengidentifikasi masalah (bug) dan kebutuhan keamanan (fitur baru) dengan mudah.
+
+```
+**Pembaruan Fitur: Perbaikan Keamanan dan Logika Alur Kerja 'Open Bill'**
+
+Kami memerlukan dua perbaikan krusial pada fitur 'Open Bill' di sistem POS untuk meningkatkan keamanan dari penyalahgunaan oleh kasir dan memperbaiki bug duplikasi pesanan.
+
+---
+
+## 1. Implementasi Persetujuan Admin untuk Pembatalan/Penghapusan Item di Open Bill
+
+**Tujuan:** Mencegah penyalahgunaan sistem dan pengakalan bill oleh kasir dengan mengharuskan persetujuan Admin untuk setiap pembatalan pesanan di bill yang sudah dibuka (Open Bill).
+
+**Detail Perubahan:**
+* **Proses Penghapusan Item:** Ketika seorang **Kasir** mencoba untuk **menghapus** atau **membatalkan** satu atau lebih menu item dari sebuah **Open Bill** (sebelum bill dibayar), sistem harus menganggap ini sebagai permintaan pembatalan, bukan aksi langsung.
+* **Pemicu Permintaan:** Aksi penghapusan oleh Kasir harus **MENGIRIMKAN REQUEST** ke sistem.
+* **Notifikasi Admin:** Permintaan pembatalan tersebut harus muncul sebagai **notifikasi yang menonjol** dan **real-time** di **Dashboard Admin**. Detail permintaan (item, jumlah, nama Kasir) harus disertakan.
+* **Aksi Admin:** Admin harus memiliki tombol/opsi di dashboard mereka untuk **Menerima (Approve)** atau **Menolak (Reject)** permintaan pembatalan ini.
+* **Blokir Aksi Kasir:** Item tidak boleh terhapus dari Open Bill Kasir sampai Admin memberikan persetujuan (Approve) melalui dashboard mereka.
+
+---
+
+## 2. Pencegahan Duplikasi Pesanan Saat Pembayaran Open Bill
+
+**Tujuan:** Memperbaiki bug di mana pesanan yang berasal dari Open Bill dikirimkan ke sistem Order/Dapur sebanyak dua kali (sekali saat bill dibuka, sekali saat bill dibayar).
+
+**Detail Perubahan:**
+* **Alur Saat Ini (Bug):**
+    1.  Item di-input sebagai Open Bill → Order **MASUK** ke sistem Order/Dapur (Order Pertama).
+    2.  Open Bill **DIBAYAR/DITUTUP** → Order **MASUK LAGI** ke sistem Order/Dapur (Order Terduplikasi).
+* **Alur yang Diharapkan (Perbaikan Logika):**
+    1.  Item di-input sebagai Open Bill → Order **MASUK** ke sistem Order/Dapur (Ini adalah proses pengiriman order yang benar).
+    2.  Ketika Open Bill **DIBAYAR/DITUTUP**, sistem harus **TIDAK** memicu fungsi pengiriman order ke Order/Dapur.
+* **Logika Kunci:** Pada saat penutupan/pembayaran Open Bill, implementasikan pengecekan kondisi: jika status order terkait **sudah pernah dikirimkan** ke Order/Dapur, maka proses penutupan bill hanya boleh memperbarui status menjadi 'Lunas' atau 'Selesai' tanpa menjalankan ulang fungsi Order Submission.
+```
