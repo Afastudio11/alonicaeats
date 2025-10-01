@@ -1234,7 +1234,7 @@ export default function CashierSection() {
                             <div className="bg-gray-100 rounded-lg px-2 py-1.5 border border-gray-200" data-testid={`price-${item.id}`}>
                               <div className="flex items-baseline gap-1 justify-center">
                                 <span className="text-xs font-medium text-gray-600">Rp</span>
-                                <span className="text-sm font-bold text-primary">
+                                <span className="text-xs font-bold text-primary">
                                   {item.price.toLocaleString('id-ID')}
                                 </span>
                               </div>
