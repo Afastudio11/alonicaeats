@@ -1,0 +1,96 @@
+Lanjutkan redesign UI/UX Alonica Restaurant sesuai referensi ShopZen dan Kans Resto yang ada di attached_assets/. 
+
+
+PROGRESS SEJAUH INI (sudah selesai):
+
+✅ Sidebar Admin & Kasir - sudah redesign dengan style ShopZen
+
+✅ Orders Dashboard - sudah redesign dengan summary cards modern dan search bar yang prominent
+
+
+YANG MASIH HARUS DIKERJAKAN:
+
+
+1. REDESIGN POS DASHBOARD (client/src/pages/admin/cashier.tsx)
+
+   - Implementasikan layout mobile-first modern seperti referensi Kans Resto (lihat attached_assets/Screenshot 2025-10-01 180739_1759317521147.png dan 181225_1759317521148.png)
+
+   - Customer Information section: tampilkan dengan desain yang lebih clean
+
+   - Search Bar: buat lebih prominent seperti contoh
+
+   - Menu Grid: horizontal scrolling untuk kategori, card-based untuk items
+
+
+2. TAMBAHKAN SPECIAL DISCOUNT SECTION di POS Dashboard
+
+   - Buat section khusus "Special Discount Today" 
+
+   - Tampilkan:
+
+     * Persentase diskon (badge merah/primary)
+
+     * Harga lama (strikethrough/coret)
+
+     * Harga baru (bold, primary color)
+
+     * Timer countdown untuk akhir diskon
+
+   - Lihat referensi di attached_assets/Screenshot 2025-10-01 180739_1759317521147.png
+
+
+3. REDESIGN CART/CURRENT ORDER MODULE
+
+   - Payment Summary yang lebih modern:
+
+     * Subtotal
+
+     * Total Diskon (jika ada)
+
+     * Tax/Pajak
+
+     * Total Akhir (bold, primary color)
+
+   - Payment Method buttons dengan design bersih:
+
+     * QRis
+
+     * Icon untuk masing-masing method
+
+     * Active state dengan primary color
+
+   - Lihat referensi di attached_assets/Screenshot 2025-10-01 180739_1759317521147.png
+
+
+4. SINKRONISASI NAMA DAN ICON DI DASHBOARD ADMIN DAN KASIR, AGAR TIDAK ADA PERBEDAAN NAMA DAN ICON DI DASHBOARD ADMIN DAN KASIR
+
+
+ATURAN PENTING:
+
+- Gunakan PRIMARY COLOR (maroon/dark red) untuk semua highlight dan emphasis
+
+- Style harus clean, minimalist, professional seperti ShopZen
+
+- Preserve semua functionality yang sudah ada
+
+- Preserve semua test IDs
+
+- Dark mode compatible
+
+- TypeScript type safety harus dijaga
+
+
+File referensi desain ada di folder attached_assets/:
+
+- Screenshot 2025-10-01 180739_1759317521147.png (Kans Resto mobile POS)
+
+- Screenshot 2025-10-01 181225_1759317521148.png (Kans Resto desktop POS)  
+
+- Screenshot 2025-10-01 181320_1759317521147.png (ShopZen Orders table)
+
+- Screenshot 2025-10-01 181525_1759317521147.png (ShopZen Sidebar)
+
+- Pasted-Instruksi-Utama-*.txt (Requirements lengkap)
+
+
+Lihat replit.md untuk detail lengkap progress dan technical notes.
