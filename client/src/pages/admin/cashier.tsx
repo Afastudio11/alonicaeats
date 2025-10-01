@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
 import { smartPrintReceipt } from "@/utils/thermal-print";
-import type { MenuItem, Category, InsertOrder, Order } from "@shared/schema";
+import type { MenuItem, Category, InsertOrder, Order, Discount } from "@shared/schema";
 
 interface CartItem {
   id: string;
@@ -93,6 +93,11 @@ export default function CashierSection() {
   // Load open bills
   const { data: openBills = [], refetch: refetchOpenBills } = useQuery<Order[]>({
     queryKey: ["/api/orders/open-bills"],
+  });
+
+  // Load active discounts
+  const { data: activeDiscounts = [] } = useQuery<Discount[]>({
+    queryKey: ["/api/discounts/active"],
   });
 
   // Group menu items by category
@@ -825,22 +830,190 @@ export default function CashierSection() {
     setCashAmount("");
   };
 
+  // Countdown timer component for discounts
+  const DiscountCountdown = ({ endDate }: { endDate: Date | null }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+      if (!endDate) return;
+
+      const updateTimer = () => {
+        const now = new Date();
+        const end = new Date(endDate);
+        const diff = end.getTime() - now.getTime();
+
+        if (diff <= 0) {
+          setTimeLeft('Berakhir');
+          return;
+        }
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        setTimeLeft(`${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+
+      return () => clearInterval(interval);
+    }, [endDate]);
+
+    if (!endDate || !timeLeft) return null;
+
+    return (
+      <span className="text-sm text-primary font-medium">
+        Ends in {timeLeft}
+      </span>
+    );
+  };
+
+  // Get discount for a menu item
+  const getItemDiscount = (item: MenuItem): Discount | null => {
+    return activeDiscounts.find(d => {
+      if (!d.isActive) return false;
+      if (d.applyToAll) return true;
+      
+      const menuItemIds = d.menuItemIds as string[] | null;
+      const categoryIds = d.categoryIds as string[] | null;
+      
+      if (menuItemIds?.includes(item.id)) return true;
+      if (categoryIds?.includes(item.categoryId)) return true;
+      
+      return false;
+    }) || null;
+  };
+
+  // Calculate discounted price
+  const calculateDiscountedPrice = (originalPrice: number, discount: Discount): number => {
+    if (discount.type === 'percentage') {
+      return originalPrice - (originalPrice * discount.value / 100);
+    } else {
+      return Math.max(0, originalPrice - discount.value);
+    }
+  };
+
+  // Filter discounts that have associated menu items
+  const discountsWithItems = activeDiscounts
+    .filter(discount => {
+      const discountItems = menuItems.filter(item => getItemDiscount(item)?.id === discount.id);
+      return discountItems.length > 0;
+    })
+    .slice(0, 4); // Limit to 4 items for display
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="alonica-card p-4">
-        <div className="flex items-center space-x-3">
-          <Receipt className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground" data-testid="text-cashier-title">
-              Kasir Manual
-            </h1>
-            <p className="text-muted-foreground">
-              Input pesanan customer secara manual
-            </p>
+    <div className="space-y-4">
+      {/* Customer Information - Modern Clean Design */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
+            {editingBill && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  Edit Mode
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditingBill(null);
+                    setCustomerName("");
+                    setTableNumber("");
+                    setCart([]);
+                    setNotes({});
+                    toast({
+                      title: "Edit dibatalkan",
+                      description: "Kembali ke mode buat pesanan baru",
+                    });
+                  }}
+                  data-testid="button-cancel-edit"
+                  className="text-xs h-7"
+                >
+                  Cancel Edit
+                </Button>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="customerName" className="text-xs text-muted-foreground mb-1.5 block">Your name</Label>
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter customer name"
+                className="h-9 text-sm"
+                data-testid="input-customer-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Number of person</Label>
+              <Input
+                id="tableNumber"
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                placeholder="Table number"
+                disabled={!!editingBill}
+                className="h-9 text-sm"
+                data-testid="input-table-number"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Special Discount Today Section */}
+      {discountsWithItems.length > 0 && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground">Special Discount Today</h3>
+              {discountsWithItems[0]?.endDate && (
+                <div className="flex items-center gap-1 text-primary">
+                  <Clock className="h-3.5 w-3.5" />
+                  <DiscountCountdown endDate={discountsWithItems[0].endDate} />
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {discountsWithItems.slice(0, 4).map((discount) => {
+                const discountItem = menuItems.find(item => getItemDiscount(item)?.id === discount.id);
+                if (!discountItem) return null;
+                
+                const originalPrice = discountItem.price;
+                const discountedPrice = calculateDiscountedPrice(originalPrice, discount);
+                
+                return (
+                  <div key={discount.id} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 relative overflow-hidden">
+                    <Badge className="absolute top-2 right-2 bg-primary text-white text-xs px-1.5 py-0.5">
+                      {discount.type === 'percentage' ? `${discount.value}%` : formatCurrency(discount.value)}
+                    </Badge>
+                    <h4 className="text-sm font-medium text-foreground mb-2 pr-12">{discountItem.name}</h4>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs text-muted-foreground line-through">
+                        {formatCurrency(originalPrice)}
+                      </span>
+                      <span className="text-base font-bold text-primary">
+                        {formatCurrency(discountedPrice)}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={() => addToCart(discountItem)}
+                      size="sm"
+                      className="w-full mt-2 h-7 text-xs"
+                      data-testid={`button-add-discount-${discountItem.id}`}
+                    >
+                      Order
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Open Bills Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
