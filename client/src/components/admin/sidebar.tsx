@@ -51,9 +51,9 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
   {
     label: "POS & ORDERS",
     items: [
-      { key: 'cashier', label: 'Point of Sale (POS)', icon: Monitor, path: '/admin/cashier' },
-      { key: 'orders', label: 'Daftar Pesanan POS', icon: ShoppingCart, path: '/admin/orders' },
-      { key: 'reservations', label: 'Manajemen Meja/Reservasi', icon: Coffee, path: '/admin/reservations' },
+      { key: 'cashier', label: 'Point of Sale (POS)', icon: CreditCard, path: '/admin/cashier' },
+      { key: 'orders', label: 'Orders', icon: ClipboardList, path: '/admin/orders' },
+      { key: 'reservations', label: 'Meja/Reservasi', icon: Users, path: '/admin/reservations' },
     ]
   },
   {
