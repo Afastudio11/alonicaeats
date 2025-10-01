@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { format, addDays, parse } from "date-fns";
+import { format, addDays, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay } from "date-fns";
 import { id } from "date-fns/locale";
 import type { Reservation } from "@shared/schema";
 
@@ -26,6 +26,7 @@ export default function ReservationsSection() {
   const [viewMode, setViewMode] = useState<"calendar" | "log">("calendar");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateRangeMode, setDateRangeMode] = useState<"day" | "week" | "month">("day");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -56,12 +57,24 @@ export default function ReservationsSection() {
     },
   });
 
-  // Filter reservations for selected date
+  // Filter reservations for selected date range
   const filteredReservations = useMemo(() => {
     const filtered = reservations.filter(reservation => {
-      const reservationDateStr = format(reservation.reservationDate, 'yyyy-MM-dd');
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      const dateMatch = reservationDateStr === selectedDateStr;
+      // Date range filter based on mode
+      let dateMatch = false;
+      const reservationDate = reservation.reservationDate;
+      
+      if (dateRangeMode === "day") {
+        dateMatch = isSameDay(reservationDate, selectedDate);
+      } else if (dateRangeMode === "week") {
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+        dateMatch = isWithinInterval(reservationDate, { start: weekStart, end: weekEnd });
+      } else if (dateRangeMode === "month") {
+        const monthStart = startOfMonth(selectedDate);
+        const monthEnd = endOfMonth(selectedDate);
+        dateMatch = isWithinInterval(reservationDate, { start: monthStart, end: monthEnd });
+      }
       
       if (!dateMatch) return false;
       
@@ -82,7 +95,7 @@ export default function ReservationsSection() {
     });
     
     return filtered;
-  }, [reservations, selectedDate, statusFilter, searchQuery]);
+  }, [reservations, selectedDate, dateRangeMode, statusFilter, searchQuery]);
 
   // Group reservations by time slot
   const reservationsByTime = useMemo(() => {
@@ -129,7 +142,18 @@ export default function ReservationsSection() {
 
   const previousDay = () => setSelectedDate(prev => addDays(prev, -1));
   const nextDay = () => setSelectedDate(prev => addDays(prev, 1));
-  const goToToday = () => setSelectedDate(new Date());
+  const goToToday = () => {
+    setSelectedDate(new Date());
+    setDateRangeMode("day");
+  };
+  const goToThisWeek = () => {
+    setSelectedDate(new Date());
+    setDateRangeMode("week");
+  };
+  const goToThisMonth = () => {
+    setSelectedDate(new Date());
+    setDateRangeMode("month");
+  };
 
   const totalAppointments = filteredReservations.length;
 
@@ -221,13 +245,33 @@ export default function ReservationsSection() {
           </div>
 
           <Button 
-            variant="outline" 
+            variant={dateRangeMode === "day" ? "default" : "outline"}
             size="sm"
             onClick={goToToday}
             className="h-8 text-xs"
             data-testid="button-go-today"
           >
             Hari Ini
+          </Button>
+
+          <Button 
+            variant={dateRangeMode === "week" ? "default" : "outline"}
+            size="sm"
+            onClick={goToThisWeek}
+            className="h-8 text-xs"
+            data-testid="button-go-week"
+          >
+            Minggu Ini
+          </Button>
+
+          <Button 
+            variant={dateRangeMode === "month" ? "default" : "outline"}
+            size="sm"
+            onClick={goToThisMonth}
+            className="h-8 text-xs"
+            data-testid="button-go-month"
+          >
+            Bulan Ini
           </Button>
         </div>
 
