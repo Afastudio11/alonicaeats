@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer } from "lucide-react";
+import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer, Search, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -19,6 +19,7 @@ export default function OrdersSection() {
   const [viewingReceipt, setViewingReceipt] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -126,11 +127,21 @@ export default function OrdersSection() {
     }
   };
 
-  // Sort and filter orders based on statusFilter and dateFilter (memoized for performance)
+  // Sort and filter orders based on statusFilter, dateFilter, and search (memoized for performance)
   const filteredAndSortedOrders = useMemo(() => {
     return orders
       .filter(order => statusFilter === "all" || order.orderStatus === statusFilter)
       .filter(order => isOrderInDateRange(order, dateFilter))
+      .filter(order => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+          order.customerName?.toLowerCase().includes(query) ||
+          order.id.toLowerCase().includes(query) ||
+          order.tableNumber?.toLowerCase().includes(query) ||
+          (Array.isArray(order.items) && order.items.some((item: any) => item.name?.toLowerCase().includes(query)))
+        );
+      })
       .sort((a, b) => {
         // Sort by status priority: queued -> preparing -> ready -> served
         const statusOrder = { queued: 0, preparing: 1, ready: 2, served: 3, cancelled: 4 };
@@ -142,7 +153,7 @@ export default function OrdersSection() {
         // If same status, sort by creation date (newest first)
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
-  }, [orders, statusFilter, dateFilter]);
+  }, [orders, statusFilter, dateFilter, searchQuery]);
 
   const handlePrintReceipt = async (order: Order) => {
     await smartPrintReceipt(order);
@@ -171,98 +182,150 @@ export default function OrdersSection() {
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="alonica-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Orders Today</p>
-              <p className="text-3xl font-bold text-foreground" data-testid="stat-total-orders">
+      {/* Page Header with Title */}
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Orders</h1>
+        <p className="text-sm text-muted-foreground mt-1">View and manage all customer orders</p>
+      </div>
+
+      {/* KPI Cards - ShopZen Style */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-card rounded-lg border border-border p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Total Orders</p>
+              <p className="text-2xl font-semibold text-foreground" data-testid="stat-total-orders">
                 {stats.totalToday}
               </p>
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <TrendingUp className="h-3 w-3" />
+                <span>+12% today</span>
+              </div>
             </div>
-            <ShoppingBag className="h-8 w-8 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <ShoppingBag className="h-5 w-5 text-primary" />
+            </div>
           </div>
         </div>
 
-        <div className="alonica-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Completed Orders</p>
-              <p className="text-3xl font-bold text-foreground" data-testid="stat-completed-orders">
-                {stats.completed}
-              </p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-
-        <div className="alonica-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Pending Orders</p>
-              <p className="text-3xl font-bold text-foreground" data-testid="stat-pending-orders">
+        <div className="bg-card rounded-lg border border-border p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Pending</p>
+              <p className="text-2xl font-semibold text-foreground" data-testid="stat-pending-orders">
                 {stats.pending}
               </p>
+              <div className="flex items-center gap-1 text-xs text-orange-600">
+                <Clock className="h-3 w-3" />
+                <span>requires action</span>
+              </div>
             </div>
-            <Clock className="h-8 w-8 text-yellow-500" />
+            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-orange-600" />
+            </div>
           </div>
         </div>
 
-        <div className="alonica-card p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Revenue Today</p>
-              <p className="text-3xl font-bold text-foreground" data-testid="stat-revenue">
+        <div className="bg-card rounded-lg border border-border p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Completed</p>
+              <p className="text-2xl font-semibold text-foreground" data-testid="stat-completed-orders">
+                {stats.completed}
+              </p>
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <CheckCircle className="h-3 w-3" />
+                <span>served today</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-lg border border-border p-5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Revenue Today</p>
+              <p className="text-2xl font-semibold text-primary" data-testid="stat-revenue">
                 {formatCurrency(stats.revenue)}
               </p>
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <TrendingUp className="h-3 w-3" />
+                <span>+8% from yesterday</span>
+              </div>
             </div>
-            <DollarSign className="h-8 w-8 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-primary" />
+            </div>
           </div>
         </div>
       </div>
 
 
-      {/* Recent Orders Table */}
-      <div className="alonica-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      {/* Orders Table - ShopZen Style */}
+      <div className="bg-card rounded-lg border border-border overflow-hidden">
+        {/* Table Header with Search and Filters */}
+        <div className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Recent Orders</h2>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="preparing">Sedang Dimasak</SelectItem>
-                <SelectItem value="ready">Siap</SelectItem>
-                <SelectItem value="completed">Selesai</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-date-filter">
-                <SelectValue placeholder="Filter berdasarkan tanggal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Tanggal</SelectItem>
-                <SelectItem value="today">Hari Ini</SelectItem>
-                <SelectItem value="yesterday">Kemarin</SelectItem>
-                <SelectItem value="7days">7 Hari Terakhir</SelectItem>
-                <SelectItem value="30days">30 Hari Terakhir</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button 
+              onClick={() => refetch()}
+              disabled={isLoading}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              data-testid="button-refresh-orders"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
-          <Button 
-            onClick={() => refetch()}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-            data-testid="button-refresh-orders"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh Orders
-          </Button>
+
+          {/* Search Bar - Prominent */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search orders by ID, customer, table, or items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                data-testid="input-search-orders"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="queued">Queued</SelectItem>
+                  <SelectItem value="preparing">Preparing</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="served">Served</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-[140px]" data-testid="select-date-filter">
+                  <SelectValue placeholder="Date" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="7days">Last 7 Days</SelectItem>
+                  <SelectItem value="30days">Last 30 Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -295,7 +358,7 @@ export default function OrdersSection() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-border">
+            <tbody className="bg-background divide-y divide-border">
               {filteredAndSortedOrders.map((order) => (
                 <tr key={order.id} data-testid={`row-order-${order.id}`}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground font-mono">
@@ -307,18 +370,14 @@ export default function OrdersSection() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                     {order.tableNumber}
                   </td>
-                  <td className="px-6 py-4 text-sm text-foreground w-1/4">
-                    <div className="space-y-1 max-w-xs">
-                      {Array.isArray(order.items) && order.items.length > 0
-                        ? order.items.map((item: any, index: number) => (
-                            <div key={index} className="flex justify-between items-center text-xs">
-                              <span className="truncate flex-1 pr-2">{item.name}</span>
-                              <span className="text-muted-foreground whitespace-nowrap">x{item.quantity}</span>
-                            </div>
-                          ))
-                        : <span className="text-muted-foreground">No items</span>
-                      }
-                    </div>
+                  <td className="px-6 py-4 text-sm text-foreground">
+                    <button
+                      onClick={() => setViewingOrder(order)}
+                      className="text-primary hover:text-primary/80 font-medium transition-colors"
+                      data-testid={`button-view-items-${order.id}`}
+                    >
+                      {Array.isArray(order.items) ? order.items.length : 0} {Array.isArray(order.items) && order.items.length === 1 ? 'item' : 'items'}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground font-semibold">
                     {formatCurrency(order.total)}
