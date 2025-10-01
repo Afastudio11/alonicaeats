@@ -79,8 +79,10 @@ export default function DiscountsSection() {
     mutationFn: async (data: z.infer<typeof discountFormSchema>) => {
       const transformedData = {
         ...data,
-        startDate: data.startDate ? new Date(data.startDate) : undefined,
-        endDate: data.endDate ? new Date(data.endDate) : undefined,
+        startDate: data.startDate && data.startDate.trim() !== '' ? new Date(data.startDate) : null,
+        endDate: data.endDate && data.endDate.trim() !== '' ? new Date(data.endDate) : null,
+        categoryIds: data.categoryIds && data.categoryIds.length > 0 ? data.categoryIds : null,
+        menuItemIds: data.menuItemIds && data.menuItemIds.length > 0 ? data.menuItemIds : null,
       };
       const response = await apiRequest('POST', '/api/discounts', transformedData);
       return response.json();
@@ -99,11 +101,22 @@ export default function DiscountsSection() {
 
   const updateDiscountMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<z.infer<typeof discountFormSchema>> }) => {
-      const transformedData = {
-        ...data,
-        startDate: data.startDate ? new Date(data.startDate) : undefined,
-        endDate: data.endDate ? new Date(data.endDate) : undefined,
-      };
+      const transformedData: Record<string, any> = { ...data };
+      
+      // Only transform fields that are actually provided
+      if ('startDate' in data) {
+        transformedData.startDate = data.startDate && data.startDate.trim() !== '' ? new Date(data.startDate) : null;
+      }
+      if ('endDate' in data) {
+        transformedData.endDate = data.endDate && data.endDate.trim() !== '' ? new Date(data.endDate) : null;
+      }
+      if ('categoryIds' in data) {
+        transformedData.categoryIds = data.categoryIds && data.categoryIds.length > 0 ? data.categoryIds : null;
+      }
+      if ('menuItemIds' in data) {
+        transformedData.menuItemIds = data.menuItemIds && data.menuItemIds.length > 0 ? data.menuItemIds : null;
+      }
+      
       const response = await apiRequest('PUT', `/api/discounts/${id}`, transformedData);
       return response.json();
     },

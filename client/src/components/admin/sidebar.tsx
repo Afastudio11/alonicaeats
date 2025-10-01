@@ -104,9 +104,9 @@ export default function AdminSidebar({ isOpen, onClose, currentSection }: AdminS
   return (
     <>
       <div 
-        className={`fixed left-0 top-0 w-64 h-full bg-background border-r border-border z-30 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 w-64 h-screen bg-background border-r border-border z-30 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:static lg:transform-none flex flex-col`}
+        } lg:translate-x-0 flex flex-col`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-border">
