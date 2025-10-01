@@ -35,6 +35,7 @@ export interface IStorage {
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
   updateOrderPayment(id: string, paymentData: {
     paymentStatus?: string;
+    paymentMethod?: string;
     midtransTransactionId?: string;
     midtransTransactionStatus?: string;
     qrisUrl?: string;
