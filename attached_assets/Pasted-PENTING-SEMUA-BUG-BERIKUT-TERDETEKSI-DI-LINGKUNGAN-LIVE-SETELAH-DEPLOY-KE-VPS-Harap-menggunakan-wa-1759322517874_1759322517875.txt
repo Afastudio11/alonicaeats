@@ -1,0 +1,37 @@
+PENTING: SEMUA BUG BERIKUT TERDETEKSI DI LINGKUNGAN LIVE SETELAH DEPLOY KE VPS. Harap menggunakan warna primary (merah/maroon gelap) sebagai warna aksen di seluruh tampilan.
+
+1. Implementasi Data Palsu (Fake Data) yang Deployable (KRITIS)
+
+Tujuan: Menyediakan data sampel yang realistis dan sinkron untuk pengujian di VPS.
+
+
+Generasi Data: Buatkan script atau seed file untuk menggenerasikan data palsu yang realistis dan sinkron untuk: Orders, Laporan, Reservasi, dan Promo (minimal 3-5 promo aktif).
+
+Laporan Penjualan & Analisis: Pastikan data yang digenerasikan cukup untuk mengisi penuh tabel Laporan dan kartu summary dengan angka yang realistis dan sinkron dengan data Pesanan.
+
+2. Perbaikan Dashboard Orders dan Layout Global
+
+Penyesuaian Ukuran Font Harga: Kurangi ukuran font elemen harga pada item card menu di halaman pemesanan/kasir agar lebih kecil dan proporsional.
+
+3. Perbaikan Fatal Error Fungsionalitas di page diskon
+
+Offers (Fatal Error 400): Perbaiki bug backend di lingkungan live (VPS) yang menyebabkan error "Gagal membuat discount 400: Bad Request".
+
+Perbaikan Input Item Offers: Perbaiki bug pada frontend agar pengguna dapat memilih item menu spesifik di kolom Item Menu yang Mendapat Discount.
+
+Reservasi (Fungsionalitas dan Filter): Tambahkan opsi filter cepat "Minggu Ini" dan "Bulan Ini" di halaman Reservasi.
+
+4. Instruksi Penting Deployment Non-Destructive (FINAL)
+
+Tujuan: Memastikan semua update dapat di-deploy ke VPS tanpa merusak atau menghapus data live yang sudah ada.
+
+
+Wajib Non-Destructive: Pastikan semua migrations (perubahan struktur database) dan deployment kode bersifat non-destructive (tidak menghapus data live).
+
+Conditional Data Seeding (Pencegahan Overwrite): Script untuk fake data harus dibuat dengan logika kondisional. Script harus:
+
+Memeriksa apakah data live sudah ada (misalnya, jika tabel Orders/Reservasi tidak kosong).
+
+Jika data live sudah ada, script TIDAK BOLEH menjalankan perintah truncate (hapus semua data) atau insert data palsu yang dapat bertabrakan.
+
+Script hanya boleh berjalan untuk menanamkan fake data di lingkungan live tanpa mengganggu data transaksi yang sudah ada sebelumnya.
