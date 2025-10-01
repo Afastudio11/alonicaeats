@@ -4,11 +4,9 @@ import {
   ClipboardList, 
   ChefHat, 
   CreditCard, 
-  Users, 
-  Package, 
   Calendar,
   Receipt,
-  Clock,
+  TrendingUp,
   X,
   LogOut,
   Printer
@@ -34,9 +32,9 @@ const menuItems = [
   { id: 'orders', label: 'Orders', icon: ClipboardList, path: '/kasir/orders' },
   { id: 'kitchen', label: 'Sistem Dapur (KDS)', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Point of Sale (POS)', icon: CreditCard, path: '/kasir/cashier' },
-  { id: 'reservations', label: 'Reservasi', icon: Users, path: '/kasir/reservations' },
+  { id: 'reservations', label: 'Reservasi', icon: Calendar, path: '/kasir/reservations' },
   { id: 'expenses', label: 'Pencatatan Pengeluaran', icon: Receipt, path: '/kasir/expenses' },
-  { id: 'daily-reports', label: 'Laporan Penjualan', icon: Calendar, path: '/kasir/daily-reports' },
+  { id: 'daily-reports', label: 'Laporan Penjualan', icon: TrendingUp, path: '/kasir/daily-reports' },
   { id: 'printer', label: 'Pengaturan Printer', icon: Printer, path: '/kasir/printer' },
 ];
 

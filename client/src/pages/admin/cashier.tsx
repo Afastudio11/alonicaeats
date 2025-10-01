@@ -296,9 +296,25 @@ export default function CashierSection() {
     setCart(prevCart => prevCart.filter(item => item.id !== itemId));
   };
 
-  // Calculate totals
+  // Calculate totals with discount
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const total = subtotal; // No tax or discount for now
+  
+  // Calculate total discount from cart items with active discounts
+  const totalDiscount = cart.reduce((sum, item) => {
+    const discount = getItemDiscount(item);
+    if (discount) {
+      const originalPrice = item.price * item.quantity;
+      const discountedPrice = calculateDiscountedPrice(item.price, discount) * item.quantity;
+      return sum + (originalPrice - discountedPrice);
+    }
+    return sum;
+  }, 0);
+  
+  // Calculate tax (0% for now, but structure is ready)
+  const taxRate = 0;
+  const taxAmount = (subtotal - totalDiscount) * taxRate;
+  
+  const total = subtotal - totalDiscount + taxAmount;
   
   // Payment calculation - use payment context if available
   const cashAmountNumber = parseFloat(cashAmount) || 0;
@@ -374,7 +390,7 @@ export default function CashierSection() {
           description: "Pembayaran telah dicatat, pesanan sudah di dapur",
         });
       } else {
-        // Regular new order payment
+        // Regular new order payment with correct breakdown
         const orderData = {
           customerName: paymentContext.customerName || customerName.trim(),
           tableNumber: tableNumber.trim(),
@@ -385,8 +401,9 @@ export default function CashierSection() {
             quantity: item.quantity,
             notes: item.notes || ""
           })),
-          subtotal: paymentContext.total,
-          discount: 0,
+          subtotal: (paymentContext as any).subtotal || paymentContext.total,
+          discount: (paymentContext as any).discount || 0,
+          tax: (paymentContext as any).tax || 0,
           total: paymentContext.total,
           paymentMethod: paymentMethod,
           cashReceived: paymentMethod === "cash" ? cashAmountNumber : paymentContext.total,
@@ -535,9 +552,12 @@ export default function CashierSection() {
       return;
     }
 
-    // Set payment context for regular cart payment
+    // Set payment context for regular cart payment with full breakdown
     setPaymentContext({
       mode: 'cart',
+      subtotal,
+      discount: totalDiscount,
+      tax: taxAmount,
       total,
       items: cart,
       customerName: customerName.trim()
@@ -758,7 +778,22 @@ export default function CashierSection() {
   };
 
   const calculateSplitTotal = (items: CartItem[]) => {
-    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // Calculate subtotal
+    const splitSubtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Calculate discount for split items
+    const splitDiscount = items.reduce((sum, item) => {
+      const discount = getItemDiscount(item);
+      if (discount) {
+        const originalPrice = item.price * item.quantity;
+        const discountedPrice = calculateDiscountedPrice(item.price, discount) * item.quantity;
+        return sum + (originalPrice - discountedPrice);
+      }
+      return sum;
+    }, 0);
+    
+    // Return discounted total (no tax for splits to keep it simple)
+    return splitSubtotal - splitDiscount;
   };
 
   const getAssignedQuantity = (cartItemId: string) => {
@@ -815,11 +850,25 @@ export default function CashierSection() {
       return;
     }
 
-    // Set payment context for this split
-    const splitTotal = calculateSplitTotal(part.items);
+    // Set payment context for this split with full breakdown
+    const splitSubtotal = part.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const splitDiscount = part.items.reduce((sum, item) => {
+      const discount = getItemDiscount(item);
+      if (discount) {
+        const originalPrice = item.price * item.quantity;
+        const discountedPrice = calculateDiscountedPrice(item.price, discount) * item.quantity;
+        return sum + (originalPrice - discountedPrice);
+      }
+      return sum;
+    }, 0);
+    const splitTotal = splitSubtotal - splitDiscount;
+    
     setPaymentContext({
       mode: 'split',
       splitId: part.id,
+      subtotal: splitSubtotal,
+      discount: splitDiscount,
+      tax: 0,
       total: splitTotal,
       items: part.items,
       customerName: part.customerName.trim()
@@ -1288,11 +1337,13 @@ export default function CashierSection() {
                       </div>
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Discount sales</span>
-                        <span className="text-primary">-Rp 0</span>
+                        <span className="text-primary" data-testid="discount-amount">
+                          {totalDiscount > 0 ? `-${formatCurrency(totalDiscount)}` : formatCurrency(0)}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Total tax</span>
-                        <span>Rp 0</span>
+                        <span data-testid="tax-amount">{formatCurrency(taxAmount)}</span>
                       </div>
                       <div className="flex justify-between text-base font-bold text-foreground pt-2 border-t">
                         <span>Total</span>
