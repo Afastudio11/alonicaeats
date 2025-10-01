@@ -167,6 +167,45 @@ Preferred communication style: Simple, everyday language.
 - TypeScript type safety maintained
 - Dark mode compatibility ensured
 
+### October 1, 2025 - Production Bug Fixes & Reservations Redesign (COMPLETED)
+- ✅ **Fatal Error 400 Fix - Discount Form Submission**: Fixed data transformation to properly handle empty strings and JSONB arrays
+  - **Create**: Empty strings converted to `null` for date fields (startDate, endDate)
+  - **Create**: Empty arrays converted to `null` for JSONB fields (categoryIds, menuItemIds)
+  - **Update**: Conditional transformation only for provided fields using `if ('fieldName' in data)` check
+  - **Benefit**: Prevents unintentional data loss when updating partial discount fields
+  - **Files Modified**: client/src/pages/admin/discounts.tsx
+
+- ✅ **Menu Item Selection Bug**: Verified checkbox functionality already working correctly
+  - No code changes needed - checkboxes responding properly to clicks
+
+- ✅ **Sidebar Scroll Lock Fix**: Removed conflicting positioning that caused sidebar to scroll away
+  - **Issue**: Sidebar had `lg:static` causing it to become non-fixed on desktop
+  - **Solution**: Removed `lg:static`, sidebar now uses `fixed` position with `h-screen` on all screen sizes
+  - **Files Modified**: client/src/components/admin/sidebar.tsx, client/src/components/kasir/sidebar.tsx
+
+- ✅ **Reservations Dashboard Redesign**: Modern calendar-style time-slot view matching reference image
+  - **Calendar View**: Time slots from 09:00-21:00 displayed as grid
+  - **Status Filter**: Dropdown with all status options (Menunggu, Dikonfirmasi, Selesai, Dibatalkan)
+  - **Search**: Real-time search by customer name or phone number
+  - **Time Extraction**: Safe fallback using `format(reservationDate, 'HH:mm')` if reservationTime missing
+  - **View Modes**: Calendar (time-slot grid) and Log Riwayat (history view)
+  - **Localization**: All UI text translated to Indonesian
+  - **Actions**: Dropdown with status-dependent actions (Konfirmasi, Selesai, Batalkan)
+  - **Files Modified**: client/src/pages/admin/reservations.tsx
+
+**Technical Implementation:**
+- Discount update mutation now builds `transformedData` conditionally to avoid nulling unprovided fields
+- Sidebar maintains `fixed` position across all breakpoints (removed responsive override)
+- Reservations safely handles missing `reservationTime` field with date fallback
+- Status filter integrated into memo-ized filtering logic for performance
+
+**Architect Review Notes:**
+- All production bugs successfully resolved
+- Data loss risks eliminated through conditional field transformation
+- Sidebar properly fixed on all screen sizes (ensure main content has `lg:pl-64` padding)
+- Reservations functionality fully preserved with modern UI design
+- Consider server-side semantics for discount targeting: `null` vs `[]` for "no targets selected"
+
 ### October 1, 2025 - Fresh GitHub Import Successfully Configured for Replit (COMPLETED)
 - ✅ **GitHub Repository Imported**: Successfully imported Alonica restaurant system fresh from GitHub
 - ✅ **Node.js 20**: Confirmed pre-installed and operational
