@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type Discount, type InsertDiscount, type Expense, type InsertExpense, type DailyReport, type InsertDailyReport, type PrintSetting, type InsertPrintSetting, type Shift, type InsertShift, type CashMovement, type InsertCashMovement, type Refund, type InsertRefund, type AuditLog, type InsertAuditLog, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations, discounts, expenses, dailyReports, printSettings, shifts, cashMovements, refunds, auditLogs } from "@shared/schema";
+import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type Discount, type InsertDiscount, type Expense, type InsertExpense, type DailyReport, type InsertDailyReport, type PrintSetting, type InsertPrintSetting, type Shift, type InsertShift, type CashMovement, type InsertCashMovement, type Refund, type InsertRefund, type AuditLog, type InsertAuditLog, type Notification, type InsertNotification, type DeletionLog, type InsertDeletionLog, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations, discounts, expenses, dailyReports, printSettings, shifts, cashMovements, refunds, auditLogs, notifications, deletionLogs } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -141,6 +141,24 @@ export interface IStorage {
   getAuditLogsByUser(userId: string): Promise<AuditLog[]>;
   getAuditLogsByAction(action: string): Promise<AuditLog[]>;
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+
+  // Notifications
+  getNotifications(): Promise<Notification[]>;
+  getPendingNotifications(): Promise<Notification[]>;
+  getUnreadNotifications(): Promise<Notification[]>;
+  getNotification(id: string): Promise<Notification | undefined>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  updateNotification(id: string, notification: Partial<InsertNotification>): Promise<Notification | undefined>;
+  markNotificationAsRead(id: string): Promise<Notification | undefined>;
+  approveNotification(id: string, adminId: string): Promise<Notification | undefined>;
+  rejectNotification(id: string, adminId: string): Promise<Notification | undefined>;
+
+  // Deletion Logs
+  getDeletionLogs(): Promise<DeletionLog[]>;
+  getDeletionLogsByOrder(orderId: string): Promise<DeletionLog[]>;
+  getDeletionLogsByCashier(cashierId: string): Promise<DeletionLog[]>;
+  getDeletionLog(id: string): Promise<DeletionLog | undefined>;
+  createDeletionLog(log: InsertDeletionLog): Promise<DeletionLog>;
 }
 
 // Legacy MemStorage class (no longer used, kept for reference)
@@ -1402,6 +1420,84 @@ export class DatabaseStorage implements IStorage {
     const [newLog] = await db.insert(auditLogs).values(log).returning();
     return newLog;
   }
+
+  // Notifications
+  async getNotifications(): Promise<Notification[]> {
+    return db.select().from(notifications).orderBy(desc(notifications.createdAt));
+  }
+
+  async getPendingNotifications(): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(eq(notifications.status, 'pending'))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotifications(): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(eq(notifications.isRead, false))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getNotification(id: string): Promise<Notification | undefined> {
+    const [notification] = await db.select().from(notifications).where(eq(notifications.id, id));
+    return notification || undefined;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async updateNotification(id: string, notification: Partial<InsertNotification>): Promise<Notification | undefined> {
+    const [updated] = await db.update(notifications).set(notification).where(eq(notifications.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async markNotificationAsRead(id: string): Promise<Notification | undefined> {
+    const [updated] = await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async approveNotification(id: string, adminId: string): Promise<Notification | undefined> {
+    const [updated] = await db.update(notifications).set({
+      status: 'approved',
+      processedBy: adminId,
+      processedAt: new Date()
+    }).where(eq(notifications.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async rejectNotification(id: string, adminId: string): Promise<Notification | undefined> {
+    const [updated] = await db.update(notifications).set({
+      status: 'rejected',
+      processedBy: adminId,
+      processedAt: new Date()
+    }).where(eq(notifications.id, id)).returning();
+    return updated || undefined;
+  }
+
+  // Deletion Logs
+  async getDeletionLogs(): Promise<DeletionLog[]> {
+    return db.select().from(deletionLogs).orderBy(desc(deletionLogs.createdAt));
+  }
+
+  async getDeletionLogsByOrder(orderId: string): Promise<DeletionLog[]> {
+    return db.select().from(deletionLogs).where(eq(deletionLogs.orderId, orderId)).orderBy(desc(deletionLogs.createdAt));
+  }
+
+  async getDeletionLogsByCashier(cashierId: string): Promise<DeletionLog[]> {
+    return db.select().from(deletionLogs).where(eq(deletionLogs.requestedBy, cashierId)).orderBy(desc(deletionLogs.createdAt));
+  }
+
+  async getDeletionLog(id: string): Promise<DeletionLog | undefined> {
+    const [log] = await db.select().from(deletionLogs).where(eq(deletionLogs.id, id));
+    return log || undefined;
+  }
+
+  async createDeletionLog(log: InsertDeletionLog): Promise<DeletionLog> {
+    const [newLog] = await db.insert(deletionLogs).values(log).returning();
+    return newLog;
+  }
 }
 
 // Complete MemStorage implementation as fallback
@@ -1771,6 +1867,24 @@ class MemStorage implements IStorage {
   async getAuditLogsByUser(userId: string): Promise<any[]> { return []; }
   async getAuditLogsByAction(action: string): Promise<any[]> { return []; }
   async createAuditLog(log: any): Promise<any> { throw new Error('Audit logs not supported in MemStorage fallback'); }
+  
+  // Notifications (not supported in MemStorage)
+  async getNotifications(): Promise<any[]> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async getPendingNotifications(): Promise<any[]> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async getUnreadNotifications(): Promise<any[]> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async getNotification(id: string): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async createNotification(notification: any): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async updateNotification(id: string, notification: any): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async markNotificationAsRead(id: string): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async approveNotification(id: string, adminId: string): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async rejectNotification(id: string, adminId: string): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
+
+  // Deletion Logs (not supported in MemStorage)
+  async getDeletionLogs(): Promise<any[]> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
+  async getDeletionLogsByOrder(orderId: string): Promise<any[]> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
+  async getDeletionLogsByCashier(cashierId: string): Promise<any[]> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
+  async getDeletionLog(id: string): Promise<any> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
+  async createDeletionLog(log: any): Promise<any> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
 }
 
 // Wrapper that handles database fallback at runtime
@@ -2257,6 +2371,92 @@ class FallbackStorage implements IStorage {
   async createAuditLog(log: any): Promise<any> {
     return this.withFallback(async () => 
       this.usingMemStorage ? this.memStorage.createAuditLog(log) : this.dbStorage.createAuditLog(log)
+    );
+  }
+
+  // Notifications
+  async getNotifications(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getNotifications() : this.dbStorage.getNotifications()
+    );
+  }
+
+  async getPendingNotifications(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getPendingNotifications() : this.dbStorage.getPendingNotifications()
+    );
+  }
+
+  async getUnreadNotifications(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getUnreadNotifications() : this.dbStorage.getUnreadNotifications()
+    );
+  }
+
+  async getNotification(id: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getNotification(id) : this.dbStorage.getNotification(id)
+    );
+  }
+
+  async createNotification(notification: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createNotification(notification) : this.dbStorage.createNotification(notification)
+    );
+  }
+
+  async updateNotification(id: string, notification: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.updateNotification(id, notification) : this.dbStorage.updateNotification(id, notification)
+    );
+  }
+
+  async markNotificationAsRead(id: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.markNotificationAsRead(id) : this.dbStorage.markNotificationAsRead(id)
+    );
+  }
+
+  async approveNotification(id: string, adminId: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.approveNotification(id, adminId) : this.dbStorage.approveNotification(id, adminId)
+    );
+  }
+
+  async rejectNotification(id: string, adminId: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.rejectNotification(id, adminId) : this.dbStorage.rejectNotification(id, adminId)
+    );
+  }
+
+  // Deletion Logs
+  async getDeletionLogs(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionLogs() : this.dbStorage.getDeletionLogs()
+    );
+  }
+
+  async getDeletionLogsByOrder(orderId: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionLogsByOrder(orderId) : this.dbStorage.getDeletionLogsByOrder(orderId)
+    );
+  }
+
+  async getDeletionLogsByCashier(cashierId: string): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionLogsByCashier(cashierId) : this.dbStorage.getDeletionLogsByCashier(cashierId)
+    );
+  }
+
+  async getDeletionLog(id: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionLog(id) : this.dbStorage.getDeletionLog(id)
+    );
+  }
+
+  async createDeletionLog(log: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createDeletionLog(log) : this.dbStorage.createDeletionLog(log)
     );
   }
 }

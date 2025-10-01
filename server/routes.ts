@@ -2891,7 +2891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete print setting
   app.delete("/api/print-settings/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id} = req.params;
       const success = await storage.deletePrintSetting(id);
       if (!success) {
         return res.status(404).json({ message: "Print setting not found" });
@@ -2899,6 +2899,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Print setting deleted successfully" });
     } catch (error) {
       handleApiError(res, error, "Failed to delete print setting");
+    }
+  });
+
+  // ============= NOTIFICATIONS & DELETION APPROVAL SYSTEM =============
+
+  // Get all pending notifications for admin
+  app.get("/api/notifications/pending", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const notifications = await storage.getPendingNotifications();
+      res.json(notifications);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get pending notifications");
+    }
+  });
+
+  // Get all unread notifications for admin
+  app.get("/api/notifications/unread", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const notifications = await storage.getUnreadNotifications();
+      res.json(notifications);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get unread notifications");
+    }
+  });
+
+  // Get all notifications for admin
+  app.get("/api/notifications", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const notifications = await storage.getNotifications();
+      res.json(notifications);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get notifications");
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const notification = await storage.markNotificationAsRead(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      handleApiError(res, error, "Failed to mark notification as read");
+    }
+  });
+
+  // Request Open Bill item deletion (Kasir creates notification for admin approval)
+  app.post("/api/orders/request-deletion", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      // Validate request body
+      const requestSchema = z.object({
+        orderId: z.string().min(1),
+        itemIndex: z.number().int().min(0),
+        reason: z.string().optional()
+      });
+
+      const validationResult = requestSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { orderId, itemIndex, reason } = validationResult.data;
+      const user = (req as any).user;
+
+      // Get the order
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Verify it's an open bill
+      if (!order.payLater || order.paymentStatus === 'paid') {
+        return res.status(400).json({ message: "Can only delete items from unpaid open bills" });
+      }
+
+      // Get the item to be deleted
+      const items = Array.isArray(order.items) ? order.items : [];
+      if (itemIndex < 0 || itemIndex >= items.length) {
+        return res.status(400).json({ message: "Invalid item index" });
+      }
+
+      const itemToDelete = items[itemIndex];
+
+      // Create notification for admin approval
+      const notification = await storage.createNotification({
+        type: 'deletion_request',
+        title: `Permintaan Hapus Item - Meja ${order.tableNumber}`,
+        message: `Kasir ${user.username} meminta persetujuan untuk menghapus "${itemToDelete.name}" (${itemToDelete.quantity}x) dari ${order.customerName}`,
+        requestedBy: user.id,
+        relatedId: orderId,
+        relatedData: {
+          itemIndex,
+          item: itemToDelete,
+          reason: reason || 'Tidak ada alasan'
+        },
+        status: 'pending',
+        isRead: false
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Permintaan penghapusan telah dikirim ke admin untuk persetujuan",
+        notification 
+      });
+    } catch (error) {
+      console.error('Request deletion error:', error);
+      handleApiError(res, error, "Failed to request item deletion");
+    }
+  });
+
+  // Approve deletion request (Admin only)
+  app.post("/api/notifications/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const admin = (req as any).user;
+
+      const notification = await storage.getNotification(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      if (notification.status !== 'pending') {
+        return res.status(400).json({ message: "Notification already processed" });
+      }
+
+      if (notification.type !== 'deletion_request') {
+        return res.status(400).json({ message: "Invalid notification type" });
+      }
+
+      // Get the order and item details
+      const orderId = notification.relatedId;
+      const { itemIndex, item, reason } = notification.relatedData as any;
+
+      if (!orderId) {
+        return res.status(400).json({ message: "Invalid notification data" });
+      }
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Remove the item from the order
+      const items = Array.isArray(order.items) ? order.items : [];
+      const deletedItem = items[itemIndex];
+      items.splice(itemIndex, 1);
+
+      // Recalculate subtotal
+      const newSubtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+
+      // Update the order
+      await storage.replaceOpenBillItems(orderId, items, newSubtotal);
+
+      // Create deletion log
+      await storage.createDeletionLog({
+        orderId,
+        itemName: deletedItem.name,
+        itemQuantity: deletedItem.quantity,
+        itemPrice: deletedItem.price,
+        requestedBy: notification.requestedBy,
+        authorizedBy: admin.id,
+        reason: reason || 'Tidak ada alasan'
+      });
+
+      // Approve notification
+      await storage.approveNotification(id, admin.id);
+
+      res.json({ 
+        success: true, 
+        message: "Item berhasil dihapus dari open bill",
+        order: await storage.getOrder(orderId)
+      });
+    } catch (error) {
+      console.error('Approve deletion error:', error);
+      handleApiError(res, error, "Failed to approve deletion");
+    }
+  });
+
+  // Reject deletion request (Admin only)
+  app.post("/api/notifications/:id/reject", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const admin = (req as any).user;
+
+      const notification = await storage.getNotification(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      if (notification.status !== 'pending') {
+        return res.status(400).json({ message: "Notification already processed" });
+      }
+
+      // Reject notification
+      await storage.rejectNotification(id, admin.id);
+
+      res.json({ 
+        success: true, 
+        message: "Permintaan penghapusan ditolak" 
+      });
+    } catch (error) {
+      handleApiError(res, error, "Failed to reject deletion");
+    }
+  });
+
+  // Get deletion logs (Admin only)
+  app.get("/api/deletion-logs", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const logs = await storage.getDeletionLogs();
+      res.json(logs);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get deletion logs");
+    }
+  });
+
+  // Get deletion logs by order (Admin/Kasir)
+  app.get("/api/deletion-logs/order/:orderId", requireAuth, requireAdminOrKasir, async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const logs = await storage.getDeletionLogsByOrder(orderId);
+      res.json(logs);
+    } catch (error) {
+      handleApiError(res, error, "Failed to get deletion logs for order");
     }
   });
 
