@@ -50,6 +50,10 @@ export default function CashierSection() {
   // Category & search state
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editBillSearch, setEditBillSearch] = useState(""); // Search untuk edit bill dialog
+  
+  // Order type (tabs)
+  const [orderType, setOrderType] = useState<"dine_in" | "takeaway" | "delivery">("dine_in");
   
   // Payment & receipt state
   const [showPaymentCalculator, setShowPaymentCalculator] = useState(false);
@@ -129,6 +133,13 @@ export default function CashierSection() {
     }
     
     return true;
+  });
+
+  // Filter cart items untuk edit bill search
+  const filteredCartForEdit = cart.filter(item => {
+    if (!editBillSearch.trim()) return true;
+    const query = editBillSearch.toLowerCase();
+    return item.name.toLowerCase().includes(query);
   });
 
   // Create order mutation
@@ -2020,8 +2031,20 @@ export default function CashierSection() {
               {/* Current Items */}
               <div className="space-y-2">
                 <h4 className="font-medium">Items Saat Ini:</h4>
+                {/* Search Input untuk Edit Bill */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Cari item dalam bill..."
+                    value={editBillSearch}
+                    onChange={(e) => setEditBillSearch(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-edit-bill"
+                  />
+                </div>
                 <div className="max-h-60 overflow-y-auto space-y-2">
-                  {cart.map((item, index) => (
+                  {filteredCartForEdit.map((item, index) => (
                     <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <span className="font-medium">{item.name}</span>
