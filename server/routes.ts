@@ -7,7 +7,7 @@ import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, ins
 import { z } from 'zod';
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
-import { hashPassword, verifyPassword, generateSessionToken, activeSessions, type SessionData } from './auth-utils';
+import { hashPassword, verifyPassword, createSession, getSession, deleteSession, type SessionData } from './auth-utils';
 import { MidtransService } from "./midtrans-service";
 
 // Initialize Midtrans service with production safety
@@ -122,10 +122,8 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ message: "Authentication required" });
   }
 
-  const session = activeSessions.get(sessionToken);
-  if (!session || session.expires < new Date()) {
-    // Clean up expired session
-    if (session) activeSessions.delete(sessionToken);
+  const session = await getSession(sessionToken);
+  if (!session) {
     return res.status(401).json({ message: "Session expired or invalid" });
   }
 
@@ -134,24 +132,18 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     const currentUser = await storage.getUser(session.userId);
     if (!currentUser || !currentUser.isActive) {
       // User no longer exists or is disabled - invalidate session
-      activeSessions.delete(sessionToken);
+      await deleteSession(sessionToken);
       return res.status(401).json({ message: "Account is disabled or no longer exists" });
     }
     
-    // Update session with current user data in case role changed
-    session.username = currentUser.username;
-    session.role = currentUser.role;
+    // Add user info to request with current data
+    (req as any).user = { id: session.userId, username: currentUser.username, role: currentUser.role };
   } catch (error) {
     // If we can't check user status, invalidate session for security
-    activeSessions.delete(sessionToken);
+    await deleteSession(sessionToken);
     return res.status(401).json({ message: "Authentication verification failed" });
   }
 
-  // Extend session expiry
-  session.expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-  // Add user info to request with current data
-  (req as any).user = { id: session.userId, username: session.username, role: session.role };
   next();
 }
 
@@ -318,17 +310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Generate session token
-      const sessionToken = generateSessionToken();
-      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      
-      // Store session
-      activeSessions.set(sessionToken, {
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        expires
-      });
+      // Create persistent session in database
+      const sessionToken = await createSession(user.id, user.username, user.role);
       
       res.json({ 
         user: { id: user.id, username: user.username, role: user.role },
@@ -346,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const sessionToken = authHeader?.replace('Bearer ', '');
     
     if (sessionToken) {
-      activeSessions.delete(sessionToken);
+      await deleteSession(sessionToken);
     }
     
     res.json({ message: "Logged out successfully" });
@@ -2721,8 +2704,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let userId: string | undefined;
       
       if (sessionToken) {
-        const session = activeSessions.get(sessionToken);
-        if (session && session.expires > new Date()) {
+        const session = await getSession(sessionToken);
+        if (session) {
           userId = session.userId;
         }
       }

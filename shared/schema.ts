@@ -33,6 +33,16 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+// Sessions table for persistent authentication
+export const sessions = pgTable("sessions", {
+  token: text("token").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  role: text("role").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
