@@ -348,6 +348,25 @@ export default function CashierSection() {
   
   const total = subtotal - totalDiscount + taxAmount;
   
+  // Helper function to calculate bill total from items
+  const calculateBillTotal = (bill: Order) => {
+    if (!bill || !Array.isArray(bill.items)) return 0;
+    
+    // If stored total exists (including 0), use it - it's the source of truth
+    if (typeof bill.total === 'number') {
+      return bill.total;
+    }
+    
+    // Otherwise, calculate from items and apply discount
+    const billItems = bill.items;
+    const calculatedSubtotal = billItems.reduce((sum: number, item: any) => {
+      return sum + ((item.price || 0) * (item.quantity || 0));
+    }, 0);
+    
+    const discount = bill.discount || 0;
+    return Math.max(0, calculatedSubtotal - discount);
+  };
+  
   // Payment calculation - use payment context if available
   const cashAmountNumber = parseFloat(cashAmount) || 0;
   const currentPaymentTotal = paymentContext ? paymentContext.total : total;
@@ -355,22 +374,32 @@ export default function CashierSection() {
   
   // Handle payment for open bills
   const handlePayOpenBill = (bill: Order) => {
-    // Set payment context for open bill with authoritative totals from stored order
-    // Note: tax is not stored in orders table, so it's always 0
+    // Parse items from the bill
+    const billItems = Array.isArray(bill.items) ? bill.items.map((item: any) => ({
+      id: item.itemId || item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      notes: item.notes || ""
+    })) : [];
+    
+    // Calculate subtotal from items
+    const calculatedSubtotal = billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // Use stored values if they exist (including 0), otherwise use calculated
+    const subtotalToUse = typeof bill.subtotal === 'number' ? bill.subtotal : calculatedSubtotal;
+    const discountToUse = typeof bill.discount === 'number' ? bill.discount : 0;
+    const totalToUse = calculateBillTotal(bill);
+    
+    // Set payment context for open bill
     setPaymentContext({
       mode: 'open_bill' as any,
       billId: bill.id,
-      subtotal: bill.subtotal || 0,
-      discount: bill.discount || 0,
+      subtotal: subtotalToUse,
+      discount: discountToUse,
       tax: 0, // Tax not stored in DB, always 0
-      total: bill.total || bill.subtotal || 0,
-      items: Array.isArray(bill.items) ? bill.items.map((item: any) => ({
-        id: item.itemId || item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        notes: item.notes || ""
-      })) : [],
+      total: totalToUse,
+      items: billItems,
       customerName: bill.customerName
     });
     
@@ -1028,7 +1057,7 @@ export default function CashierSection() {
                           </div>
                           <div className="w-32 text-right flex flex-col items-end gap-2">
                             <p className="font-bold text-base text-primary">
-                              {formatCurrency(bill.total)}
+                              {formatCurrency(calculateBillTotal(bill))}
                             </p>
                             <div className="flex flex-col gap-1 w-full">
                               <Button
