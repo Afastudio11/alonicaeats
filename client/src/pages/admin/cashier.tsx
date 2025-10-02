@@ -997,7 +997,7 @@ export default function CashierSection() {
   return (
     <>
       <div className="space-y-4">
-        {/* Open Bills Section - Moved to Top */}
+        {/* Open Bills Section - Redesigned: Compact & Modern */}
         <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -1015,76 +1015,93 @@ export default function CashierSection() {
               data-testid="toggle-open-bills"
               className="text-xs h-8"
             >
-              {showOpenBills ? 'Sembunyikan' : 'Tampilkan'} Open Bills
+              {showOpenBills ? 'Sembunyikan' : 'Tampilkan'}
             </Button>
           </div>
         </CardHeader>
         {showOpenBills && (
-          <CardContent>
+          <CardContent className="p-0">
             {openBills.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-6">
                 <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {/* Table header */}
-                <div className="grid grid-cols-[1fr_120px] gap-3 pb-2 border-b text-xs font-medium text-muted-foreground uppercase">
-                  <div>Items</div>
-                  <div className="text-right">Total</div>
-                </div>
-                {/* Bills list */}
-                <div className="space-y-2">
-                  {openBills.map((bill) => (
-                    <Card key={bill.id} className="border-l-4 border-l-yellow-500 hover:shadow-sm transition-shadow">
-                      <CardContent className="p-3">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-1">
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-foreground text-sm">{bill.customerName}</h4>
-                                <p className="text-xs text-muted-foreground">Meja {bill.tableNumber}</p>
-                              </div>
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 text-xs">
-                                Open
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {new Date(bill.createdAt).toLocaleString('id-ID')}
-                            </p>
-                            <p className="text-sm text-foreground font-medium">
-                              {Array.isArray(bill.items) ? bill.items.length : 0} items
-                            </p>
-                          </div>
-                          <div className="w-32 text-right flex flex-col items-end gap-2">
-                            <p className="font-bold text-base text-primary">
-                              {formatCurrency(calculateBillTotal(bill))}
-                            </p>
-                            <div className="flex flex-col gap-1 w-full">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setViewingBill(bill)}
-                                className="w-full h-7 text-xs"
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                Lihat
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="w-full bg-primary hover:bg-primary/90 h-7 text-xs"
-                                onClick={() => handlePayOpenBill(bill)}
-                                data-testid={`button-pay-bill-${bill.id}`}
-                              >
-                                <Calculator className="h-3 w-3 mr-1" />
-                                Bayar
-                              </Button>
+              <div className="overflow-x-auto">
+                {/* Modern Table Layout */}
+                <table className="w-full">
+                  <thead className="bg-muted/50 border-y">
+                    <tr className="text-xs font-medium text-muted-foreground">
+                      <th className="text-left px-4 py-2">Customer</th>
+                      <th className="text-center px-4 py-2">Meja</th>
+                      <th className="text-center px-4 py-2">Items</th>
+                      <th className="text-right px-4 py-2">Total</th>
+                      <th className="text-center px-4 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {openBills.map((bill) => (
+                      <tr key={bill.id} className="hover:bg-muted/30 transition-colors group">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-1 bg-yellow-500 rounded-full group-hover:bg-yellow-600 transition-colors"></div>
+                            <div>
+                              <p className="font-medium text-sm text-foreground">{bill.customerName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(bill.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Badge variant="outline" className="text-xs">
+                            {bill.tableNumber}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-medium text-foreground">
+                            {Array.isArray(bill.items) ? bill.items.length : 0}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-bold text-base text-primary">
+                            {formatCurrency(calculateBillTotal(bill))}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setViewingBill(bill)}
+                              className="h-8 px-3 hover:bg-primary/10 hover:text-primary"
+                              data-testid={`button-view-bill-${bill.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEditOpenBill(bill)}
+                              className="h-8 px-3 hover:bg-blue-500/10 hover:text-blue-600"
+                              data-testid={`button-edit-bill-${bill.id}`}
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 px-3 bg-primary hover:bg-primary/90"
+                              onClick={() => handlePayOpenBill(bill)}
+                              data-testid={`button-pay-bill-${bill.id}`}
+                            >
+                              <Calculator className="h-4 w-4 mr-1" />
+                              Bayar
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
