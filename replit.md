@@ -43,12 +43,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Replit Environment Setup
 
-### Current Configuration (October 2, 2025)
+### Current Configuration (October 2, 2025) - Fresh GitHub Import
+This project was imported from GitHub and successfully configured for Replit:
 - **Database**: PostgreSQL provisioned and schema pushed successfully
 - **Workflow**: "Start application" running on port 5000 with webview output
-- **Dev Server**: Express + Vite with HMR enabled, allowedHosts configured
+- **Dev Server**: Express + Vite with HMR enabled, allowedHosts configured for Replit proxy
 - **Seeded Data**: Admin and kasir accounts created (admin/admin123, kasir1/kasir123, etc.)
 - **Deployment**: Configured for autoscale with build and production scripts
+- **All dependencies**: Pre-installed and ready to use
 - **Unified Approval Management**: Single-page interface at `/admin/approvals` with three tabs:
   - **Pending Approvals**: Real-time notifications for deletion requests from kasir (3s polling)
   - **Deletion History**: Complete audit trail of approved/deleted items (5s polling)
