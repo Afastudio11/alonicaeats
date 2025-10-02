@@ -53,7 +53,7 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
   {
     label: "POS & PESANAN",
     items: [
-      { key: 'cashier', label: 'Point of Sale (POS)', icon: CreditCard, path: '/admin/cashier' },
+      { key: 'cashier', label: 'Kasir', icon: CreditCard, path: '/admin/cashier' },
       { key: 'orders', label: 'Pesanan', icon: ClipboardList, path: '/admin/orders' },
       { key: 'kitchen', label: 'Sistem Dapur (KDS)', icon: ChefHat, path: '/admin/kitchen' },
       { key: 'reservations', label: 'Reservasi', icon: Calendar, path: '/admin/reservations' },

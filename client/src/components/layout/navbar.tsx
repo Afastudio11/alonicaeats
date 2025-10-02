@@ -25,7 +25,7 @@ export default function Navbar({ totalItems = 0 }: NavbarProps) {
           data-testid="nav-home"
         >
           <Home className="h-5 w-5" />
-          <span className="text-xs">Home</span>
+          <span className="text-xs">Beranda</span>
         </Button>
 
         <Button
@@ -35,7 +35,7 @@ export default function Navbar({ totalItems = 0 }: NavbarProps) {
           data-testid="nav-search"
         >
           <Search className="h-5 w-5" />
-          <span className="text-xs">Search</span>
+          <span className="text-xs">Cari</span>
         </Button>
 
         <Button
@@ -58,7 +58,7 @@ export default function Navbar({ totalItems = 0 }: NavbarProps) {
               </Badge>
             )}
           </div>
-          <span className="text-xs">Cart</span>
+          <span className="text-xs">Keranjang</span>
         </Button>
       </div>
     </nav>
