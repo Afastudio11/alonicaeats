@@ -247,7 +247,7 @@ export default function DiscountsSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-playfair font-bold text-foreground" data-testid="text-discounts-title">
+        <h1 className="text-2xl font-bold text-foreground" data-testid="text-discounts-title">
           Kelola Discount
         </h1>
         <Button 

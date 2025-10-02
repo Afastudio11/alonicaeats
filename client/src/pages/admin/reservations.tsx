@@ -199,7 +199,7 @@ export default function ReservationsSection() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
         <div className="flex items-center space-x-4">
           <Calendar className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">
+          <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">
             Reservasi
           </h1>
         </div>

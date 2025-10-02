@@ -167,7 +167,7 @@ export default function DailyReportsSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-playfair font-bold text-foreground" data-testid="text-daily-reports-title">
+        <h1 className="text-2xl font-bold text-foreground" data-testid="text-daily-reports-title">
           Laporan Harian Kasir
         </h1>
         <div className="text-sm text-muted-foreground">

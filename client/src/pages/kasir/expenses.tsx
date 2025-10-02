@@ -126,7 +126,7 @@ export default function ExpensesSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-playfair font-bold text-foreground" data-testid="text-expenses-title">
+        <h1 className="text-2xl font-bold text-foreground" data-testid="text-expenses-title">
           Pencatatan Pengeluaran
         </h1>
         <Button 

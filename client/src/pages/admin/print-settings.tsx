@@ -303,7 +303,7 @@ export default function PrintSettingsSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-playfair font-bold text-foreground" data-testid="text-print-settings-title">
+        <h1 className="text-2xl font-bold text-foreground" data-testid="text-print-settings-title">
           Kelola Setting Print
         </h1>
         <div className="flex gap-2">
