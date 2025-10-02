@@ -107,7 +107,20 @@ Preferred communication style: Simple, everyday language.
 - `PORT`: Server port (defaults to 5000)
 
 ### Recent Changes (October 2, 2025)
-- ✅ **Fresh GitHub Import Setup (Current Session - October 2, 2025)**:
+- ✅ **Data Synchronization Fixes (Latest Session - October 2, 2025)**:
+  - **Fixed: Promo tidak muncul di POS dan Customer Page**
+    - Added missing `/api/discounts/active` public endpoint in `server/routes.ts`
+    - Endpoint now accessible without authentication for customer and POS pages
+    - Tested and verified working (200 OK in server logs)
+  - **Fixed: Open Bill Payment Total Bug**
+    - Payment calculator dialog now uses `currentPaymentTotal` instead of cart `total`
+    - Customer name displays correctly from `paymentContext` for open bills
+    - All validations and change calculations use `paymentContext.total`
+  - **UI Improvements: Payment Method Icons**
+    - Replaced emoji icons (💵, 📱) with Lucide React icons (Banknote, Smartphone)
+    - More professional and consistent UI appearance
+
+- ✅ **Fresh GitHub Import Setup (October 2, 2025)**:
   - PostgreSQL database provisioned and configured using Replit database tools
   - Database schema pushed successfully via `npm run db:push`
   - Initial users seeded (1 admin + 4 cashiers) via `npm run seed:users`
