@@ -76,6 +76,9 @@ export default function CashierSection() {
     mode: 'cart' | 'split' | 'open_bill',
     splitId?: number,
     billId?: string,
+    subtotal?: number,
+    discount?: number,
+    tax?: number,
     total: number,
     items: CartItem[],
     customerName?: string
@@ -301,7 +304,11 @@ export default function CashierSection() {
   
   // Calculate total discount from cart items with active discounts
   const totalDiscount = cart.reduce((sum, item) => {
-    const discount = getItemDiscount(item);
+    // Find the full MenuItem to check for discounts
+    const menuItem = menuItems.find(mi => mi.id === item.id);
+    if (!menuItem) return sum;
+    
+    const discount = getItemDiscount(menuItem);
     if (discount) {
       const originalPrice = item.price * item.quantity;
       const discountedPrice = calculateDiscountedPrice(item.price, discount) * item.quantity;
@@ -783,7 +790,11 @@ export default function CashierSection() {
     
     // Calculate discount for split items
     const splitDiscount = items.reduce((sum, item) => {
-      const discount = getItemDiscount(item);
+      // Find the full MenuItem to check for discounts
+      const menuItem = menuItems.find(mi => mi.id === item.id);
+      if (!menuItem) return sum;
+      
+      const discount = getItemDiscount(menuItem);
       if (discount) {
         const originalPrice = item.price * item.quantity;
         const discountedPrice = calculateDiscountedPrice(item.price, discount) * item.quantity;
@@ -853,7 +864,11 @@ export default function CashierSection() {
     // Set payment context for this split with full breakdown
     const splitSubtotal = part.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const splitDiscount = part.items.reduce((sum, item) => {
-      const discount = getItemDiscount(item);
+      // Find the full MenuItem to check for discounts
+      const menuItem = menuItems.find(mi => mi.id === item.id);
+      if (!menuItem) return sum;
+      
+      const discount = getItemDiscount(menuItem);
       if (discount) {
         const originalPrice = item.price * item.quantity;
         const discountedPrice = calculateDiscountedPrice(item.price, discount) * item.quantity;
