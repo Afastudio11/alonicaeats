@@ -107,7 +107,59 @@ Preferred communication style: Simple, everyday language.
 - `PORT`: Server port (defaults to 5000)
 
 ### Recent Changes (October 2, 2025)
-- ✅ **Fresh Replit Environment Setup - Latest (October 2, 2025)**:
+- ✅ **Open Bill UI/UX Redesign & Admin Approval System - Latest (October 2, 2025)**:
+  - **Redesigned Open Bills Section**:
+    - Changed from vertical card-based layout to compact horizontal table layout
+    - Significantly reduced vertical space usage while maintaining all functionality
+    - Modern table design with hover effects and visual hierarchy
+    - Each row displays: Customer name (with time), Table number, Item count, Total, and Actions
+    - Actions include: View (eye icon), Edit (file icon), and Pay (calculator button)
+    - Yellow accent bar on each row for visual continuity with previous design
+    - Responsive design with overflow handling for smaller screens
+  
+  - **Edit Open Bill Feature** (Two Distinct Modes):
+    - **Edit Bill Dialog**: 
+      - Wholesale replacement mode for comprehensive bill changes
+      - Allows adding menu items, removing items, adjusting quantities
+      - Can edit customer name and table number
+      - Uses 'replace' mode - replaces entire bill with new contents when saved
+      - Direct item removal without admin approval (for pre-kitchen changes)
+    - **View Bill Dialog**: 
+      - Read-only view with individual item deletion capability
+      - Item deletion requires admin approval (items already in kitchen)
+      - Shows "Sudah Masuk ke Dapur" indicator (already sent to kitchen)
+      - Each item has trash button to request deletion
+  
+  - **Admin Approval Notification System**:
+    - **Deletion Request Flow**:
+      1. Cashier clicks delete on item in View Bill dialog
+      2. Deletion reason dialog opens (optional reason input)
+      3. Request sent to backend, creates notification for admin
+      4. Cashier receives confirmation toast
+    - **Admin Notification Bell**:
+      - Real-time polling every 5 seconds for pending notifications
+      - Badge shows count of pending deletion requests
+      - Popover displays notification details: customer, table, item, quantity, price, reason, timestamp
+      - Approve button: Deletes item, recalculates total, creates audit log
+      - Reject button: Dismisses request, no changes to order
+      - Proper cache invalidation after approve/reject (orders, open bills, notifications)
+    - **Backend Security & Validation**:
+      - Admin-only approval/rejection endpoints
+      - Defensive validation: bounds check for itemIndex (prevents stale index issues)
+      - Clear error messages when item no longer exists
+      - Audit trail via deletion logs (tracks requestedBy, authorizedBy, reason)
+    - **Data Synchronization**:
+      - TanStack Query cache invalidation ensures real-time updates
+      - All relevant queries refreshed after approval: orders, open bills, notifications
+      - Error handling with user-friendly toast messages
+  
+  - **Technical Improvements**:
+    - Added itemIndex bounds validation in approval endpoint
+    - Prevents data integrity issues from stale deletion requests
+    - Clear Indonesian error messages for edge cases
+    - Efficient 5-second polling balances freshness and server load
+
+- ✅ **Fresh Replit Environment Setup (October 2, 2025)**:
   - Successfully configured fresh GitHub import for Replit environment
   - Database already configured with Replit PostgreSQL (helium database)
   - Database schema verified and up-to-date via `npm run db:push`
