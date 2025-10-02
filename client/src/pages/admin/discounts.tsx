@@ -108,9 +108,9 @@ export default function DiscountsSection() {
         const value = (data as any)[key];
         
         if (key === 'startDate') {
-          transformedData.startDate = value && value.trim() !== '' ? new Date(value).toISOString() : null;
+          transformedData.startDate = value && value.trim() !== '' ? new Date(value) : null;
         } else if (key === 'endDate') {
-          transformedData.endDate = value && value.trim() !== '' ? new Date(value).toISOString() : null;
+          transformedData.endDate = value && value.trim() !== '' ? new Date(value) : null;
         } else if (key === 'categoryIds') {
           transformedData.categoryIds = value && value.length > 0 ? value : null;
         } else if (key === 'menuItemIds') {
