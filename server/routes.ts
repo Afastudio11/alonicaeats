@@ -2995,6 +2995,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove the item from the order
       const items = Array.isArray(order.items) ? order.items : [];
+      
+      // Defensive check: verify itemIndex is still valid
+      if (itemIndex < 0 || itemIndex >= items.length) {
+        return res.status(400).json({ 
+          message: "Item sudah tidak ada di order (mungkin sudah dihapus sebelumnya)" 
+        });
+      }
+      
       const deletedItem = items[itemIndex];
       items.splice(itemIndex, 1);
 
