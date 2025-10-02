@@ -966,9 +966,103 @@ export default function CashierSection() {
     .slice(0, 4); // Limit to 4 items for display
 
   return (
-    <div className="space-y-4">
-      {/* Customer Information - Modern Clean Design */}
-      <Card className="border-0 shadow-sm">
+    <>
+      <div className="space-y-4">
+        {/* Open Bills Section - Moved to Top */}
+        <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2 text-base">
+              <FileText className="h-5 w-5" />
+              <span>Open Bills</span>
+              <Badge variant="secondary" data-testid="open-bills-count">
+                {openBills.length}
+              </Badge>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowOpenBills(!showOpenBills)}
+              data-testid="toggle-open-bills"
+              className="text-xs h-8"
+            >
+              {showOpenBills ? 'Sembunyikan' : 'Tampilkan'} Open Bills
+            </Button>
+          </div>
+        </CardHeader>
+        {showOpenBills && (
+          <CardContent>
+            {openBills.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Table header */}
+                <div className="flex items-center gap-3 pb-2 border-b text-xs font-medium text-muted-foreground uppercase">
+                  <div className="flex-1">Items</div>
+                  <div className="w-32 text-right">Total</div>
+                </div>
+                {/* Bills list */}
+                <div className="space-y-2">
+                  {openBills.map((bill) => (
+                    <Card key={bill.id} className="border-l-4 border-l-yellow-500 hover:shadow-sm transition-shadow">
+                      <CardContent className="p-3">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-1">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-foreground text-sm">{bill.customerName}</h4>
+                                <p className="text-xs text-muted-foreground">Meja {bill.tableNumber}</p>
+                              </div>
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 text-xs">
+                                Open
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {new Date(bill.createdAt).toLocaleString('id-ID')}
+                            </p>
+                            <p className="text-sm text-foreground font-medium">
+                              {Array.isArray(bill.items) ? bill.items.length : 0} items
+                            </p>
+                          </div>
+                          <div className="w-32 text-right flex flex-col items-end gap-2">
+                            <p className="font-bold text-base text-primary">
+                              {formatCurrency(bill.total)}
+                            </p>
+                            <div className="flex flex-col gap-1 w-full">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setViewingBill(bill)}
+                                className="w-full h-7 text-xs"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                Lihat
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="w-full bg-primary hover:bg-primary/90 h-7 text-xs"
+                                onClick={() => handlePayOpenBill(bill)}
+                                data-testid={`button-pay-bill-${bill.id}`}
+                              >
+                                <Calculator className="h-3 w-3 mr-1" />
+                                Bayar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Customer Information - Modern Clean Design */}
+        <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
@@ -1012,7 +1106,7 @@ export default function CashierSection() {
               />
             </div>
             <div>
-              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Number of person</Label>
+              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Table number</Label>
               <Input
                 id="tableNumber"
                 value={tableNumber}
@@ -1025,11 +1119,11 @@ export default function CashierSection() {
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
 
-      {/* Special Discount Today Section */}
-      {discountsWithItems.length > 0 && (
-        <Card className="border-0 shadow-sm">
+        {/* Special Discount Today Section */}
+        {discountsWithItems.length > 0 && (
+          <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground">Special Discount Today</h3>
@@ -1075,108 +1169,11 @@ export default function CashierSection() {
               })}
             </div>
           </CardContent>
-        </Card>
-      )}
+          </Card>
+        )}
 
-      {/* Open Bills Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
-                <span>Open Bills</span>
-                <Badge variant="secondary" data-testid="open-bills-count">
-                  {openBills.length}
-                </Badge>
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowOpenBills(!showOpenBills)}
-                data-testid="toggle-open-bills"
-              >
-                {showOpenBills ? 'Sembunyikan' : 'Tampilkan'} Open Bills
-              </Button>
-            </div>
-          </CardHeader>
-          {showOpenBills && (
-            <CardContent>
-              {openBills.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Tidak ada open bills</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {openBills.map((bill) => (
-                    <Card key={bill.id} className="border-l-4 border-l-yellow-500">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-semibold text-foreground">{bill.customerName}</h4>
-                            <p className="text-sm text-muted-foreground">Meja {bill.tableNumber}</p>
-                          </div>
-                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                            Open
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {new Date(bill.createdAt).toLocaleString('id-ID')}
-                        </p>
-                        <p className="font-semibold text-lg mb-3">
-                          {formatCurrency(bill.total)}
-                        </p>
-                        <div className="space-y-2">
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setViewingBill(bill)}
-                              className="flex-1"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Lihat
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditOpenBill(bill)}
-                              className="flex-1"
-                              data-testid={`button-edit-bill-${bill.id}`}
-                            >
-                              <FileText className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="w-full bg-primary hover:bg-primary/90"
-                            onClick={() => handlePayOpenBill(bill)}
-                            data-testid={`button-pay-bill-${bill.id}`}
-                          >
-                            <Calculator className="h-4 w-4 mr-1" />
-                            Bayar Bill
-                          </Button>
-                          <div className="w-full bg-green-50 border border-green-200 rounded-md p-2 text-center">
-                            <div className="flex items-center justify-center text-green-700">
-                              <Send className="h-4 w-4 mr-1" />
-                              <span className="text-sm font-medium">Sudah Masuk ke Dapur</span>
-                            </div>
-                            <p className="text-xs text-green-600 mt-1">Open bill otomatis dikirim ke dapur</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          )}
-        </Card>
-      </div>
-
-      {/* Prominent Search Bar */}
-      <div className="relative">
+        {/* Prominent Search Bar */}
+        <div className="relative">
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
         <Input
           type="text"
@@ -1186,9 +1183,9 @@ export default function CashierSection() {
           className="pl-12 h-12 text-sm border-0 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary"
           data-testid="input-search-menu"
         />
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Menu Selection */}
         <div className="lg:col-span-2">
           <Card className="border-0 shadow-sm">
@@ -2223,6 +2220,7 @@ export default function CashierSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
 }
