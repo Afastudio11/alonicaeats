@@ -2580,7 +2580,6 @@ export default function CashierSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </>
   );
 }
