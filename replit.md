@@ -117,3 +117,10 @@ Preferred communication style: Simple, everyday language.
 - ✅ FallbackStorage system in place (PostgreSQL with in-memory fallback)
 - ✅ Vite dev server configured with `allowedHosts: true` for Replit proxy
 - ✅ Server configured to bind to 0.0.0.0:5000 for Replit webview
+- ✅ Fixed discount page: changed API endpoint from `/api/menu-items` to `/api/menu`
+- ✅ Enhanced Recent Orders page: added Payment Status column with color-coded badges (Paid/Pending/Failed/Expired/Unpaid/Refunded), cleaned up empty state padding
+- ✅ Enhanced Reservations page: 
+  - Added multi-day calendar view - Week mode shows full 7 days, Month mode shows full 30 days
+  - Cleaned up header - removed redundant "total reservasi" text and calendar icon
+  - Updated navigation to support day/week/month period switching
+  - Reservations now properly grouped by date and time in multi-column grid

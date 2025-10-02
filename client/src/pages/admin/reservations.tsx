@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { format, addDays, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay } from "date-fns";
+import { format, addDays, addWeeks, addMonths, eachDayOfInterval, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay } from "date-fns";
 import { id } from "date-fns/locale";
 import type { Reservation } from "@shared/schema";
 
@@ -97,25 +97,6 @@ export default function ReservationsSection() {
     return filtered;
   }, [reservations, selectedDate, dateRangeMode, statusFilter, searchQuery]);
 
-  // Group reservations by time slot
-  const reservationsByTime = useMemo(() => {
-    const grouped: Record<string, Reservation[]> = {};
-    
-    filteredReservations.forEach(reservation => {
-      // Safely extract time - use reservationTime if available, otherwise default to "09:00"
-      const time = reservation.reservationTime 
-        ? reservation.reservationTime.substring(0, 5)
-        : format(reservation.reservationDate, 'HH:mm');
-      
-      if (!grouped[time]) {
-        grouped[time] = [];
-      }
-      grouped[time].push(reservation);
-    });
-    
-    return grouped;
-  }, [filteredReservations]);
-
   const handleReservationUpdate = (reservationId: string, status: string) => {
     updateReservationMutation.mutate({ reservationId, status });
   };
@@ -140,8 +121,18 @@ export default function ReservationsSection() {
     return labels[status as keyof typeof labels] || status;
   };
 
-  const previousDay = () => setSelectedDate(prev => addDays(prev, -1));
-  const nextDay = () => setSelectedDate(prev => addDays(prev, 1));
+  const previousPeriod = () => {
+    if (dateRangeMode === "day") setSelectedDate(prev => addDays(prev, -1));
+    else if (dateRangeMode === "week") setSelectedDate(prev => addWeeks(prev, -1));
+    else if (dateRangeMode === "month") setSelectedDate(prev => addMonths(prev, -1));
+  };
+  
+  const nextPeriod = () => {
+    if (dateRangeMode === "day") setSelectedDate(prev => addDays(prev, 1));
+    else if (dateRangeMode === "week") setSelectedDate(prev => addWeeks(prev, 1));
+    else if (dateRangeMode === "month") setSelectedDate(prev => addMonths(prev, 1));
+  };
+  
   const goToToday = () => {
     setSelectedDate(new Date());
     setDateRangeMode("day");
@@ -156,6 +147,43 @@ export default function ReservationsSection() {
   };
 
   const totalAppointments = filteredReservations.length;
+
+  // Get days to display based on mode
+  const displayDays = useMemo(() => {
+    if (dateRangeMode === "day") {
+      return [selectedDate];
+    } else if (dateRangeMode === "week") {
+      const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    } else {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      return eachDayOfInterval({ start: monthStart, end: monthEnd });
+    }
+  }, [selectedDate, dateRangeMode]);
+
+  // Group reservations by date and time
+  const reservationsByDateAndTime = useMemo(() => {
+    const grouped: Record<string, Record<string, Reservation[]>> = {};
+    
+    filteredReservations.forEach(reservation => {
+      const dateKey = format(reservation.reservationDate, 'yyyy-MM-dd');
+      const time = reservation.reservationTime 
+        ? reservation.reservationTime.substring(0, 5)
+        : format(reservation.reservationDate, 'HH:mm');
+      
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {};
+      }
+      if (!grouped[dateKey][time]) {
+        grouped[dateKey][time] = [];
+      }
+      grouped[dateKey][time].push(reservation);
+    });
+    
+    return grouped;
+  }, [filteredReservations]);
 
   if (isLoading) {
     return (
@@ -220,25 +248,27 @@ export default function ReservationsSection() {
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={previousDay}
+              onClick={previousPeriod}
               className="h-8 w-8"
-              data-testid="button-previous-day"
+              data-testid="button-previous-period"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             
             <div className="px-3 py-1 min-w-[200px] text-center">
               <span className="text-sm font-semibold text-foreground" data-testid="text-selected-date">
-                {format(selectedDate, 'EEE, dd MMM yyyy', { locale: id })}
+                {dateRangeMode === "day" && format(selectedDate, 'EEE, dd MMM yyyy', { locale: id })}
+                {dateRangeMode === "week" && `${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'dd MMM', { locale: id })} - ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), 'dd MMM yyyy', { locale: id })}`}
+                {dateRangeMode === "month" && format(selectedDate, 'MMMM yyyy', { locale: id })}
               </span>
             </div>
             
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={nextDay}
+              onClick={nextPeriod}
               className="h-8 w-8"
-              data-testid="button-next-day"
+              data-testid="button-next-period"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -276,13 +306,6 @@ export default function ReservationsSection() {
         </div>
 
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span data-testid="text-total-appointments">
-              <strong className="text-foreground">{totalAppointments}</strong> total reservasi
-            </span>
-          </div>
-
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-status-filter">
               <SelectValue />
@@ -306,19 +329,26 @@ export default function ReservationsSection() {
       <div className="flex-1 overflow-auto">
         <div className="min-w-[800px]">
           {/* Time Grid Header */}
-          <div className="grid grid-cols-[80px_1fr] border-b border-border sticky top-0 bg-background z-10">
+          <div className="grid border-b border-border sticky top-0 bg-background z-10" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
             <div className="border-r border-border p-3">
               <span className="text-xs font-medium text-muted-foreground">GMT+07:00</span>
             </div>
-            <div className="p-3">
-              <span className="text-sm font-medium text-foreground">
-                {format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: id })}
-              </span>
-            </div>
+            {displayDays.map((day) => (
+              <div key={day.toISOString()} className="p-3 border-r border-border last:border-r-0">
+                <div className="text-center">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    {format(day, 'EEE', { locale: id })}
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {format(day, 'dd MMM', { locale: id })}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Time Slots */}
-          <div className="grid grid-cols-[80px_1fr]">
+          <div className="grid" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
             <div className="border-r border-border">
               {TIME_SLOTS.map((time) => (
                 <div 
@@ -330,97 +360,93 @@ export default function ReservationsSection() {
               ))}
             </div>
 
-            {/* Appointment Slots */}
-            <div className="relative">
-              {TIME_SLOTS.map((time, index) => (
-                <div 
-                  key={time} 
-                  className="h-24 border-b border-border relative"
-                  data-testid={`slot-${time}`}
-                >
-                  {reservationsByTime[time]?.map((reservation, resIndex) => (
-                    <Card
-                      key={reservation.id}
-                      className={`absolute left-2 right-2 top-1 p-3 border-l-4 ${getStatusColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer`}
-                      style={{ 
-                        top: `${resIndex * 60 + 4}px`,
-                        zIndex: resIndex + 1
-                      }}
-                      data-testid={`card-reservation-${reservation.id}`}
+            {/* Appointment Slots for each day */}
+            {displayDays.map((day) => {
+              const dateKey = format(day, 'yyyy-MM-dd');
+              return (
+                <div key={dateKey} className="border-r border-border last:border-r-0">
+                  {TIME_SLOTS.map((time) => (
+                    <div 
+                      key={`${dateKey}-${time}`} 
+                      className="h-24 border-b border-border relative"
+                      data-testid={`slot-${dateKey}-${time}`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h4 className="text-sm font-semibold text-foreground truncate" data-testid={`text-customer-${reservation.id}`}>
-                              {reservation.customerName}
-                            </h4>
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4" data-testid={`badge-status-${reservation.id}`}>
-                              {getStatusLabel(reservation.status)}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-                            <span className="flex items-center">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {reservation.reservationTime}
-                            </span>
-                            <span className="flex items-center">
-                              <Users className="h-3 w-3 mr-1" />
-                              {reservation.guestCount} tamu
-                            </span>
-                          </div>
-                          {reservation.notes && (
-                            <p className="text-xs text-muted-foreground mt-1 truncate" data-testid={`text-notes-${reservation.id}`}>
-                              {reservation.notes}
-                            </p>
-                          )}
-                        </div>
+                      {reservationsByDateAndTime[dateKey]?.[time]?.map((reservation, resIndex) => (
+                        <Card
+                          key={reservation.id}
+                          className={`absolute left-1 right-1 top-1 p-2 border-l-4 ${getStatusColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer`}
+                          style={{ 
+                            top: `${resIndex * 60 + 4}px`,
+                            zIndex: resIndex + 1
+                          }}
+                          data-testid={`card-reservation-${reservation.id}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <h4 className="text-xs font-semibold text-foreground truncate" data-testid={`text-customer-${reservation.id}`}>
+                                  {reservation.customerName}
+                                </h4>
+                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3" data-testid={`badge-status-${reservation.id}`}>
+                                  {getStatusLabel(reservation.status)}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center space-x-2 text-[10px] text-muted-foreground">
+                                <span className="flex items-center">
+                                  <Users className="h-2.5 w-2.5 mr-0.5" />
+                                  {reservation.guestCount}
+                                </span>
+                              </div>
+                            </div>
 
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-6 w-6 -mr-1"
-                              disabled={updateReservationMutation.isPending}
-                              data-testid={`button-actions-${reservation.id}`}
-                            >
-                              <MoreHorizontal className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {reservation.status === 'pending' && (
-                              <DropdownMenuItem 
-                                onClick={() => handleReservationUpdate(reservation.id, 'confirmed')}
-                                data-testid={`button-confirm-${reservation.id}`}
-                              >
-                                Konfirmasi
-                              </DropdownMenuItem>
-                            )}
-                            {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
-                              <DropdownMenuItem 
-                                onClick={() => handleReservationUpdate(reservation.id, 'completed')}
-                                data-testid={`button-complete-${reservation.id}`}
-                              >
-                                Selesai
-                              </DropdownMenuItem>
-                            )}
-                            {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
-                              <DropdownMenuItem 
-                                onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
-                                className="text-red-600"
-                                data-testid={`button-cancel-${reservation.id}`}
-                              >
-                                Batalkan
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </Card>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="h-5 w-5 -mr-1"
+                                  disabled={updateReservationMutation.isPending}
+                                  data-testid={`button-actions-${reservation.id}`}
+                                >
+                                  <MoreHorizontal className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {reservation.status === 'pending' && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleReservationUpdate(reservation.id, 'confirmed')}
+                                    data-testid={`button-confirm-${reservation.id}`}
+                                  >
+                                    Konfirmasi
+                                  </DropdownMenuItem>
+                                )}
+                                {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleReservationUpdate(reservation.id, 'completed')}
+                                    data-testid={`button-complete-${reservation.id}`}
+                                  >
+                                    Selesai
+                                  </DropdownMenuItem>
+                                )}
+                                {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
+                                    className="text-red-600"
+                                    data-testid={`button-cancel-${reservation.id}`}
+                                  >
+                                    Batalkan
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>
