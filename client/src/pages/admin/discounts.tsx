@@ -79,6 +79,7 @@ export default function DiscountsSection() {
     mutationFn: async (data: z.infer<typeof discountFormSchema>) => {
       const transformedData = {
         ...data,
+        value: Number(data.value),
         startDate: data.startDate && data.startDate.trim() !== '' ? new Date(data.startDate) : null,
         endDate: data.endDate && data.endDate.trim() !== '' ? new Date(data.endDate) : null,
         categoryIds: data.categoryIds && data.categoryIds.length > 0 ? data.categoryIds : null,
@@ -96,7 +97,14 @@ export default function DiscountsSection() {
         description: "Discount baru telah ditambahkan ke sistem",
       });
     },
-    onError: createErrorHandler("Gagal membuat discount")
+    onError: (error: any) => {
+      const message = error.message || "Gagal membuat discount";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    }
   });
 
   const updateDiscountMutation = useMutation({
@@ -107,7 +115,9 @@ export default function DiscountsSection() {
       Object.keys(data).forEach(key => {
         const value = (data as any)[key];
         
-        if (key === 'startDate') {
+        if (key === 'value') {
+          transformedData.value = Number(value);
+        } else if (key === 'startDate') {
           transformedData.startDate = value && value.trim() !== '' ? new Date(value) : null;
         } else if (key === 'endDate') {
           transformedData.endDate = value && value.trim() !== '' ? new Date(value) : null;
@@ -131,7 +141,14 @@ export default function DiscountsSection() {
         description: "Perubahan discount telah disimpan",
       });
     },
-    onError: createErrorHandler("Gagal memperbarui discount")
+    onError: (error: any) => {
+      const message = error.message || "Gagal memperbarui discount";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    }
   });
 
   const deleteDiscountMutation = useMutation({

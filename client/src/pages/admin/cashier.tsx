@@ -355,11 +355,15 @@ export default function CashierSection() {
   
   // Handle payment for open bills
   const handlePayOpenBill = (bill: Order) => {
-    // Set payment context for open bill
+    // Set payment context for open bill with authoritative totals from stored order
+    // Note: tax is not stored in orders table, so it's always 0
     setPaymentContext({
       mode: 'open_bill' as any,
       billId: bill.id,
-      total: bill.total,
+      subtotal: bill.subtotal || 0,
+      discount: bill.discount || 0,
+      tax: 0, // Tax not stored in DB, always 0
+      total: bill.total || bill.subtotal || 0,
       items: Array.isArray(bill.items) ? bill.items.map((item: any) => ({
         id: item.itemId || item.id,
         name: item.name,
@@ -599,14 +603,11 @@ export default function CashierSection() {
     setCashAmount("");
   };
 
-  // Edit existing open bill
+  // Edit existing open bill - now opens in dialog
   const handleEditOpenBill = (bill: Order) => {
-    // Load bill data into current form
-    setCustomerName(bill.customerName);
-    setTableNumber(bill.tableNumber);
     setEditingBill(bill);
     
-    // Convert bill items to cart format
+    // Convert bill items to cart format for editing
     const billItems = Array.isArray(bill.items) ? bill.items : [];
     const cartItems: CartItem[] = billItems.map((item: any) => ({
       id: item.itemId || item.id,
@@ -616,12 +617,10 @@ export default function CashierSection() {
       notes: item.notes || ""
     }));
     
+    // Load into cart for editing in dialog
     setCart(cartItems);
-    
-    toast({
-      title: "Open Bill dimuat",
-      description: `Bill untuk ${bill.customerName} - Meja ${bill.tableNumber} dimuat untuk editing`,
-    });
+    setCustomerName(bill.customerName);
+    setTableNumber(bill.tableNumber);
   };
 
   // Create open bill
@@ -1801,6 +1800,159 @@ export default function CashierSection() {
               </div>
               <p className="text-xs text-green-600 mt-1">Open bill otomatis dikirim ke dapur</p>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bill Dialog */}
+      <Dialog open={!!editingBill} onOpenChange={() => {
+        setEditingBill(null);
+        setCart([]);
+        setCustomerName("");
+        setTableNumber("");
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5" />
+              <span>Edit Open Bill</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {editingBill && (
+            <div className="space-y-4">
+              {/* Customer Info - Editable */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Nama Customer</Label>
+                  <Input
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Nama customer"
+                  />
+                </div>
+                <div>
+                  <Label>Nomor Meja</Label>
+                  <Input
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value)}
+                    placeholder="No. Meja"
+                  />
+                </div>
+              </div>
+              
+              {/* Current Items */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Items Saat Ini:</h4>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {cart.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <span className="font-medium">{item.name}</span>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(item.price)} × {item.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Add New Items */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Tambah Item Baru:</h4>
+                <div className="max-h-48 overflow-y-auto grid grid-cols-2 gap-2">
+                  {menuItems.filter(item => item.isAvailable).map((item) => (
+                    <Button
+                      key={item.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addToCart(item)}
+                      className="justify-start"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {item.name} - {formatCurrency(item.price)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Total */}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total:</span>
+                  <span className="text-primary">
+                    {formatCurrency(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setEditingBill(null);
+                setCart([]);
+                setCustomerName("");
+                setTableNumber("");
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingBill) {
+                  const orderData = {
+                    customerName: customerName.trim(),
+                    tableNumber: tableNumber.trim(),
+                    items: cart.map(item => ({
+                      itemId: item.id,
+                      name: item.name,
+                      price: item.price,
+                      quantity: item.quantity,
+                      notes: item.notes || ""
+                    })),
+                    mode: 'replace',
+                    billId: editingBill.id
+                  };
+                  createOpenBillMutation.mutate(orderData);
+                  setEditingBill(null);
+                  setCart([]);
+                  setCustomerName("");
+                  setTableNumber("");
+                }
+              }}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Simpan Perubahan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
