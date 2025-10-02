@@ -45,9 +45,11 @@ Preferred communication style: Simple, everyday language.
 
 ### Current Configuration (October 2, 2025)
 - **Database**: PostgreSQL provisioned and schema pushed successfully
-- **Workflow**: "Start application" running on port 5000
+- **Workflow**: "Start application" running on port 5000 with webview output
 - **Dev Server**: Express + Vite with HMR enabled, allowedHosts configured
 - **Seeded Data**: Admin and kasir accounts created (admin/admin123, kasir1/kasir123, etc.)
+- **Deployment**: Configured for autoscale with build and production scripts
+- **New Feature**: Dedicated Approval Management page at `/admin/approvals` (October 2, 2025)
 
 ### Running the Application
 1. **Development**: `npm run dev` - Starts Express server with Vite middleware on port 5000

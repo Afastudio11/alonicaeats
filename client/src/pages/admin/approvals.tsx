@@ -122,13 +122,16 @@ export default function ApprovalsSection() {
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(n => 
-        n.title.toLowerCase().includes(query) ||
-        n.message.toLowerCase().includes(query) ||
-        n.relatedData?.item?.name?.toLowerCase().includes(query) ||
-        n.relatedData?.reason?.toLowerCase().includes(query) ||
-        getUserById(n.requestedBy)?.username.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(n => {
+        const requestedByUsername = getUserById(n.requestedBy)?.username?.toLowerCase() || '';
+        return (
+          n.title.toLowerCase().includes(query) ||
+          n.message.toLowerCase().includes(query) ||
+          n.relatedData?.item?.name?.toLowerCase().includes(query) ||
+          n.relatedData?.reason?.toLowerCase().includes(query) ||
+          requestedByUsername.includes(query)
+        );
+      });
     }
 
     return filtered.sort((a, b) => 
