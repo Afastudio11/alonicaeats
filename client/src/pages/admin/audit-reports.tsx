@@ -15,7 +15,8 @@ import {
   Search,
   RefreshCw,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import type { Shift, User as AppUser, Expense, CashMovement, AuditLog } from "@shared/schema";
@@ -35,7 +37,22 @@ interface ShiftAuditData {
   auditLogs: AuditLog[];
 }
 
+interface DeletionLog {
+  id: string;
+  orderId: string;
+  itemName: string;
+  itemQuantity: number;
+  itemPrice: number;
+  requestedBy: string;
+  authorizedBy: string;
+  requestTime: string;
+  approvalTime: string;
+  reason: string | null;
+  createdAt: string;
+}
+
 export default function AuditReportsSection() {
+  const [activeTab, setActiveTab] = useState("shifts");
   const [dateFilter, setDateFilter] = useState("7"); // Last 7 days
   const [cashierFilter, setCashierFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,7 +80,11 @@ export default function AuditReportsSection() {
     queryKey: ["/api/audit-logs"],
   });
 
-  const isLoading = shiftsLoading || usersLoading || expensesLoading || cashMovementsLoading || auditLogsLoading;
+  const { data: deletionLogs = [], isLoading: deletionLogsLoading } = useQuery<DeletionLog[]>({
+    queryKey: ["/api/deletion-logs"],
+  });
+
+  const isLoading = shiftsLoading || usersLoading || expensesLoading || cashMovementsLoading || auditLogsLoading || deletionLogsLoading;
 
   // Filter and process data
   const processedData = useMemo(() => {

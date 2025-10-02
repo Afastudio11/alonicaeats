@@ -14,6 +14,7 @@ import UsersSection from "./users";
 import DiscountsSection from "./discounts";
 import PrintSettingsSection from "./print-settings";
 import AuditReportsSection from "./audit-reports";
+import DeletionLogsSection from "./deletion-logs";
 import PrinterPage from "../printer";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -93,6 +94,8 @@ export default function AdminDashboard() {
         return <AnalyticsSection />;
       case 'audit-reports':
         return <AuditReportsSection />;
+      case 'deletion-logs':
+        return <DeletionLogsSection />;
       case 'print-settings':
         return <PrintSettingsSection />;
       case 'printer':

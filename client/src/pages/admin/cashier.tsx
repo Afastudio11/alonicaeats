@@ -68,6 +68,12 @@ export default function CashierSection() {
   const [deletionReason, setDeletionReason] = useState("");
   const [pendingDeletion, setPendingDeletion] = useState<{billId: string, itemIndex: number} | null>(null);
   
+  // Edit Open Bill deletion verification state
+  const [showDeletionVerification, setShowDeletionVerification] = useState(false);
+  const [securityMethod, setSecurityMethod] = useState<'approval' | 'pin'>('approval');
+  const [adminPin, setAdminPin] = useState("");
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<{itemId: string, itemName: string} | null>(null);
+  
   // Split bill state
   const [showSplitBill, setShowSplitBill] = useState(false);
   const [splitParts, setSplitParts] = useState<{id: number, items: CartItem[], customerName: string, paid?: boolean}[]>([]);
@@ -247,11 +253,139 @@ export default function CashierSection() {
   const handleSubmitDeletionRequest = () => {
     if (!pendingDeletion) return;
 
+    // Validate reason is provided
+    if (!deletionReason.trim()) {
+      toast({
+        title: "Alasan diperlukan",
+        description: "Mohon berikan alasan penghapusan item",
+        variant: "destructive",
+      });
+      return;
+    }
+
     requestDeletionMutation.mutate({
       orderId: pendingDeletion.billId,
       itemIndex: pendingDeletion.itemIndex,
-      reason: deletionReason.trim() || "Tidak ada alasan"
+      reason: deletionReason.trim()
     });
+  };
+
+  // PIN verification and deletion mutation (with audit logging)
+  const deleteWithPinMutation = useMutation({
+    mutationFn: async ({ pin, orderId, itemIndex, reason }: { pin: string, orderId: string, itemIndex: number, reason: string }) => {
+      const response = await apiRequest('POST', '/api/orders/delete-with-pin', { 
+        pin, 
+        orderId, 
+        itemIndex, 
+        reason 
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (pendingDeleteItem && editingBill) {
+        // Update the cart with the new items from backend
+        const updatedItems = data.updatedOrder.items.map((item: any) => ({
+          id: item.itemId || item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          notes: item.notes || ""
+        }));
+        setCart(updatedItems);
+        
+        toast({
+          title: "Item dihapus",
+          description: `${pendingDeleteItem.itemName} telah dihapus dan tercatat dalam audit log`,
+        });
+        
+        // Invalidate queries
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/deletion-logs'] });
+      }
+      setShowDeletionVerification(false);
+      setPendingDeleteItem(null);
+      setAdminPin("");
+      setDeletionReason("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Gagal menghapus item",
+        description: error.message || "PIN admin salah atau terjadi kesalahan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle deletion with verification in Edit Open Bill dialog
+  const handleDeleteWithVerification = (itemId: string, itemName: string) => {
+    if (!editingBill) {
+      // Not in edit mode, delete normally
+      removeFromCart(itemId);
+      return;
+    }
+    
+    // In edit mode, show verification dialog
+    setPendingDeleteItem({ itemId, itemName });
+    setShowDeletionVerification(true);
+    setSecurityMethod('approval');
+    setAdminPin("");
+    setDeletionReason("");
+  };
+
+  // Process deletion based on security method
+  const processDeletionVerification = () => {
+    if (!pendingDeleteItem || !editingBill) return;
+
+    // Require reason for all deletions
+    if (!deletionReason.trim()) {
+      toast({
+        title: "Alasan diperlukan",
+        description: "Mohon berikan alasan penghapusan item",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const itemIndex = cart.findIndex(item => item.id === pendingDeleteItem.itemId);
+    if (itemIndex === -1) {
+      toast({
+        title: "Item tidak ditemukan",
+        description: "Item yang akan dihapus tidak ditemukan dalam cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (securityMethod === 'pin') {
+      // Verify PIN and delete with audit logging
+      if (!adminPin.trim()) {
+        toast({
+          title: "PIN diperlukan",
+          description: "Masukkan PIN admin untuk melanjutkan",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      deleteWithPinMutation.mutate({
+        pin: adminPin,
+        orderId: editingBill.id,
+        itemIndex,
+        reason: deletionReason.trim()
+      });
+    } else {
+      // Send approval request to admin
+      requestDeletionMutation.mutate({
+        orderId: editingBill.id,
+        itemIndex,
+        reason: deletionReason.trim()
+      });
+      
+      setShowDeletionVerification(false);
+      setPendingDeleteItem(null);
+      setDeletionReason("");
+    }
   };
 
   // Cart functions
@@ -1926,8 +2060,9 @@ export default function CashierSection() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => handleDeleteWithVerification(item.id, item.name)}
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          data-testid={`button-delete-${item.id}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -2235,7 +2370,7 @@ export default function CashierSection() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="deletionReason">Alasan Penghapusan (Opsional)</Label>
+              <Label htmlFor="deletionReason">Alasan Penghapusan <span className="text-destructive">*</span></Label>
               <Input
                 id="deletionReason"
                 type="text"
@@ -2273,6 +2408,163 @@ export default function CashierSection() {
               data-testid="button-submit-deletion-request"
             >
               {requestDeletionMutation.isPending ? "Mengirim..." : "Kirim Permintaan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Open Bill Deletion Verification Dialog */}
+      <Dialog open={showDeletionVerification} onOpenChange={setShowDeletionVerification}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              <span>Verifikasi Penghapusan Item</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>Perhatian:</strong> Anda akan menghapus <strong>{pendingDeleteItem?.itemName}</strong> dari Open Bill.
+                Pilih metode keamanan untuk melanjutkan.
+              </p>
+            </div>
+
+            {/* Security Method Selection */}
+            <div className="space-y-3">
+              <Label>Pilih Metode Keamanan</Label>
+              <div className="space-y-2">
+                <div 
+                  className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    securityMethod === 'approval' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSecurityMethod('approval')}
+                  data-testid="option-approval"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                      securityMethod === 'approval' ? 'border-primary' : 'border-gray-300'
+                    }`}>
+                      {securityMethod === 'approval' && (
+                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">Notifikasi Real-Time ke Admin</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Kirim permintaan ke admin untuk approve/reject
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    securityMethod === 'pin' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSecurityMethod('pin')}
+                  data-testid="option-pin"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                      securityMethod === 'pin' ? 'border-primary' : 'border-gray-300'
+                    }`}>
+                      {securityMethod === 'pin' && (
+                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">Kode Unik Admin (PIN)</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Masukkan PIN rahasia yang hanya diketahui Admin/Manager
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Conditional Input Fields */}
+            {securityMethod === 'pin' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="adminPin">PIN Admin <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="adminPin"
+                    type="password"
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value)}
+                    placeholder="Masukkan PIN admin"
+                    disabled={deleteWithPinMutation.isPending}
+                    data-testid="input-admin-pin"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !deleteWithPinMutation.isPending) {
+                        processDeletionVerification();
+                      }
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deletionReasonPin">Alasan Penghapusan <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="deletionReasonPin"
+                    type="text"
+                    value={deletionReason}
+                    onChange={(e) => setDeletionReason(e.target.value)}
+                    placeholder="Contoh: Customer berubah pikiran"
+                    disabled={deleteWithPinMutation.isPending}
+                    data-testid="input-deletion-reason-pin"
+                  />
+                </div>
+              </>
+            )}
+
+            {securityMethod === 'approval' && (
+              <div className="space-y-2">
+                <Label htmlFor="deletionReasonEdit">Alasan Penghapusan <span className="text-destructive">*</span></Label>
+                <Input
+                  id="deletionReasonEdit"
+                  type="text"
+                  value={deletionReason}
+                  onChange={(e) => setDeletionReason(e.target.value)}
+                  placeholder="Contoh: Customer berubah pikiran"
+                  disabled={requestDeletionMutation.isPending}
+                  data-testid="input-deletion-reason-edit"
+                />
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowDeletionVerification(false);
+                setPendingDeleteItem(null);
+                setAdminPin("");
+                setDeletionReason("");
+              }}
+              disabled={deleteWithPinMutation.isPending || requestDeletionMutation.isPending}
+              data-testid="button-cancel-verification"
+            >
+              Batal
+            </Button>
+            <Button 
+              onClick={processDeletionVerification}
+              disabled={deleteWithPinMutation.isPending || requestDeletionMutation.isPending}
+              className="bg-primary hover:bg-primary/90"
+              data-testid="button-confirm-deletion"
+            >
+              {deleteWithPinMutation.isPending || requestDeletionMutation.isPending 
+                ? "Memproses..." 
+                : securityMethod === 'pin' 
+                  ? "Verifikasi & Hapus" 
+                  : "Kirim Permintaan"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -404,6 +404,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin PIN verification and deletion endpoint (with audit logging)
+  app.post("/api/orders/delete-with-pin", authLimiter, requireAuth, async (req, res) => {
+    try {
+      const { pin, orderId, itemIndex, reason } = req.body;
+      
+      // Validate inputs
+      if (!pin || !orderId || itemIndex === undefined) {
+        return res.status(400).json({ message: "PIN, order ID, dan item index diperlukan" });
+      }
+      
+      // Validate reason is provided and not empty
+      if (!reason || !reason.trim()) {
+        return res.status(400).json({ message: "Alasan penghapusan wajib diisi" });
+      }
+      
+      const user = (req as any).user;
+      
+      // Get admin user - PIN is the admin password
+      const admin = await storage.getUserByUsername("admin");
+      
+      if (!admin) {
+        return res.status(404).json({ message: "Admin user tidak ditemukan" });
+      }
+      
+      // Verify PIN against admin password
+      let isValidPin = false;
+      
+      if (admin.password.match(/^\$2[aby]\$/)) {
+        isValidPin = await verifyPassword(pin, admin.password);
+      } else {
+        isValidPin = (admin.password === pin);
+      }
+      
+      if (!isValidPin) {
+        return res.status(401).json({ message: "PIN salah" });
+      }
+      
+      if (!admin.isActive) {
+        return res.status(403).json({ message: "Akun admin nonaktif" });
+      }
+      
+      // Get the order
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order tidak ditemukan" });
+      }
+      
+      // Verify it's an open bill
+      if (!order.payLater || order.paymentStatus === 'paid') {
+        return res.status(400).json({ message: "Hanya bisa menghapus item dari open bill yang belum dibayar" });
+      }
+      
+      // Get the item to be deleted
+      const items = Array.isArray(order.items) ? order.items : [];
+      if (itemIndex < 0 || itemIndex >= items.length) {
+        return res.status(400).json({ message: "Index item tidak valid" });
+      }
+      
+      const itemToDelete = items[itemIndex];
+      
+      // Create deletion log BEFORE deleting
+      await storage.createDeletionLog({
+        orderId,
+        itemName: itemToDelete.name,
+        itemQuantity: itemToDelete.quantity,
+        itemPrice: itemToDelete.price,
+        requestedBy: user.id,
+        authorizedBy: admin.id,
+        requestTime: new Date(),
+        approvalTime: new Date(),
+        reason: reason || 'Penghapusan dengan PIN Admin'
+      });
+      
+      // Remove item from order
+      const updatedItems = items.filter((_: any, index: number) => index !== itemIndex);
+      
+      // Recalculate total
+      const newSubtotal = updatedItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      
+      // Update order using replaceOpenBillItems
+      const updatedOrder = await storage.replaceOpenBillItems(orderId, updatedItems, newSubtotal);
+      
+      if (!updatedOrder) {
+        return res.status(500).json({ message: "Gagal mengupdate order" });
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        action: 'item_deleted_pin',
+        performedBy: admin.id,
+        targetId: orderId,
+        targetType: 'order',
+        details: {
+          item: itemToDelete,
+          requestedBy: user.id,
+          method: 'pin',
+          reason: reason || 'Penghapusan dengan PIN Admin'
+        },
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent') || ''
+      });
+      
+      res.json({ 
+        success: true, 
+        message: "Item berhasil dihapus dan tercatat dalam audit log",
+        updatedOrder
+      });
+    } catch (error) {
+      console.error('PIN deletion error:', error);
+      handleApiError(res, error, "Failed to delete item with PIN");
+    }
+  });
+
   // Initialize default users for memory storage (development only)
   app.post("/api/auth/init-default-users", authLimiter, async (req, res) => {
     // Security: Only allow in development environment AND localhost
@@ -2901,7 +3014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestSchema = z.object({
         orderId: z.string().min(1),
         itemIndex: z.number().int().min(0),
-        reason: z.string().optional()
+        reason: z.string().min(1, "Alasan penghapusan wajib diisi")
       });
 
       const validationResult = requestSchema.safeParse(req.body);

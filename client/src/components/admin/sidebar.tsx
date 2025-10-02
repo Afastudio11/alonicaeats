@@ -26,7 +26,8 @@ import {
   TrendingUp,
   Package2,
   Building2,
-  Cog
+  Cog,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -73,6 +74,7 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
     label: "REPORTS",
     items: [
       { key: 'audit-reports', label: 'Credit Balance Report', icon: Building2, path: '/admin/audit-reports' },
+      { key: 'deletion-logs', label: 'Log Penghapusan', icon: Trash2, path: '/admin/deletion-logs' },
       { key: 'analytics', label: 'Laporan Penjualan', icon: TrendingUp, path: '/admin/analytics' },
       { key: 'inventory', label: 'Items Report', icon: Package2, path: '/admin/inventory' },
     ]
