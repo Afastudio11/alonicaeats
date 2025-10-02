@@ -83,6 +83,13 @@ This project was imported from GitHub and successfully configured for Replit:
 - **TailwindCSS**: Utility-first CSS framework
 - **Lucide React**: Icon library
 - **Google Fonts**: Playfair Display, Inter
+- **Reservation Page**: Redesigned with appointment calendar layout
+  - Mini calendar sidebar for date selection
+  - Upcoming reservations list (max 10 upcoming)
+  - Calendar/Log view toggle
+  - English filter buttons (Daily, Weekly, Monthly)
+  - Clickable reservations open detail popup
+  - Visual progress tracker (3 stages: Pending → Confirmed → Completed/Cancelled)
 
 ### Data Management
 - **TanStack Query**: Server state management
