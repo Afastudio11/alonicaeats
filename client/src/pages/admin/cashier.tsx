@@ -1059,6 +1059,7 @@ export default function CashierSection() {
               </div>
             )}
           </CardContent>
+        )}
         </Card>
 
         {/* Customer Information - Modern Clean Design */}
