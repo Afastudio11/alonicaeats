@@ -496,31 +496,40 @@ export default function DiscountsSection() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Kategori yang Mendapat Discount</FormLabel>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto border rounded-lg p-3">
-                            {categories.map((category) => (
-                              <div key={category.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`category-${category.id}`}
-                                  checked={field.value?.includes(category.id) || false}
-                                  onCheckedChange={(checked) => {
-                                    const currentValues = field.value || [];
-                                    if (checked) {
-                                      field.onChange([...currentValues, category.id]);
-                                    } else {
-                                      field.onChange(currentValues.filter(id => id !== category.id));
-                                    }
-                                  }}
-                                  data-testid={`checkbox-category-${category.id}`}
-                                />
-                                <Label
-                                  htmlFor={`category-${category.id}`}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                  {category.name}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
+                          {categories.length === 0 ? (
+                            <div className="border rounded-lg p-6 text-center bg-muted/50">
+                              <Tag className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">
+                                Belum ada kategori. Silakan buat kategori terlebih dahulu di menu Kategori.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto border rounded-lg p-3">
+                              {categories.map((category) => (
+                                <div key={category.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`category-${category.id}`}
+                                    checked={field.value?.includes(category.id) || false}
+                                    onCheckedChange={(checked) => {
+                                      const currentValues = field.value || [];
+                                      if (checked) {
+                                        field.onChange([...currentValues, category.id]);
+                                      } else {
+                                        field.onChange(currentValues.filter(id => id !== category.id));
+                                      }
+                                    }}
+                                    data-testid={`checkbox-category-${category.id}`}
+                                  />
+                                  <Label
+                                    htmlFor={`category-${category.id}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {category.name}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {field.value && field.value.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {field.value.map(categoryId => {
@@ -542,54 +551,84 @@ export default function DiscountsSection() {
                     <FormField
                       control={form.control}
                       name="menuItemIds"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Item Menu yang Mendapat Discount</FormLabel>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto border rounded-lg p-3">
-                            {menuItems.map((item) => (
-                              <div key={item.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`item-${item.id}`}
-                                  checked={field.value?.includes(item.id) || false}
-                                  onCheckedChange={(checked) => {
-                                    const currentValues = field.value || [];
-                                    if (checked) {
-                                      field.onChange([...currentValues, item.id]);
-                                    } else {
-                                      field.onChange(currentValues.filter(id => id !== item.id));
-                                    }
-                                  }}
-                                  data-testid={`checkbox-item-${item.id}`}
-                                />
-                                <Label
-                                  htmlFor={`item-${item.id}`}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                  {item.name}
-                                </Label>
+                      render={({ field }) => {
+                        const selectedCategories = form.watch("categoryIds") || [];
+                        const filteredMenuItems = selectedCategories.length > 0
+                          ? menuItems.filter(item => selectedCategories.includes(item.categoryId))
+                          : menuItems;
+
+                        return (
+                          <FormItem>
+                            <FormLabel>Item Menu yang Mendapat Discount</FormLabel>
+                            {menuItems.length === 0 ? (
+                              <div className="border rounded-lg p-6 text-center bg-muted/50">
+                                <Tag className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                                <p className="text-sm text-muted-foreground">
+                                  Belum ada item menu. Silakan buat item menu terlebih dahulu di menu Menu Items.
+                                </p>
                               </div>
-                            ))}
-                          </div>
-                          {field.value && field.value.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {field.value.map(itemId => {
-                                const item = menuItems.find(i => i.id === itemId);
-                                return item ? (
-                                  <Badge key={itemId} variant="secondary" className="text-xs">
-                                    {item.name}
-                                  </Badge>
-                                ) : null;
-                              })}
-                            </div>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                            ) : filteredMenuItems.length === 0 && selectedCategories.length > 0 ? (
+                              <div className="border rounded-lg p-6 text-center bg-blue-50 dark:bg-blue-900/20">
+                                <Tag className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                                <p className="text-sm text-muted-foreground">
+                                  Tidak ada item menu di kategori yang dipilih. Anda bisa tetap menyimpan untuk menerapkan discount ke seluruh kategori.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto border rounded-lg p-3">
+                                {filteredMenuItems.map((item) => (
+                                  <div key={item.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`item-${item.id}`}
+                                      checked={field.value?.includes(item.id) || false}
+                                      onCheckedChange={(checked) => {
+                                        const currentValues = field.value || [];
+                                        if (checked) {
+                                          field.onChange([...currentValues, item.id]);
+                                        } else {
+                                          field.onChange(currentValues.filter(id => id !== item.id));
+                                        }
+                                      }}
+                                      data-testid={`checkbox-item-${item.id}`}
+                                    />
+                                    <Label
+                                      htmlFor={`item-${item.id}`}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      {item.name}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {field.value && field.value.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {field.value.map(itemId => {
+                                  const item = menuItems.find(i => i.id === itemId);
+                                  return item ? (
+                                    <Badge key={itemId} variant="secondary" className="text-xs">
+                                      {item.name}
+                                    </Badge>
+                                  ) : null;
+                                })}
+                              </div>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
 
                     <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                      <strong>Catatan:</strong> Discount akan berlaku untuk kategori DAN item menu yang dipilih. 
-                      Jika tidak ada yang dipilih, discount tidak akan berfungsi.
+                      <strong>Catatan:</strong> Discount akan berlaku untuk:
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Kategori yang dipilih (semua item di kategori tersebut)</li>
+                        <li>Item menu spesifik yang dipilih</li>
+                        <li>Atau keduanya</li>
+                      </ul>
+                      <p className="mt-2">
+                        <strong className="text-destructive">Penting:</strong> Minimal pilih 1 kategori atau 1 item menu agar discount berfungsi.
+                      </p>
                     </div>
                   </div>
                 )}
