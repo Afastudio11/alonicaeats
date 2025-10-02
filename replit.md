@@ -69,32 +69,47 @@ Preferred communication style: Simple, everyday language.
 ## Replit Environment Setup
 
 ### Database Configuration
-- **Database**: PostgreSQL (Neon) provisioned in Replit
-- **Schema Management**: Drizzle ORM with migrations
+- **Database**: PostgreSQL provisioned in Replit (October 2, 2025)
+- **Schema Management**: Drizzle ORM with push-based migrations
 - **Initial Setup**: Users seeded with admin and kasir accounts
   - Admin: username `admin`, password `admin123`
-  - Kasir accounts: `kasir1`-`kasir4` with respective passwords
+  - Kasir accounts: `kasir1` (kasir123), `kasir2` (kasir456), `kasir3` (kasir789), `kasir4` (kasir000)
+- **Commands**:
+  - `npm run db:push`: Push schema changes to database
+  - `npm run seed:users`: Seed initial user accounts
 
 ### Development Workflow
 - **Command**: `npm run dev`
 - **Port**: 5000 (configured for Replit)
 - **Host**: 0.0.0.0 (required for Replit proxy)
-- **Vite Config**: `allowedHosts: true` enabled for Replit iframe proxy
+- **Vite Config**: `allowedHosts: true` enabled in server/vite.ts for Replit iframe proxy
+- **Workflow**: Configured with webview output type for frontend preview
 
 ### Deployment Configuration
 - **Target**: Autoscale (stateless web application)
-- **Build**: `npm run build` (Vite + esbuild)
+- **Build**: `npm run build` (Vite frontend + esbuild backend)
 - **Start**: `npm run start` (production server on port 5000)
 - **Database**: Automatic schema push on deployment via `deploy:setup` script
+- **Pre-deployment**: Ensure database is seeded with `npm run seed:users`
 
 ### Key Files
-- `server/index.ts`: Express server with Vite middleware in development
-- `server/vite.ts`: Vite configuration with `allowedHosts: true` for Replit
+- `server/index.ts`: Express server with Vite middleware in development, serves on 0.0.0.0:5000
+- `server/vite.ts`: Vite configuration with `allowedHosts: true` for Replit proxy
 - `server/db.ts`: PostgreSQL connection pool with SSL auto-detection
-- `shared/schema.ts`: Drizzle schema definitions
+- `server/storage.ts`: Database storage interface using Drizzle ORM
+- `shared/schema.ts`: Drizzle schema definitions with all tables
 - `scripts/seed-users.ts`: Initial user seeding script
 
 ### Environment Variables
 - `DATABASE_URL`: PostgreSQL connection string (auto-configured by Replit)
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`: Database credentials
 - `NODE_ENV`: development/production
 - `PORT`: Server port (defaults to 5000)
+
+### Recent Changes (October 2, 2025)
+- ✅ PostgreSQL database provisioned and configured
+- ✅ Database schema pushed successfully (all tables created)
+- ✅ Initial users seeded (1 admin + 4 cashiers)
+- ✅ Workflow configured with webview output on port 5000
+- ✅ Application tested and running correctly
+- ✅ Deployment configuration verified (autoscale target)
