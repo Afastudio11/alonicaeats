@@ -106,6 +106,39 @@ Preferred communication style: Simple, everyday language.
 - `NODE_ENV`: development/production
 - `PORT`: Server port (defaults to 5000)
 
+### Typography Standards (October 2, 2025)
+**Standardized Typography System**:
+- **Dashboard Pages** (Admin & Kasir):
+  - Main Page Titles (H1): `text-2xl font-bold` using Inter font
+  - Section Headings (H2): `text-xl font-semibold` using Inter font
+  - Card Titles (H3): `text-lg font-semibold` using Inter font
+  - Statistics/Numbers: `text-2xl font-bold` for emphasis
+  - Body Text: Default Inter font
+  
+- **Customer-Facing Pages** (Menu, Cart, Payment, Success):
+  - Brand Headers: `font-playfair` (Playfair Display) for "Alonica" branding
+  - Page Titles: `font-playfair` for elegant customer experience
+  - Body Text: Inter font for readability
+  
+- **Receipts & Print Elements**:
+  - Restaurant Name: `font-playfair` for brand consistency
+  - Receipt Content: Default Inter font
+
+**Implementation Notes**:
+- All admin dashboard page titles standardized to remove `font-playfair`, use `text-2xl font-bold`
+- All kasir dashboard page titles follow same standard
+- Customer-facing pages retain Playfair Display for brand identity
+- Inter font used throughout dashboards for clean, professional appearance
+
+**Files Standardized** (October 2, 2025):
+- `client/src/pages/admin/discounts.tsx`: Removed `font-playfair`, applied `text-2xl font-bold`
+- `client/src/pages/admin/print-settings.tsx`: Removed `font-playfair`, applied `text-2xl font-bold`
+- `client/src/pages/admin/reservations.tsx`: Changed from `text-xl font-semibold` to `text-2xl font-bold`
+- `client/src/pages/admin/orders.tsx`: Changed from `font-semibold` to `font-bold`
+- `client/src/pages/admin/users.tsx`: Removed `font-playfair`, applied `text-2xl font-bold`
+- `client/src/pages/kasir/expenses.tsx`: Removed `font-playfair`, applied `text-2xl font-bold`
+- `client/src/pages/kasir/daily-reports.tsx`: Removed `font-playfair`, applied `text-2xl font-bold`
+
 ### Recent Changes (October 2, 2025)
 - ✅ **Fresh GitHub Clone Setup (October 2, 2025)**:
   - Successfully set up fresh GitHub clone in Replit environment
