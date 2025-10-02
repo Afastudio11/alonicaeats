@@ -420,29 +420,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = (req as any).user;
+      let adminUser;
+      let authMethod = 'password';
+      let generatedPin;
       
-      // Get admin user - PIN is the admin password
-      const admin = await storage.getUserByUsername("admin");
+      // First, try to find a generated PIN
+      const foundPin = await storage.getDeletionPinByPin(pin);
       
-      if (!admin) {
-        return res.status(404).json({ message: "Admin user tidak ditemukan" });
-      }
-      
-      // Verify PIN against admin password
-      let isValidPin = false;
-      
-      if (admin.password.match(/^\$2[aby]\$/)) {
-        isValidPin = await verifyPassword(pin, admin.password);
+      if (foundPin) {
+        // Validate generated PIN
+        if (!foundPin.isActive) {
+          return res.status(401).json({ message: "PIN sudah tidak aktif" });
+        }
+        
+        if (foundPin.expiresAt && new Date(foundPin.expiresAt) < new Date()) {
+          return res.status(401).json({ message: "PIN sudah kadaluarsa" });
+        }
+        
+        if (foundPin.maxUses && foundPin.usageCount >= foundPin.maxUses) {
+          return res.status(401).json({ message: "PIN telah mencapai batas penggunaan" });
+        }
+        
+        // Get the admin who generated this PIN
+        adminUser = await storage.getUser(foundPin.generatedBy);
+        authMethod = 'generated_pin';
+        generatedPin = foundPin;
       } else {
-        isValidPin = (admin.password === pin);
+        // Fallback to admin password verification
+        const admin = await storage.getUserByUsername("admin");
+        
+        if (!admin) {
+          return res.status(404).json({ message: "Admin user tidak ditemukan" });
+        }
+        
+        // Verify PIN against admin password
+        let isValidPin = false;
+        
+        if (admin.password.match(/^\$2[aby]\$/)) {
+          isValidPin = await verifyPassword(pin, admin.password);
+        } else {
+          isValidPin = (admin.password === pin);
+        }
+        
+        if (!isValidPin) {
+          return res.status(401).json({ message: "PIN salah" });
+        }
+        
+        if (!admin.isActive) {
+          return res.status(403).json({ message: "Akun admin nonaktif" });
+        }
+        
+        adminUser = admin;
       }
       
-      if (!isValidPin) {
-        return res.status(401).json({ message: "PIN salah" });
-      }
-      
-      if (!admin.isActive) {
-        return res.status(403).json({ message: "Akun admin nonaktif" });
+      if (!adminUser) {
+        return res.status(404).json({ message: "Admin user tidak ditemukan" });
       }
       
       // Get the order
@@ -464,6 +496,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const itemToDelete = items[itemIndex];
       
+      // Increment PIN usage if using generated PIN
+      if (generatedPin) {
+        await storage.incrementPinUsage(generatedPin.id);
+      }
+      
       // Create deletion log BEFORE deleting
       await storage.createDeletionLog({
         orderId,
@@ -471,10 +508,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         itemQuantity: itemToDelete.quantity,
         itemPrice: itemToDelete.price,
         requestedBy: user.id,
-        authorizedBy: admin.id,
+        authorizedBy: adminUser.id,
         requestTime: new Date(),
         approvalTime: new Date(),
-        reason: reason || 'Penghapusan dengan PIN Admin'
+        reason: reason || (authMethod === 'generated_pin' ? 'Penghapusan dengan PIN tergenerasi' : 'Penghapusan dengan PIN Admin')
       });
       
       // Remove item from order
@@ -493,14 +530,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create audit log
       await storage.createAuditLog({
         action: 'item_deleted_pin',
-        performedBy: admin.id,
+        performedBy: adminUser.id,
         targetId: orderId,
         targetType: 'order',
         details: {
           item: itemToDelete,
           requestedBy: user.id,
-          method: 'pin',
-          reason: reason || 'Penghapusan dengan PIN Admin'
+          method: authMethod,
+          pinId: generatedPin?.id,
+          reason: reason || (authMethod === 'generated_pin' ? 'Penghapusan dengan PIN tergenerasi' : 'Penghapusan dengan PIN Admin')
         },
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent') || ''
@@ -514,6 +552,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('PIN deletion error:', error);
       handleApiError(res, error, "Failed to delete item with PIN");
+    }
+  });
+
+  // Deletion PIN Management Routes
+  
+  // Create a new deletion PIN
+  app.post("/api/deletion-pins", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Only admin can generate PINs
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admin can generate deletion PINs" });
+      }
+      
+      const { expiresAt, maxUses, description } = req.body;
+      
+      // Generate a 6-digit PIN
+      const pin = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const newPin = await storage.createDeletionPin({
+        pin,
+        generatedBy: user.id,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        maxUses: maxUses || null,
+        usageCount: 0,
+        isActive: true,
+        description: description || null
+      });
+      
+      res.json(newPin);
+    } catch (error) {
+      console.error('Create deletion PIN error:', error);
+      handleApiError(res, error, "Failed to create deletion PIN");
+    }
+  });
+  
+  // Get all deletion PINs
+  app.get("/api/deletion-pins", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Only admin can view PINs
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admin can view deletion PINs" });
+      }
+      
+      const pins = await storage.getDeletionPins();
+      res.json(pins);
+    } catch (error) {
+      console.error('Get deletion PINs error:', error);
+      handleApiError(res, error, "Failed to get deletion PINs");
+    }
+  });
+  
+  // Get active deletion PINs
+  app.get("/api/deletion-pins/active", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Only admin can view PINs
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admin can view deletion PINs" });
+      }
+      
+      const pins = await storage.getActiveDeletionPins();
+      res.json(pins);
+    } catch (error) {
+      console.error('Get active deletion PINs error:', error);
+      handleApiError(res, error, "Failed to get active deletion PINs");
+    }
+  });
+  
+  // Deactivate a deletion PIN
+  app.put("/api/deletion-pins/:id/deactivate", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      // Only admin can deactivate PINs
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admin can deactivate deletion PINs" });
+      }
+      
+      const { id } = req.params;
+      const updatedPin = await storage.deactivateDeletionPin(id);
+      
+      if (!updatedPin) {
+        return res.status(404).json({ message: "PIN not found" });
+      }
+      
+      res.json(updatedPin);
+    } catch (error) {
+      console.error('Deactivate deletion PIN error:', error);
+      handleApiError(res, error, "Failed to deactivate deletion PIN");
     }
   });
 

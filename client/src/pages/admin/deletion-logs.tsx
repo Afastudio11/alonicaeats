@@ -1,13 +1,23 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Trash2, Search, RefreshCw, User, FileText, Calendar, Shield } from "lucide-react";
+import { Trash2, Search, RefreshCw, User, FileText, Calendar, Shield, Key, Plus, X, Clock, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import type { User as AppUser } from "@shared/schema";
 
 interface DeletionLog {
@@ -24,8 +34,24 @@ interface DeletionLog {
   createdAt: string;
 }
 
+interface DeletionPin {
+  id: string;
+  pin: string;
+  generatedBy: string;
+  expiresAt: string | null;
+  maxUses: number | null;
+  usageCount: number;
+  isActive: boolean;
+  description: string | null;
+  createdAt: string;
+}
+
 export default function DeletionLogsSection() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [newPinExpiry, setNewPinExpiry] = useState("");
+  const [newPinMaxUses, setNewPinMaxUses] = useState("");
+  const [newPinDescription, setNewPinDescription] = useState("");
   const { toast } = useToast();
 
   // Fetch deletion logs
@@ -33,12 +59,87 @@ export default function DeletionLogsSection() {
     queryKey: ["/api/deletion-logs"],
   });
 
+  // Fetch deletion PINs
+  const { data: deletionPins = [], isLoading: pinsLoading, refetch: refetchPins } = useQuery<DeletionPin[]>({
+    queryKey: ["/api/deletion-pins"],
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
   // Fetch users for lookup
   const { data: users = [], isLoading: usersLoading } = useQuery<AppUser[]>({
     queryKey: ["/api/users"],
   });
 
-  const isLoading = logsLoading || usersLoading;
+  const isLoading = logsLoading || usersLoading || pinsLoading;
+
+  // Create PIN mutation
+  const createPinMutation = useMutation({
+    mutationFn: async (data: { expiresAt?: string; maxUses?: number; description?: string }) => {
+      return await apiRequest("/api/deletion-pins", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deletion-pins"] });
+      setPinDialogOpen(false);
+      setNewPinExpiry("");
+      setNewPinMaxUses("");
+      setNewPinDescription("");
+      toast({
+        title: "PIN Berhasil Dibuat",
+        description: "PIN baru telah digenerate dan siap digunakan",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal Membuat PIN",
+        description: error.message || "Terjadi kesalahan saat membuat PIN",
+      });
+    },
+  });
+
+  // Deactivate PIN mutation
+  const deactivatePinMutation = useMutation({
+    mutationFn: async (pinId: string) => {
+      return await apiRequest(`/api/deletion-pins/${pinId}/deactivate`, {
+        method: "PUT",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deletion-pins"] });
+      toast({
+        title: "PIN Dinonaktifkan",
+        description: "PIN telah dinonaktifkan dan tidak dapat digunakan lagi",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Gagal Menonaktifkan PIN",
+        description: error.message || "Terjadi kesalahan",
+      });
+    },
+  });
+
+  const handleCreatePin = () => {
+    const data: { expiresAt?: string; maxUses?: number; description?: string } = {};
+    
+    if (newPinExpiry) {
+      data.expiresAt = new Date(newPinExpiry).toISOString();
+    }
+    
+    if (newPinMaxUses && parseInt(newPinMaxUses) > 0) {
+      data.maxUses = parseInt(newPinMaxUses);
+    }
+    
+    if (newPinDescription.trim()) {
+      data.description = newPinDescription.trim();
+    }
+    
+    createPinMutation.mutate(data);
+  };
 
   // Get user by ID
   const getUserById = (userId: string) => {
@@ -138,6 +239,187 @@ export default function DeletionLogsSection() {
           </CardContent>
         </Card>
       </div>
+
+      {/* PIN Management Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Manajemen PIN Penghapusan
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Generate PIN sementara untuk kasir menghapus item tanpa password admin
+              </p>
+            </div>
+            <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2" data-testid="button-generate-pin">
+                  <Plus className="h-4 w-4" />
+                  Generate PIN
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Generate PIN Penghapusan Baru</DialogTitle>
+                  <DialogDescription>
+                    PIN akan digenerate secara otomatis. Atur opsi kedaluwarsa dan batasan penggunaan.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="pin-description">Deskripsi (Opsional)</Label>
+                    <Input
+                      id="pin-description"
+                      placeholder="Contoh: PIN untuk shift malam"
+                      value={newPinDescription}
+                      onChange={(e) => setNewPinDescription(e.target.value)}
+                      data-testid="input-pin-description"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pin-expiry">Tanggal Kadaluarsa (Opsional)</Label>
+                    <Input
+                      id="pin-expiry"
+                      type="datetime-local"
+                      value={newPinExpiry}
+                      onChange={(e) => setNewPinExpiry(e.target.value)}
+                      data-testid="input-pin-expiry"
+                    />
+                    <p className="text-xs text-muted-foreground">Kosongkan untuk PIN tanpa batas waktu</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pin-max-uses">Maksimal Penggunaan (Opsional)</Label>
+                    <Input
+                      id="pin-max-uses"
+                      type="number"
+                      min="1"
+                      placeholder="Contoh: 10"
+                      value={newPinMaxUses}
+                      onChange={(e) => setNewPinMaxUses(e.target.value)}
+                      data-testid="input-pin-max-uses"
+                    />
+                    <p className="text-xs text-muted-foreground">Kosongkan untuk penggunaan unlimited</p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPinDialogOpen(false)}
+                    data-testid="button-cancel-pin"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={handleCreatePin}
+                    disabled={createPinMutation.isPending}
+                    data-testid="button-create-pin"
+                  >
+                    {createPinMutation.isPending ? "Membuat..." : "Generate PIN"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {deletionPins.length === 0 ? (
+            <div className="text-center py-8">
+              <Key className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Belum ada PIN yang digenerate</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 border-y">
+                  <tr className="text-xs font-medium text-muted-foreground">
+                    <th className="text-left px-4 py-3">PIN</th>
+                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Dibuat</th>
+                    <th className="text-left px-4 py-3">Kadaluarsa</th>
+                    <th className="text-center px-4 py-3">Penggunaan</th>
+                    <th className="text-left px-4 py-3">Deskripsi</th>
+                    <th className="text-center px-4 py-3">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {deletionPins.map((pin) => {
+                    const isExpired = pin.expiresAt && new Date(pin.expiresAt) < new Date();
+                    const isMaxedOut = pin.maxUses && pin.usageCount >= pin.maxUses;
+                    const isValid = pin.isActive && !isExpired && !isMaxedOut;
+                    const generator = getUserById(pin.generatedBy);
+                    
+                    return (
+                      <tr key={pin.id} className="hover:bg-muted/30 transition-colors" data-testid={`pin-row-${pin.id}`}>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="font-mono text-lg font-bold px-3">
+                            {pin.pin}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          {isValid ? (
+                            <Badge className="bg-green-600">Aktif</Badge>
+                          ) : isExpired ? (
+                            <Badge variant="destructive">Kadaluarsa</Badge>
+                          ) : isMaxedOut ? (
+                            <Badge variant="destructive">Habis</Badge>
+                          ) : (
+                            <Badge variant="secondary">Nonaktif</Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm">{formatTime(pin.createdAt)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            oleh {generator?.username || 'Unknown'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {pin.expiresAt ? (
+                            <div className="flex items-center gap-1 text-sm">
+                              <Clock className="h-3 w-3" />
+                              {formatTime(pin.expiresAt)}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Tidak ada batas</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Hash className="h-3 w-3" />
+                            <span className="font-medium">{pin.usageCount}</span>
+                            {pin.maxUses && (
+                              <span className="text-muted-foreground">/ {pin.maxUses}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-muted-foreground italic">
+                            {pin.description || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {pin.isActive && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deactivatePinMutation.mutate(pin.id)}
+                              disabled={deactivatePinMutation.isPending}
+                              data-testid={`button-deactivate-${pin.id}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Search */}
       <Card>
