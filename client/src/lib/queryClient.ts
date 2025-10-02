@@ -56,7 +56,7 @@ export async function apiRequest(
 
   // Auto-inject auth header for admin routes if token exists
   const token = localStorage.getItem('alonica-token');
-  if (token && (url.includes('/api/categories') || url.includes('/api/menu') || url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/store-profile') || url.includes('/api/auth/logout') || url.includes('/api/objects') || url.includes('/api/reservations') || url.includes('/api/users') || url.includes('/api/daily-reports') || url.includes('/api/expenses') || url.includes('/api/discounts') || url.includes('/api/print-settings') || url.includes('/api/shifts') || url.includes('/api/cash-movements'))) {
+  if (token && (url.includes('/api/categories') || url.includes('/api/menu') || url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/store-profile') || url.includes('/api/auth/logout') || url.includes('/api/objects') || url.includes('/api/reservations') || url.includes('/api/users') || url.includes('/api/daily-reports') || url.includes('/api/expenses') || url.includes('/api/discounts') || url.includes('/api/print-settings') || url.includes('/api/shifts') || url.includes('/api/cash-movements') || url.includes('/api/notifications') || url.includes('/api/deletion-logs') || url.includes('/api/deletion-pins') || url.includes('/api/audit-logs'))) {
     headers.Authorization = `Bearer ${token}`;
   }
 
@@ -82,7 +82,7 @@ export const getQueryFn: <T>(options: {
 
     // Auto-inject auth header for admin routes if token exists
     const token = localStorage.getItem('alonica-token');
-    if (token && (url.includes('/api/categories') || url.includes('/api/menu') || url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/store-profile') || url.includes('/api/auth/logout') || url.includes('/api/objects') || url.includes('/api/reservations') || url.includes('/api/users') || url.includes('/api/daily-reports') || url.includes('/api/expenses') || url.includes('/api/discounts') || url.includes('/api/print-settings') || url.includes('/api/shifts') || url.includes('/api/cash-movements'))) {
+    if (token && (url.includes('/api/categories') || url.includes('/api/menu') || url.includes('/api/orders') || url.includes('/api/inventory') || url.includes('/api/store-profile') || url.includes('/api/auth/logout') || url.includes('/api/objects') || url.includes('/api/reservations') || url.includes('/api/users') || url.includes('/api/daily-reports') || url.includes('/api/expenses') || url.includes('/api/discounts') || url.includes('/api/print-settings') || url.includes('/api/shifts') || url.includes('/api/cash-movements') || url.includes('/api/notifications') || url.includes('/api/deletion-logs') || url.includes('/api/deletion-pins') || url.includes('/api/audit-logs'))) {
       headers.Authorization = `Bearer ${token}`;
     }
 
