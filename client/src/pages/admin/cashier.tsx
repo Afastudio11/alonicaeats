@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet, Smartphone } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1131,116 +1131,104 @@ export default function CashierSection() {
   return (
     <>
       <div className="space-y-4">
-        {/* Open Bills Section - Redesigned: Compact & Modern */}
-        <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-3">
+        {/* Open Bills Section - Clean Card Layout */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2 text-base">
-              <FileText className="h-5 w-5" />
-              <span>Open Bills</span>
-              <Badge variant="secondary" data-testid="open-bills-count">
-                {openBills.length}
-              </Badge>
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowOpenBills(!showOpenBills)}
-              data-testid="toggle-open-bills"
-              className="text-xs h-8"
-            >
-              {showOpenBills ? 'Sembunyikan' : 'Tampilkan'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-foreground">Open bill</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 rounded-full"
+                data-testid="toggle-open-bills"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <button className="text-sm text-primary hover:underline">
+                View All
+              </button>
+            </div>
           </div>
-        </CardHeader>
-        {showOpenBills && (
-          <CardContent className="p-0">
-            {openBills.length === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                {/* Modern Table Layout */}
-                <table className="w-full">
-                  <thead className="bg-muted/50 border-y">
-                    <tr className="text-xs font-medium text-muted-foreground">
-                      <th className="text-left px-4 py-2">Customer</th>
-                      <th className="text-center px-4 py-2">Meja</th>
-                      <th className="text-center px-4 py-2">Items</th>
-                      <th className="text-right px-4 py-2">Total</th>
-                      <th className="text-center px-4 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {openBills.map((bill) => (
-                      <tr key={bill.id} className="hover:bg-muted/30 transition-colors group">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-1 bg-yellow-500 rounded-full group-hover:bg-yellow-600 transition-colors"></div>
-                            <div>
-                              <p className="font-medium text-sm text-foreground">{bill.customerName}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(bill.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                              </p>
-                            </div>
+          
+          {openBills.length === 0 ? (
+            <div className="text-center py-8 bg-muted/30 rounded-lg">
+              <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {openBills.slice(0, 6).map((bill) => {
+                const statusColors = {
+                  pending: 'bg-green-100 text-green-700 border-green-200',
+                  preparing: 'bg-amber-100 text-amber-700 border-amber-200',
+                  ready: 'bg-green-100 text-green-700 border-green-200',
+                  served: 'bg-gray-100 text-gray-700 border-gray-200',
+                  cancelled: 'bg-red-100 text-red-700 border-red-200'
+                };
+                const status = bill.orderStatus || 'pending';
+                const statusText = status === 'pending' || status === 'ready' ? 'Ready to serve' : 
+                                  status === 'preparing' ? 'On Cooking' : 
+                                  status === 'cancelled' ? 'Cancelled' : 'Served';
+                
+                return (
+                  <Card key={bill.id} className="border hover:shadow-md transition-shadow cursor-pointer group" onClick={() => handlePayOpenBill(bill)}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-foreground">#{bill.id.slice(0, 8)}</span>
+                            <Badge className={`text-xs px-2 py-0.5 ${statusColors[status as keyof typeof statusColors] || statusColors.pending}`}>
+                              {statusText}
+                            </Badge>
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <Badge variant="outline" className="text-xs">
-                            {bill.tableNumber}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="text-sm font-medium text-foreground">
-                            {Array.isArray(bill.items) ? bill.items.length : 0}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="font-bold text-base text-primary">
-                            {formatCurrency(calculateBillTotal(bill))}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setViewingBill(bill)}
-                              className="h-8 px-3 hover:bg-primary/10 hover:text-primary"
-                              data-testid={`button-view-bill-${bill.id}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEditOpenBill(bill)}
-                              className="h-8 px-3 hover:bg-blue-500/10 hover:text-blue-600"
-                              data-testid={`button-edit-bill-${bill.id}`}
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="h-8 px-3 bg-primary hover:bg-primary/90"
-                              onClick={() => handlePayOpenBill(bill)}
-                              data-testid={`button-pay-bill-${bill.id}`}
-                            >
-                              <Calculator className="h-4 w-4 mr-1" />
-                              Bayar
-                            </Button>
+                          <p className="font-medium text-foreground">{bill.customerName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(bill.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {new Date(bill.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <ShoppingBag className="h-3.5 w-3.5" />
+                            <span>{Array.isArray(bill.items) ? bill.items.length : 0} items</span>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        )}
-        </Card>
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-3.5 w-3.5" />
+                            <span>Table {bill.tableNumber}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => { e.stopPropagation(); setViewingBill(bill); }}
+                          className="h-8 flex-1 hover:bg-muted"
+                          data-testid={`button-view-bill-${bill.id}`}
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          Lihat
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => { e.stopPropagation(); handleEditOpenBill(bill); }}
+                          className="h-8 flex-1 hover:bg-muted"
+                          data-testid={`button-edit-bill-${bill.id}`}
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Customer Information - Modern Clean Design */}
         <Card className="border-0 shadow-sm">
