@@ -330,6 +330,24 @@ export const notifications = pgTable("notifications", {
   createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_created_at_idx" ON "notifications" ("created_at")`,
 }));
 
+// Deletion PINs table for temporary admin PINs for kasir to delete items
+export const deletionPins = pgTable("deletion_pins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pin: text("pin").notNull().unique(), // 4-6 digit PIN
+  description: text("description"), // Optional label (e.g., "PIN for evening shift")
+  createdBy: varchar("created_by").notNull().references(() => users.id), // Admin who created
+  isActive: boolean("is_active").notNull().default(true), // Can be deactivated
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  usageCount: integer("usage_count").notNull().default(0), // Track how many times used
+  maxUsage: integer("max_usage"), // Optional maximum uses (null = unlimited)
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  // Index for active PINs
+  activeIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_pins_active_idx" ON "deletion_pins" ("is_active", "created_at")`,
+  // Index for PIN lookup
+  pinIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_pins_pin_idx" ON "deletion_pins" ("pin")`,
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -468,6 +486,20 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   processedAt: z.coerce.date().optional(),
 });
 
+export const insertDeletionPinSchema = createInsertSchema(deletionPins).omit({
+  id: true,
+  createdAt: true,
+  usageCount: true,
+}).extend({
+  expiresAt: z.preprocess(
+    (val) => {
+      if (!val || val === '' || val === null) return null;
+      return new Date(val as string);
+    },
+    z.date().nullable().optional()
+  ),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -522,6 +554,9 @@ export type InsertDeletionLog = z.infer<typeof insertDeletionLogSchema>;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export type DeletionPin = typeof deletionPins.$inferSelect;
+export type InsertDeletionPin = z.infer<typeof insertDeletionPinSchema>;
 
 // Cart item type for frontend
 export interface CartItem {

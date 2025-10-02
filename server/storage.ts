@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type Discount, type InsertDiscount, type Expense, type InsertExpense, type DailyReport, type InsertDailyReport, type PrintSetting, type InsertPrintSetting, type Shift, type InsertShift, type CashMovement, type InsertCashMovement, type Refund, type InsertRefund, type AuditLog, type InsertAuditLog, type Notification, type InsertNotification, type DeletionLog, type InsertDeletionLog, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations, discounts, expenses, dailyReports, printSettings, shifts, cashMovements, refunds, auditLogs, notifications, deletionLogs } from "@shared/schema";
+import { type User, type InsertUser, type Category, type InsertCategory, type MenuItem, type InsertMenuItem, type Order, type InsertOrder, type InventoryItem, type InsertInventoryItem, type MenuItemIngredient, type InsertMenuItemIngredient, type StoreProfile, type InsertStoreProfile, type Reservation, type InsertReservation, type Discount, type InsertDiscount, type Expense, type InsertExpense, type DailyReport, type InsertDailyReport, type PrintSetting, type InsertPrintSetting, type Shift, type InsertShift, type CashMovement, type InsertCashMovement, type Refund, type InsertRefund, type AuditLog, type InsertAuditLog, type Notification, type InsertNotification, type DeletionLog, type InsertDeletionLog, type DeletionPin, type InsertDeletionPin, type StockDeductionResult, users, categories, menuItems, orders, inventoryItems, menuItemIngredients, storeProfile, reservations, discounts, expenses, dailyReports, printSettings, shifts, cashMovements, refunds, auditLogs, notifications, deletionLogs, deletionPins } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -159,6 +159,15 @@ export interface IStorage {
   getDeletionLogsByCashier(cashierId: string): Promise<DeletionLog[]>;
   getDeletionLog(id: string): Promise<DeletionLog | undefined>;
   createDeletionLog(log: InsertDeletionLog): Promise<DeletionLog>;
+
+  // Deletion PINs
+  getDeletionPins(): Promise<import("@shared/schema").DeletionPin[]>;
+  getActiveDeletionPins(): Promise<import("@shared/schema").DeletionPin[]>;
+  getDeletionPin(id: string): Promise<import("@shared/schema").DeletionPin | undefined>;
+  getDeletionPinByPin(pin: string): Promise<import("@shared/schema").DeletionPin | undefined>;
+  createDeletionPin(pin: import("@shared/schema").InsertDeletionPin): Promise<import("@shared/schema").DeletionPin>;
+  deactivateDeletionPin(id: string): Promise<import("@shared/schema").DeletionPin | undefined>;
+  incrementPinUsage(id: string): Promise<import("@shared/schema").DeletionPin | undefined>;
 }
 
 // Legacy MemStorage class (no longer used, kept for reference)
@@ -1498,6 +1507,48 @@ export class DatabaseStorage implements IStorage {
     const [newLog] = await db.insert(deletionLogs).values(log).returning();
     return newLog;
   }
+
+  // Deletion PINs
+  async getDeletionPins(): Promise<DeletionPin[]> {
+    return db.select().from(deletionPins).orderBy(desc(deletionPins.createdAt));
+  }
+
+  async getActiveDeletionPins(): Promise<DeletionPin[]> {
+    return db.select().from(deletionPins)
+      .where(sql`${deletionPins.isActive} = true AND (${deletionPins.expiresAt} IS NULL OR ${deletionPins.expiresAt} > now())`)
+      .orderBy(desc(deletionPins.createdAt));
+  }
+
+  async getDeletionPin(id: string): Promise<DeletionPin | undefined> {
+    const [pin] = await db.select().from(deletionPins).where(eq(deletionPins.id, id));
+    return pin || undefined;
+  }
+
+  async getDeletionPinByPin(pin: string): Promise<DeletionPin | undefined> {
+    const [foundPin] = await db.select().from(deletionPins).where(eq(deletionPins.pin, pin));
+    return foundPin || undefined;
+  }
+
+  async createDeletionPin(pinData: InsertDeletionPin): Promise<DeletionPin> {
+    const [newPin] = await db.insert(deletionPins).values(pinData).returning();
+    return newPin;
+  }
+
+  async deactivateDeletionPin(id: string): Promise<DeletionPin | undefined> {
+    const [updated] = await db.update(deletionPins)
+      .set({ isActive: false })
+      .where(eq(deletionPins.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async incrementPinUsage(id: string): Promise<DeletionPin | undefined> {
+    const [updated] = await db.update(deletionPins)
+      .set({ usageCount: sql`${deletionPins.usageCount} + 1` })
+      .where(eq(deletionPins.id, id))
+      .returning();
+    return updated || undefined;
+  }
 }
 
 // Complete MemStorage implementation as fallback
@@ -1885,6 +1936,15 @@ class MemStorage implements IStorage {
   async getDeletionLogsByCashier(cashierId: string): Promise<any[]> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
   async getDeletionLog(id: string): Promise<any> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
   async createDeletionLog(log: any): Promise<any> { throw new Error('Deletion logs not supported in MemStorage fallback'); }
+
+  // Deletion PINs (not supported in MemStorage)
+  async getDeletionPins(): Promise<any[]> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
+  async getActiveDeletionPins(): Promise<any[]> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
+  async getDeletionPin(id: string): Promise<any> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
+  async getDeletionPinByPin(pin: string): Promise<any> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
+  async createDeletionPin(pin: any): Promise<any> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
+  async deactivateDeletionPin(id: string): Promise<any> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
+  async incrementPinUsage(id: string): Promise<any> { throw new Error('Deletion PINs not supported in MemStorage fallback'); }
 }
 
 // Wrapper that handles database fallback at runtime
@@ -2457,6 +2517,49 @@ class FallbackStorage implements IStorage {
   async createDeletionLog(log: any): Promise<any> {
     return this.withFallback(async () => 
       this.usingMemStorage ? this.memStorage.createDeletionLog(log) : this.dbStorage.createDeletionLog(log)
+    );
+  }
+
+  // Deletion PINs
+  async getDeletionPins(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionPins() : this.dbStorage.getDeletionPins()
+    );
+  }
+
+  async getActiveDeletionPins(): Promise<any[]> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getActiveDeletionPins() : this.dbStorage.getActiveDeletionPins()
+    );
+  }
+
+  async getDeletionPin(id: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionPin(id) : this.dbStorage.getDeletionPin(id)
+    );
+  }
+
+  async getDeletionPinByPin(pin: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getDeletionPinByPin(pin) : this.dbStorage.getDeletionPinByPin(pin)
+    );
+  }
+
+  async createDeletionPin(pinData: any): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.createDeletionPin(pinData) : this.dbStorage.createDeletionPin(pinData)
+    );
+  }
+
+  async deactivateDeletionPin(id: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.deactivateDeletionPin(id) : this.dbStorage.deactivateDeletionPin(id)
+    );
+  }
+
+  async incrementPinUsage(id: string): Promise<any> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.incrementPinUsage(id) : this.dbStorage.incrementPinUsage(id)
     );
   }
 }
