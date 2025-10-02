@@ -109,26 +109,32 @@ export default function DiscountsSection() {
 
   const updateDiscountMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<z.infer<typeof discountFormSchema>> }) => {
-      const transformedData: Record<string, any> = {};
+      const transformedData: Record<string, any> = {
+        ...data,
+        value: Number(data.value),
+      };
       
-      // Only include fields that are actually provided and transform them
-      Object.keys(data).forEach(key => {
-        const value = (data as any)[key];
-        
-        if (key === 'value') {
-          transformedData.value = Number(value);
-        } else if (key === 'startDate') {
-          transformedData.startDate = value && value.trim() !== '' ? new Date(value) : null;
-        } else if (key === 'endDate') {
-          transformedData.endDate = value && value.trim() !== '' ? new Date(value) : null;
-        } else if (key === 'categoryIds') {
-          transformedData.categoryIds = value && value.length > 0 ? value : null;
-        } else if (key === 'menuItemIds') {
-          transformedData.menuItemIds = value && value.length > 0 ? value : null;
-        } else {
-          transformedData[key] = value;
-        }
-      });
+      // Handle dates - send as ISO string or null
+      if ('startDate' in data) {
+        transformedData.startDate = data.startDate && data.startDate.trim() !== '' 
+          ? new Date(data.startDate).toISOString() 
+          : null;
+      }
+      
+      if ('endDate' in data) {
+        transformedData.endDate = data.endDate && data.endDate.trim() !== '' 
+          ? new Date(data.endDate).toISOString() 
+          : null;
+      }
+      
+      // Handle arrays
+      if ('categoryIds' in data) {
+        transformedData.categoryIds = data.categoryIds && data.categoryIds.length > 0 ? data.categoryIds : null;
+      }
+      
+      if ('menuItemIds' in data) {
+        transformedData.menuItemIds = data.menuItemIds && data.menuItemIds.length > 0 ? data.menuItemIds : null;
+      }
       
       const response = await apiRequest('PUT', `/api/discounts/${id}`, transformedData);
       return response.json();

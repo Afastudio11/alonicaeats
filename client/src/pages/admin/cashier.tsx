@@ -999,9 +999,9 @@ export default function CashierSection() {
             ) : (
               <div className="space-y-3">
                 {/* Table header */}
-                <div className="flex items-center gap-3 pb-2 border-b text-xs font-medium text-muted-foreground uppercase">
-                  <div className="flex-1">Items</div>
-                  <div className="w-32 text-right">Total</div>
+                <div className="flex items-center justify-between pb-2 border-b text-xs font-medium text-muted-foreground uppercase max-w-md">
+                  <div>Items</div>
+                  <div>Total</div>
                 </div>
                 {/* Bills list */}
                 <div className="space-y-2">

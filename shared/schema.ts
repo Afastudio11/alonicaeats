@@ -383,6 +383,21 @@ export const insertDiscountSchema = createInsertSchema(discounts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  startDate: z.preprocess(
+    (val) => {
+      if (!val || val === '' || val === null) return null;
+      return new Date(val as string);
+    },
+    z.date().nullable().optional()
+  ),
+  endDate: z.preprocess(
+    (val) => {
+      if (!val || val === '' || val === null) return null;
+      return new Date(val as string);
+    },
+    z.date().nullable().optional()
+  ),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({
