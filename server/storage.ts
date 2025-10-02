@@ -2564,8 +2564,8 @@ class FallbackStorage implements IStorage {
   }
 }
 
-console.log('🔄 Using FallbackStorage (DatabaseStorage -> MemStorage on error)');
-export const storage = new FallbackStorage();
+console.log('✅ Using DatabaseStorage (PostgreSQL) for all features');
+export const storage = new DatabaseStorage();
 
 // Database seeding is now handled via explicit scripts for better control
 // Run: npm run seed:users and npm run seed:menu for initial setup
