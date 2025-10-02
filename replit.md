@@ -107,7 +107,15 @@ Preferred communication style: Simple, everyday language.
 - `PORT`: Server port (defaults to 5000)
 
 ### Recent Changes (October 2, 2025)
-- ✅ **Fresh GitHub Import Setup (Latest - October 2, 2025)**:
+- ✅ **Bug Fixes & Feature Additions (Latest - October 2, 2025)**:
+  - Fixed open bill calculation bug in cashier dashboard (showing 0 instead of actual amount)
+    - Added `calculateBillTotal()` helper function with proper `typeof` checks to preserve zero values
+    - Updated `handlePayOpenBill()` to recalculate totals from items with fallback mechanism
+    - Fixed display of open bill totals to handle discounted/comp bills correctly
+  - Added Kitchen System (KDS) to admin dashboard sidebar under "POS & ORDERS" section
+  - Ensured synchronization between admin and kasir dashboards (both use same KitchenSection component)
+
+- ✅ **Fresh GitHub Import Setup (October 2, 2025)**:
   - Fixed syntax error in cashier.tsx (missing closing brace in conditional rendering)
   - PostgreSQL database provisioned and configured
   - Database schema pushed successfully via `npm run db:push`
