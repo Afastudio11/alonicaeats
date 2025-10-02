@@ -1332,6 +1332,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for active discounts (used by customer page and POS)
+  app.get("/api/discounts/active", async (req, res) => {
+    try {
+      const activeDiscounts = await storage.getActiveDiscounts();
+      res.json(activeDiscounts);
+    } catch (error) {
+      return handleApiError(res, error, "Failed to fetch active discounts");
+    }
+  });
+
   // Print Settings (Admin and Kasir access)
   app.get("/api/print-settings", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {

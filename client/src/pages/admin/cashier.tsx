@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1525,7 +1525,7 @@ export default function CashierSection() {
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between text-sm mb-2">
                 <span>Customer:</span>
-                <span className="font-medium">{customerName}</span>
+                <span className="font-medium">{paymentContext?.customerName || customerName}</span>
               </div>
               <div className="flex justify-between text-sm mb-2">
                 <span>Meja:</span>
@@ -1533,7 +1533,7 @@ export default function CashierSection() {
               </div>
               <div className="flex justify-between text-lg font-bold border-t pt-2">
                 <span>Total Pesanan:</span>
-                <span className="text-primary">{formatCurrency(total)}</span>
+                <span className="text-primary">{formatCurrency(currentPaymentTotal)}</span>
               </div>
             </div>
             
@@ -1544,8 +1544,18 @@ export default function CashierSection() {
                   <SelectValue placeholder="Pilih metode pembayaran" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">💵 Cash</SelectItem>
-                  <SelectItem value="qris">📱 QRIS</SelectItem>
+                  <SelectItem value="cash">
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-4 w-4" />
+                      <span>Cash</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="qris">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      <span>QRIS</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1568,7 +1578,7 @@ export default function CashierSection() {
             {paymentMethod === "qris" && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center space-x-2 text-blue-700">
-                  <span className="text-2xl">📱</span>
+                  <Smartphone className="h-6 w-6" />
                   <div>
                     <p className="font-semibold">Pembayaran QRIS</p>
                     <p className="text-sm">Customer akan membayar dengan QRIS</p>
@@ -1585,7 +1595,7 @@ export default function CashierSection() {
                 </div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>Total Pesanan:</span>
-                  <span className="font-medium">{formatCurrency(total)}</span>
+                  <span className="font-medium">{formatCurrency(currentPaymentTotal)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Kembalian:</span>
@@ -1612,7 +1622,7 @@ export default function CashierSection() {
             </Button>
             <Button 
               onClick={handlePaymentCalculation}
-              disabled={paymentMethod === "cash" && cashAmountNumber < total}
+              disabled={paymentMethod === "cash" && cashAmountNumber < currentPaymentTotal}
               data-testid="button-confirm-payment"
             >
               Konfirmasi Pembayaran {paymentMethod === "qris" ? "QRIS" : "Cash"}
