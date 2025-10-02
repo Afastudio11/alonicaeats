@@ -84,7 +84,7 @@ export default function MenuPage() {
     return (
       <div className="min-h-screen bg-background">
         <header className="bg-white shadow-sm px-6 py-4 sticky top-0 z-10">
-          <h1 className="text-3xl font-playfair font-bold text-primary text-center">Alonica</h1>
+          <h1 className="page-title font-playfair text-primary text-center">Alonica</h1>
         </header>
         <div className="px-6 py-8">
           <div className="grid grid-cols-2 gap-4">
@@ -107,7 +107,7 @@ export default function MenuPage() {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="bg-white shadow-sm px-6 py-4 sticky top-0 z-10">
-        <h1 className="text-3xl font-playfair font-bold text-primary text-center" data-testid="text-brand-header">
+        <h1 className="page-title font-playfair text-primary text-center" data-testid="text-brand-header">
           Alonica
         </h1>
       </header>
@@ -118,7 +118,7 @@ export default function MenuPage() {
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
           <Input
             type="text"
-            placeholder="Search for food, restaurants..."
+            placeholder="Cari makanan atau menu..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-12 pl-12 pr-12 rounded-full bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -181,8 +181,8 @@ export default function MenuPage() {
       <div className="px-6 py-6">
         {/* Menu Items Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            🛒 Menu Items
+          <h1 className="page-title flex items-center gap-2">
+            🛒 Daftar Menu
           </h1>
         </div>
 
@@ -196,7 +196,7 @@ export default function MenuPage() {
             }}
           >
             <div className="mb-4">
-              <h2 className="text-xl font-semibold text-foreground" data-testid={`text-section-${group.category.id}`}>
+              <h2 className="section-title" data-testid={`text-section-${group.category.id}`}>
                 {group.category.name}
               </h2>
               <div className="w-12 h-1 bg-primary rounded-full mt-2"></div>

@@ -332,7 +332,7 @@ export default function WelcomePage() {
                 onClick={() => setShowAdminLogin(false)}
                 data-testid="button-cancel-admin"
               >
-                Cancel
+                Batal
               </Button>
               <Button 
                 className="flex-1" 
@@ -348,7 +348,7 @@ export default function WelcomePage() {
 
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center text-white">
-          <h1 className="text-2xl mb-2 font-inter font-normal">Welcome to</h1>
+          <h1 className="text-2xl mb-2 font-inter font-normal">Selamat Datang di</h1>
           <h2 className="text-5xl font-playfair font-bold mb-8" data-testid="text-brand-name">Alonica</h2>
         </div>
 

@@ -32,10 +32,10 @@ export default function CartPage() {
             <ArrowLeft className="h-6 w-6" />
           </Button>
           <div>
-            <h1 className="text-2xl font-playfair font-bold text-primary" data-testid="text-page-title">
+            <h1 className="page-title font-playfair text-primary" data-testid="text-page-title">
               Alonica
             </h1>
-            <p className="text-sm text-muted-foreground">Order details</p>
+            <p className="body-text-sm">Detail Pesanan</p>
           </div>
         </div>
       </header>
@@ -104,11 +104,11 @@ export default function CartPage() {
           <FoodPattern className="bg-primary rounded-2xl p-6 text-white">
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span>Sub-Total</span>
+                <span>Subtotal</span>
                 <span data-testid="text-subtotal">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Discount</span>
+                <span>Diskon</span>
                 <span data-testid="text-discount">{formatCurrency(discount)}</span>
               </div>
               <hr className="border-white/20" />

@@ -51,7 +51,7 @@ export default function SuccessPage() {
           </div>
 
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-success-title">
+            <h1 className="page-title mb-2" data-testid="text-success-title">
               Terima Kasih!
             </h1>
             <p className="text-muted-foreground" data-testid="text-success-message">
@@ -93,8 +93,8 @@ export default function SuccessPage() {
             >
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <h1 className="text-2xl font-playfair font-bold text-primary" data-testid="text-page-title">
-              Receipt
+            <h1 className="page-title font-playfair text-primary" data-testid="text-page-title">
+              Struk Pembayaran
             </h1>
           </div>
           <Button
@@ -105,7 +105,7 @@ export default function SuccessPage() {
             data-testid="button-print"
           >
             <Printer className="h-4 w-4" />
-            Print
+            Cetak
           </Button>
         </div>
       </header>
@@ -118,7 +118,7 @@ export default function SuccessPage() {
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4" data-testid="icon-success">
               <Check className="h-8 w-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2" data-testid="text-success-title">
+            <h2 className="page-title mb-2" data-testid="text-success-title">
               Pesanan Berhasil!
             </h2>
             <p className="text-muted-foreground" data-testid="text-success-message">
@@ -128,7 +128,7 @@ export default function SuccessPage() {
 
           {/* Restaurant Info */}
           <div className="receipt-header text-center border-b border-border pb-6 mb-6">
-            <h1 className="text-3xl font-playfair font-bold text-primary mb-2" data-testid="text-restaurant-name">
+            <h1 className="page-title font-playfair text-primary mb-2" data-testid="text-restaurant-name">
               Alonica
             </h1>
             <p className="text-sm text-muted-foreground">Jl. Kuliner Rasa No. 123</p>
@@ -139,7 +139,7 @@ export default function SuccessPage() {
           <div className="space-y-4 border-b border-border pb-6 mb-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground">Order ID</p>
+                <p className="text-muted-foreground">ID Pesanan</p>
                 <p className="font-medium" data-testid="text-order-id">#{receiptData.id?.slice(-8).toUpperCase() || 'N/A'}</p>
               </div>
               <div>
@@ -174,7 +174,7 @@ export default function SuccessPage() {
 
           {/* Order Items */}
           <div className="space-y-4 border-b border-border pb-6 mb-6">
-            <h3 className="font-semibold text-foreground thermal-compact">Detail Pesanan</h3>
+            <h3 className="card-title thermal-compact">Detail Pesanan</h3>
             {items.map((item: any, index: number) => (
               <div key={index} className="receipt-item thermal-compact" data-testid={`receipt-item-${index}`}>
                 <div className="receipt-item-name">
@@ -250,7 +250,7 @@ export default function SuccessPage() {
             data-testid="button-print-receipt"
           >
             <Printer className="h-5 w-5 mr-2" />
-            Print Receipt
+            Cetak Struk
           </Button>
           <Button
             onClick={handleBackToMenu}

@@ -27,7 +27,7 @@ export default function KasirDashboard() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Memuat...</p>
         </div>
       </div>
     );
@@ -38,11 +38,11 @@ export default function KasirDashboard() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
+          <h1 className="page-title mb-4">Akses Ditolak</h1>
           <p className="text-muted-foreground">
             {!isAuthenticated || !user 
-              ? "Please login to access kasir dashboard"
-              : "Kasir access required"
+              ? "Silakan login untuk mengakses dashboard kasir"
+              : "Akses kasir diperlukan"
             }
           </p>
         </div>
@@ -77,8 +77,8 @@ export default function KasirDashboard() {
       case 'categories':
         return (
           <div className="text-center py-12">
-            <h2 className="text-xl font-semibold text-foreground mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">This page is only available for admin users.</p>
+            <h2 className="section-title mb-2">Akses Ditolak</h2>
+            <p className="text-muted-foreground">Halaman ini hanya tersedia untuk pengguna admin.</p>
           </div>
         );
       default:
@@ -109,10 +109,10 @@ export default function KasirDashboard() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-semibold text-foreground">Kasir Dashboard</h1>
+            <h1 className="dashboard-title">Dashboard Kasir</h1>
           </div>
           <Button variant="outline" size="sm" onClick={logout} data-testid="button-logout">
-            Logout
+            Keluar
           </Button>
         </div>
         

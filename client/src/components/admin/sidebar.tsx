@@ -51,10 +51,10 @@ interface SidebarCategory {
 
 const SIDEBAR_CATEGORIES: SidebarCategory[] = [
   {
-    label: "POS & ORDERS",
+    label: "POS & PESANAN",
     items: [
       { key: 'cashier', label: 'Point of Sale (POS)', icon: CreditCard, path: '/admin/cashier' },
-      { key: 'orders', label: 'Orders', icon: ClipboardList, path: '/admin/orders' },
+      { key: 'orders', label: 'Pesanan', icon: ClipboardList, path: '/admin/orders' },
       { key: 'kitchen', label: 'Sistem Dapur (KDS)', icon: ChefHat, path: '/admin/kitchen' },
       { key: 'reservations', label: 'Reservasi', icon: Calendar, path: '/admin/reservations' },
     ]
@@ -62,30 +62,30 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
   {
     label: "PROMO",
     items: [
-      { key: 'discounts', label: 'Offers', icon: PercentIcon, path: '/admin/discounts' },
+      { key: 'discounts', label: 'Penawaran', icon: PercentIcon, path: '/admin/discounts' },
     ]
   },
   {
-    label: "USERS",
+    label: "PENGGUNA",
     items: [
-      { key: 'users', label: 'User Management', icon: UserCheck, path: '/admin/users' },
+      { key: 'users', label: 'Manajemen Pengguna', icon: UserCheck, path: '/admin/users' },
     ]
   },
   {
-    label: "REPORTS",
+    label: "LAPORAN",
     items: [
-      { key: 'approvals', label: 'Approval', icon: CheckSquare, path: '/admin/approvals' },
-      { key: 'audit-reports', label: 'Credit Balance Report', icon: Building2, path: '/admin/audit-reports' },
+      { key: 'approvals', label: 'Persetujuan', icon: CheckSquare, path: '/admin/approvals' },
+      { key: 'audit-reports', label: 'Laporan Saldo Kredit', icon: Building2, path: '/admin/audit-reports' },
       { key: 'analytics', label: 'Laporan Penjualan', icon: TrendingUp, path: '/admin/analytics' },
-      { key: 'inventory', label: 'Items Report', icon: Package2, path: '/admin/inventory' },
+      { key: 'inventory', label: 'Laporan Item', icon: Package2, path: '/admin/inventory' },
     ]
   },
   {
-    label: "SETUP",
+    label: "PENGATURAN",
     items: [
-      { key: 'settings', label: 'Settings', icon: Cog, path: '/admin/settings' },
-      { key: 'menu', label: 'Menu Management', icon: Utensils, path: '/admin/menu' },
-      { key: 'categories', label: 'Categories', icon: Tags, path: '/admin/categories' },
+      { key: 'settings', label: 'Pengaturan', icon: Cog, path: '/admin/settings' },
+      { key: 'menu', label: 'Manajemen Menu', icon: Utensils, path: '/admin/menu' },
+      { key: 'categories', label: 'Kategori', icon: Tags, path: '/admin/categories' },
       { key: 'printer', label: 'Pengaturan Printer', icon: Printer, path: '/admin/printer' },
     ]
   }
@@ -176,7 +176,7 @@ export default function AdminSidebar({ isOpen, onClose, currentSection }: AdminS
             data-testid="nav-logout"
           >
             <LogOut className="h-4 w-4 mr-3 flex-shrink-0" />
-            <span>Logout</span>
+            <span>Keluar</span>
           </Button>
         </div>
       </div>

@@ -35,7 +35,7 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Memuat...</p>
         </div>
       </div>
     );
@@ -46,8 +46,8 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">Please login to access admin dashboard</p>
+          <h1 className="page-title mb-4">Akses Ditolak</h1>
+          <p className="text-muted-foreground">Silakan login untuk mengakses dashboard admin</p>
         </div>
       </div>
     );
@@ -58,14 +58,14 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Access Denied</h1>
-          <p className="text-muted-foreground">Admin access required. Current role: {user.role}</p>
+          <h1 className="page-title mb-4">Akses Ditolak</h1>
+          <p className="text-muted-foreground">Akses admin diperlukan. Role saat ini: {user.role}</p>
           <button 
             onClick={logout} 
             className="mt-4 px-4 py-2 bg-primary text-white rounded"
             data-testid="button-logout-access-denied"
           >
-            Logout and Login as Admin
+            Keluar dan Login sebagai Admin
           </button>
         </div>
       </div>
@@ -133,10 +133,10 @@ export default function AdminDashboard() {
               <Menu className="h-6 w-6" />
             </Button>
             <div>
-              <h1 className="text-xl font-semibold text-foreground" data-testid="text-admin-title">
-                Restaurant Admin – Self Order Dashboard
+              <h1 className="dashboard-title" data-testid="text-admin-title">
+                Admin Restoran – Dashboard Self Order
               </h1>
-              <p className="text-sm text-muted-foreground">Welcome, {user.username}</p>
+              <p className="dashboard-subtitle">Selamat Datang, {user.username}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
               onClick={logout}
               data-testid="button-logout"
             >
-              Logout
+              Keluar
             </Button>
           </div>
         </header>

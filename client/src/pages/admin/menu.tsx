@@ -34,7 +34,7 @@ export default function MenuSection() {
 
   // Create dynamic filter options
   const MENU_CATEGORY_FILTERS = [
-    { value: 'all', label: 'All' },
+    { value: 'all', label: 'Semua' },
     ...categories.map(category => ({
       value: category.id,
       label: category.name
@@ -112,7 +112,7 @@ export default function MenuSection() {
   // Helper function to get category name from categoryId
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
-    return category?.name || 'Unknown Category';
+    return category?.name || 'Kategori Tidak Diketahui';
   };
 
   const handleToggleAvailability = (item: MenuItem) => {
@@ -124,7 +124,7 @@ export default function MenuSection() {
 
   const handleDuplicate = (item: MenuItem) => {
     const duplicateItem: InsertMenuItem = {
-      name: `${item.name} (Copy)`,
+      name: `${item.name} (Salinan)`,
       price: item.price,
       categoryId: item.categoryId,
       description: item.description,
@@ -156,17 +156,17 @@ export default function MenuSection() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Menu Management</h2>
+        <h2 className="page-title">Manajemen Menu</h2>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2" data-testid="button-add-menu-item">
               <Plus className="h-4 w-4" />
-              Add New Item
+              Tambah Item Baru
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Menu Item</DialogTitle>
+              <DialogTitle>Tambah Item Menu Baru</DialogTitle>
               <DialogDescription>
                 Tambah menu item baru dengan detail dan kategori.
               </DialogDescription>
