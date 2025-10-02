@@ -31,39 +31,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false // Disable COEP for compatibility
 }));
 
-// CORS configuration with proper origin validation
+// CORS configuration - Allow all origins for VPS deployment
 app.use(cors({
-  origin: (origin, callback) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // Allow all origins in development
-      return callback(null, true);
-    }
-    
-    // Production: strict origin validation
-    const allowedOrigins = [
-      ...(process.env.REPLIT_DOMAINS?.split(',').map(d => d.trim()) || []),
-      ...(process.env.ALLOWED_ORIGINS?.split(',').map(d => d.trim()) || []),
-    ];
-    
-    const replitPatterns = [
-      /^https:\/\/[\w-]+\.replit\.app$/,
-      /^https:\/\/[\w-]+\.repl\.co$/
-    ];
-    
-    if (!origin) return callback(null, true); // Allow same-origin requests
-    
-    // Check explicit allowlist
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // Check replit domain patterns
-    if (replitPatterns.some(pattern => pattern.test(origin))) {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
