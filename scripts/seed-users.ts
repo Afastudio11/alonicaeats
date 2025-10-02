@@ -1,4 +1,4 @@
-import { db } from "../server/db";
+import { db, pool } from "../server/db";
 import { users } from "../shared/schema";
 import { hashPassword } from "../server/auth-utils";
 import { eq } from "drizzle-orm";
@@ -69,9 +69,14 @@ async function seedUsers() {
 
 // Run the seed if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  seedUsers().then(() => {
+  seedUsers().then(async () => {
     console.log("✨ User seed completed, exiting...");
+    await pool.end();
     process.exit(0);
+  }).catch(async (error) => {
+    console.error("Fatal error:", error);
+    await pool.end();
+    process.exit(1);
   });
 }
 

@@ -65,3 +65,36 @@ Preferred communication style: Simple, everyday language.
 ### Payment Integration
 - **QRIS**: Indonesian QR code payment standard (mock implementation)
 - **Cash Payments**: Manual processing
+
+## Replit Environment Setup
+
+### Database Configuration
+- **Database**: PostgreSQL (Neon) provisioned in Replit
+- **Schema Management**: Drizzle ORM with migrations
+- **Initial Setup**: Users seeded with admin and kasir accounts
+  - Admin: username `admin`, password `admin123`
+  - Kasir accounts: `kasir1`-`kasir4` with respective passwords
+
+### Development Workflow
+- **Command**: `npm run dev`
+- **Port**: 5000 (configured for Replit)
+- **Host**: 0.0.0.0 (required for Replit proxy)
+- **Vite Config**: `allowedHosts: true` enabled for Replit iframe proxy
+
+### Deployment Configuration
+- **Target**: Autoscale (stateless web application)
+- **Build**: `npm run build` (Vite + esbuild)
+- **Start**: `npm run start` (production server on port 5000)
+- **Database**: Automatic schema push on deployment via `deploy:setup` script
+
+### Key Files
+- `server/index.ts`: Express server with Vite middleware in development
+- `server/vite.ts`: Vite configuration with `allowedHosts: true` for Replit
+- `server/db.ts`: PostgreSQL connection pool with SSL auto-detection
+- `shared/schema.ts`: Drizzle schema definitions
+- `scripts/seed-users.ts`: Initial user seeding script
+
+### Environment Variables
+- `DATABASE_URL`: PostgreSQL connection string (auto-configured by Replit)
+- `NODE_ENV`: development/production
+- `PORT`: Server port (defaults to 5000)
