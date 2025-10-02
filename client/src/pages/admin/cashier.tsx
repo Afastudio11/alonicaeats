@@ -299,6 +299,31 @@ export default function CashierSection() {
     setCart(prevCart => prevCart.filter(item => item.id !== itemId));
   };
 
+  // Get discount for a menu item
+  const getItemDiscount = (item: MenuItem): Discount | null => {
+    return activeDiscounts.find(d => {
+      if (!d.isActive) return false;
+      if (d.applyToAll) return true;
+      
+      const menuItemIds = d.menuItemIds as string[] | null;
+      const categoryIds = d.categoryIds as string[] | null;
+      
+      if (menuItemIds?.includes(item.id)) return true;
+      if (categoryIds?.includes(item.categoryId)) return true;
+      
+      return false;
+    }) || null;
+  };
+
+  // Calculate discounted price
+  const calculateDiscountedPrice = (originalPrice: number, discount: Discount): number => {
+    if (discount.type === 'percentage') {
+      return originalPrice - (originalPrice * discount.value / 100);
+    } else {
+      return Math.max(0, originalPrice - discount.value);
+    }
+  };
+
   // Calculate totals with discount
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
@@ -931,31 +956,6 @@ export default function CashierSection() {
         Ends in {timeLeft}
       </span>
     );
-  };
-
-  // Get discount for a menu item
-  const getItemDiscount = (item: MenuItem): Discount | null => {
-    return activeDiscounts.find(d => {
-      if (!d.isActive) return false;
-      if (d.applyToAll) return true;
-      
-      const menuItemIds = d.menuItemIds as string[] | null;
-      const categoryIds = d.categoryIds as string[] | null;
-      
-      if (menuItemIds?.includes(item.id)) return true;
-      if (categoryIds?.includes(item.categoryId)) return true;
-      
-      return false;
-    }) || null;
-  };
-
-  // Calculate discounted price
-  const calculateDiscountedPrice = (originalPrice: number, discount: Discount): number => {
-    if (discount.type === 'percentage') {
-      return originalPrice - (originalPrice * discount.value / 100);
-    } else {
-      return Math.max(0, originalPrice - discount.value);
-    }
   };
 
   // Filter discounts that have associated menu items
