@@ -331,7 +331,7 @@ export default function ApprovalsSection() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="text-approvals-title">
-            Approval & Log Management
+            Approval
           </h1>
           <p className="text-muted-foreground">Kelola permintaan penghapusan, riwayat log, dan PIN</p>
         </div>
