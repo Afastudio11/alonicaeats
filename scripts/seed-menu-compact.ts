@@ -1,4 +1,4 @@
-import { db } from "../server/db";
+import { db, pool } from "../server/db";
 import { categories, menuItems } from "../shared/schema";
 import { eq, inArray } from "drizzle-orm";
 
@@ -237,9 +237,14 @@ async function seedMenu() {
 
 // Run the seed if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  seedMenu().then(() => {
+  seedMenu().then(async () => {
     console.log("✨ Seed completed, exiting...");
+    await pool.end();
     process.exit(0);
+  }).catch(async (error) => {
+    console.error("Fatal error:", error);
+    await pool.end();
+    process.exit(1);
   });
 }
 

@@ -516,6 +516,16 @@ export default function DiscountsSection() {
                                         field.onChange([...currentValues, category.id]);
                                       } else {
                                         field.onChange(currentValues.filter(id => id !== category.id));
+                                        
+                                        // Remove menu items from this category when category is unchecked
+                                        const currentMenuItems = form.getValues("menuItemIds") || [];
+                                        const itemsToRemove = menuItems
+                                          .filter(item => item.categoryId === category.id)
+                                          .map(item => item.id);
+                                        const updatedMenuItems = currentMenuItems.filter(
+                                          itemId => !itemsToRemove.includes(itemId)
+                                        );
+                                        form.setValue("menuItemIds", updatedMenuItems);
                                       }
                                     }}
                                     data-testid={`checkbox-category-${category.id}`}
