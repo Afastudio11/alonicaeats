@@ -14,7 +14,6 @@ import UsersSection from "./users";
 import DiscountsSection from "./discounts";
 import PrintSettingsSection from "./print-settings";
 import AuditReportsSection from "./audit-reports";
-import DeletionLogsSection from "./deletion-logs";
 import ApprovalsSection from "./approvals";
 import PrinterPage from "../printer";
 import { Button } from "@/components/ui/button";
@@ -95,8 +94,6 @@ export default function AdminDashboard() {
         return <AnalyticsSection />;
       case 'audit-reports':
         return <AuditReportsSection />;
-      case 'deletion-logs':
-        return <DeletionLogsSection />;
       case 'approvals':
         return <ApprovalsSection />;
       case 'print-settings':

@@ -74,9 +74,8 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
   {
     label: "REPORTS",
     items: [
-      { key: 'approvals', label: 'Approval Management', icon: CheckSquare, path: '/admin/approvals' },
+      { key: 'approvals', label: 'Approval & Log Management', icon: CheckSquare, path: '/admin/approvals' },
       { key: 'audit-reports', label: 'Credit Balance Report', icon: Building2, path: '/admin/audit-reports' },
-      { key: 'deletion-logs', label: 'Log Penghapusan', icon: Trash2, path: '/admin/deletion-logs' },
       { key: 'analytics', label: 'Laporan Penjualan', icon: TrendingUp, path: '/admin/analytics' },
       { key: 'inventory', label: 'Items Report', icon: Package2, path: '/admin/inventory' },
     ]
