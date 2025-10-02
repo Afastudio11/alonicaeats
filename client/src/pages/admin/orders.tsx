@@ -348,6 +348,9 @@ export default function OrdersSection() {
                   Total
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Payment
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -381,6 +384,28 @@ export default function OrdersSection() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground font-semibold">
                     {formatCurrency(order.total)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <Badge 
+                      className={
+                        order.paymentStatus === 'paid' 
+                          ? 'bg-green-100 text-green-700 hover:bg-green-100' 
+                          : order.paymentStatus === 'pending' 
+                          ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
+                          : order.paymentStatus === 'failed' || order.paymentStatus === 'expired'
+                          ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
+                      }
+                      data-testid={`payment-status-${order.id}`}
+                    >
+                      {order.paymentStatus === 'paid' ? 'Paid' : 
+                       order.paymentStatus === 'pending' ? 'Pending' :
+                       order.paymentStatus === 'failed' ? 'Failed' :
+                       order.paymentStatus === 'expired' ? 'Expired' :
+                       order.paymentStatus === 'unpaid' ? 'Unpaid' :
+                       order.paymentStatus === 'refunded' ? 'Refunded' : 
+                       order.paymentStatus}
+                    </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge 
@@ -449,8 +474,8 @@ export default function OrdersSection() {
         </div>
 
         {filteredAndSortedOrders.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground" data-testid="text-no-orders">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground text-sm" data-testid="text-no-orders">
               {orders.length === 0 ? "Belum ada pesanan" : "Tidak ada pesanan dengan filter ini"}
             </p>
           </div>
