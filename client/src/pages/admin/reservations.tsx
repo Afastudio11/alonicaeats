@@ -327,128 +327,239 @@ export default function ReservationsSection() {
 
       {/* Calendar Grid */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-[800px]">
-          {/* Time Grid Header */}
-          <div className="grid border-b border-border sticky top-0 bg-background z-10" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
-            <div className="border-r border-border p-3">
-              <span className="text-xs font-medium text-muted-foreground">GMT+07:00</span>
-            </div>
-            {displayDays.map((day) => (
-              <div key={day.toISOString()} className="p-3 border-r border-border last:border-r-0">
-                <div className="text-center">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    {format(day, 'EEE', { locale: id })}
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {format(day, 'dd MMM', { locale: id })}
-                  </div>
-                </div>
+        {dateRangeMode === "day" ? (
+          <div className="min-w-[800px]">
+            {/* Time Grid Header */}
+            <div className="grid border-b border-border sticky top-0 bg-background z-10" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
+              <div className="border-r border-border p-3">
+                <span className="text-xs font-medium text-muted-foreground">GMT+07:00</span>
               </div>
-            ))}
-          </div>
-
-          {/* Time Slots */}
-          <div className="grid" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
-            <div className="border-r border-border">
-              {TIME_SLOTS.map((time) => (
-                <div 
-                  key={time} 
-                  className="h-24 border-b border-border px-3 py-2 text-right"
-                >
-                  <span className="text-xs text-muted-foreground">{time}</span>
+              {displayDays.map((day) => (
+                <div key={day.toISOString()} className="p-3 border-r border-border last:border-r-0">
+                  <div className="text-center">
+                    <div className="text-xs font-medium text-muted-foreground">
+                      {format(day, 'EEE', { locale: id })}
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {format(day, 'dd MMM', { locale: id })}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Appointment Slots for each day */}
-            {displayDays.map((day) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
-              return (
-                <div key={dateKey} className="border-r border-border last:border-r-0">
-                  {TIME_SLOTS.map((time) => (
-                    <div 
-                      key={`${dateKey}-${time}`} 
-                      className="h-24 border-b border-border relative"
-                      data-testid={`slot-${dateKey}-${time}`}
-                    >
-                      {reservationsByDateAndTime[dateKey]?.[time]?.map((reservation, resIndex) => (
-                        <Card
-                          key={reservation.id}
-                          className={`absolute left-1 right-1 top-1 p-2 border-l-4 ${getStatusColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer`}
-                          style={{ 
-                            top: `${resIndex * 60 + 4}px`,
-                            zIndex: resIndex + 1
-                          }}
-                          data-testid={`card-reservation-${reservation.id}`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <h4 className="text-xs font-semibold text-foreground truncate" data-testid={`text-customer-${reservation.id}`}>
-                                  {reservation.customerName}
-                                </h4>
-                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3" data-testid={`badge-status-${reservation.id}`}>
-                                  {getStatusLabel(reservation.status)}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center space-x-2 text-[10px] text-muted-foreground">
-                                <span className="flex items-center">
-                                  <Users className="h-2.5 w-2.5 mr-0.5" />
-                                  {reservation.guestCount}
-                                </span>
-                              </div>
-                            </div>
+            {/* Time Slots */}
+            <div className="grid" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
+              <div className="border-r border-border">
+                {TIME_SLOTS.map((time) => (
+                  <div 
+                    key={time} 
+                    className="h-24 border-b border-border px-3 py-2 text-right"
+                  >
+                    <span className="text-xs text-muted-foreground">{time}</span>
+                  </div>
+                ))}
+              </div>
 
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-5 w-5 -mr-1"
-                                  disabled={updateReservationMutation.isPending}
-                                  data-testid={`button-actions-${reservation.id}`}
-                                >
-                                  <MoreHorizontal className="h-3 w-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {reservation.status === 'pending' && (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleReservationUpdate(reservation.id, 'confirmed')}
-                                    data-testid={`button-confirm-${reservation.id}`}
+              {/* Appointment Slots for each day */}
+              {displayDays.map((day) => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                return (
+                  <div key={dateKey} className="border-r border-border last:border-r-0">
+                    {TIME_SLOTS.map((time) => (
+                      <div 
+                        key={`${dateKey}-${time}`} 
+                        className="h-24 border-b border-border relative"
+                        data-testid={`slot-${dateKey}-${time}`}
+                      >
+                        {reservationsByDateAndTime[dateKey]?.[time]?.map((reservation, resIndex) => (
+                          <Card
+                            key={reservation.id}
+                            className={`absolute left-1 right-1 top-1 p-2 border-l-4 ${getStatusColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer`}
+                            style={{ 
+                              top: `${resIndex * 60 + 4}px`,
+                              zIndex: resIndex + 1
+                            }}
+                            data-testid={`card-reservation-${reservation.id}`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <h4 className="text-xs font-semibold text-foreground truncate" data-testid={`text-customer-${reservation.id}`}>
+                                    {reservation.customerName}
+                                  </h4>
+                                  <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3" data-testid={`badge-status-${reservation.id}`}>
+                                    {getStatusLabel(reservation.status)}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center space-x-2 text-[10px] text-muted-foreground">
+                                  <span className="flex items-center">
+                                    <Users className="h-2.5 w-2.5 mr-0.5" />
+                                    {reservation.guestCount}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-5 w-5 -mr-1"
+                                    disabled={updateReservationMutation.isPending}
+                                    data-testid={`button-actions-${reservation.id}`}
                                   >
-                                    Konfirmasi
-                                  </DropdownMenuItem>
-                                )}
-                                {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleReservationUpdate(reservation.id, 'completed')}
-                                    data-testid={`button-complete-${reservation.id}`}
-                                  >
-                                    Selesai
-                                  </DropdownMenuItem>
-                                )}
-                                {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
-                                    className="text-red-600"
-                                    data-testid={`button-cancel-${reservation.id}`}
-                                  >
-                                    Batalkan
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+                                    <MoreHorizontal className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {reservation.status === 'pending' && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleReservationUpdate(reservation.id, 'confirmed')}
+                                      data-testid={`button-confirm-${reservation.id}`}
+                                    >
+                                      Konfirmasi
+                                    </DropdownMenuItem>
+                                  )}
+                                  {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleReservationUpdate(reservation.id, 'completed')}
+                                      data-testid={`button-complete-${reservation.id}`}
+                                    >
+                                      Selesai
+                                    </DropdownMenuItem>
+                                  )}
+                                  {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
+                                      className="text-red-600"
+                                      data-testid={`button-cancel-${reservation.id}`}
+                                    >
+                                      Batalkan
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="px-6 py-4">
+            <div className={`grid gap-4 ${dateRangeMode === 'week' ? 'grid-cols-7' : 'grid-cols-7'}`}>
+              {displayDays.map((day) => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const dayReservations = Object.values(reservationsByDateAndTime[dateKey] || {}).flat();
+                const isToday = isSameDay(day, new Date());
+                
+                return (
+                  <Card 
+                    key={dateKey} 
+                    className={`overflow-hidden ${isToday ? 'ring-2 ring-primary' : ''}`}
+                    data-testid={`date-card-${dateKey}`}
+                  >
+                    <div className={`p-3 text-center border-b ${isToday ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
+                      <div className="text-xs font-medium uppercase tracking-wide mb-1">
+                        {format(day, 'EEE', { locale: id })}
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {format(day, 'dd', { locale: id })}
+                      </div>
+                      <div className="text-xs opacity-80">
+                        {format(day, 'MMM', { locale: id })}
+                      </div>
+                    </div>
+                    <div className="p-2 min-h-[120px] max-h-[300px] overflow-y-auto">
+                      {dayReservations.length > 0 ? (
+                        <div className="space-y-2">
+                          {dayReservations.map((reservation) => (
+                            <Card
+                              key={reservation.id}
+                              className={`p-2 border-l-4 ${getStatusColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer`}
+                              data-testid={`card-reservation-${reservation.id}`}
+                            >
+                              <div className="flex items-start justify-between gap-1">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-xs font-semibold text-foreground truncate" data-testid={`text-customer-${reservation.id}`}>
+                                    {reservation.customerName}
+                                  </h4>
+                                  <div className="flex items-center space-x-2 text-[10px] text-muted-foreground mt-1">
+                                    <span className="flex items-center">
+                                      <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                      {reservation.reservationTime}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <Users className="h-2.5 w-2.5 mr-0.5" />
+                                      {reservation.guestCount}
+                                    </span>
+                                  </div>
+                                  <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3 mt-1" data-testid={`badge-status-${reservation.id}`}>
+                                    {getStatusLabel(reservation.status)}
+                                  </Badge>
+                                </div>
+
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-5 w-5 -mr-1"
+                                      disabled={updateReservationMutation.isPending}
+                                      data-testid={`button-actions-${reservation.id}`}
+                                    >
+                                      <MoreHorizontal className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    {reservation.status === 'pending' && (
+                                      <DropdownMenuItem 
+                                        onClick={() => handleReservationUpdate(reservation.id, 'confirmed')}
+                                        data-testid={`button-confirm-${reservation.id}`}
+                                      >
+                                        Konfirmasi
+                                      </DropdownMenuItem>
+                                    )}
+                                    {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
+                                      <DropdownMenuItem 
+                                        onClick={() => handleReservationUpdate(reservation.id, 'completed')}
+                                        data-testid={`button-complete-${reservation.id}`}
+                                      >
+                                        Selesai
+                                      </DropdownMenuItem>
+                                    )}
+                                    {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
+                                      <DropdownMenuItem 
+                                        onClick={() => handleReservationUpdate(reservation.id, 'cancelled')}
+                                        className="text-red-600"
+                                        data-testid={`button-cancel-${reservation.id}`}
+                                      >
+                                        Batalkan
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+                          Tidak ada reservasi
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
