@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet, Smartphone } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, ShoppingBag, User, Table, Receipt, Calculator, Printer, FileText, Send, Eye, Split, Search, Clock, QrCode, Banknote, CreditCard as CreditCardIcon, Wallet, Smartphone, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +64,7 @@ export default function CashierSection() {
   
   // Open bills state
   const [showOpenBills, setShowOpenBills] = useState(false);
+  const [openBillsCollapsed, setOpenBillsCollapsed] = useState(false);
   const [viewingBill, setViewingBill] = useState<Order | null>(null);
   const [editingBill, setEditingBill] = useState<Order | null>(null);
   
@@ -1145,31 +1146,35 @@ export default function CashierSection() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT COLUMN - Product Lists */}
         <div className="space-y-4">
-        {/* Open Bills Section - Clean Card Layout */}
+        {/* Open Bills Section - Collapsible */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-foreground">Open bill</h2>
+              <h2 className="text-lg font-semibold text-foreground">Order queues</h2>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0 rounded-full"
+                onClick={() => setOpenBillsCollapsed(!openBillsCollapsed)}
                 data-testid="toggle-open-bills"
               >
-                <Eye className="h-4 w-4" />
+                {openBillsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               </Button>
-              <button className="text-sm text-primary hover:underline">
-                View All
-              </button>
             </div>
+            <button className="text-sm text-primary hover:underline flex items-center gap-1" onClick={() => setShowOpenBills(true)}>
+              <Eye className="h-4 w-4" />
+              View All
+            </button>
           </div>
           
-          {openBills.length === 0 ? (
-            <div className="text-center py-8 bg-muted/30 rounded-lg">
-              <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {!openBillsCollapsed && (
+            <>
+            {openBills.length === 0 ? (
+              <div className="text-center py-8 bg-muted/30 rounded-lg">
+                <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {openBills.slice(0, 6).map((bill) => {
                 const statusColors = {
                   pending: 'bg-green-100 text-green-700 border-green-200',
@@ -1240,7 +1245,9 @@ export default function CashierSection() {
                   </Card>
                 );
               })}
-            </div>
+              </div>
+            )}
+            </>
           )}
         </div>
 
@@ -1295,50 +1302,56 @@ export default function CashierSection() {
           </Card>
         )}
 
-        {/* Prominent Search Bar */}
-        <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
-        <Input
-          type="text"
-          placeholder="Find food or beverages"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-12 h-12 text-sm border-0 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary"
-          data-testid="input-search-menu"
-        />
-        </div>
-
-        {/* Menu Selection */}
+        {/* Menu Selection with Search */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Explore Our Best Menu</CardTitle>
+              <div className="flex items-center justify-between mb-3">
+                <CardTitle className="text-lg font-semibold">Product Lists</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    Input manually
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                <Input
+                  type="text"
+                  placeholder="Search for food"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-10 text-sm"
+                  data-testid="input-search-menu"
+                />
               </div>
             </CardHeader>
             <CardContent>
               {/* Horizontal Scrollable Categories */}
               <div className="mb-4">
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {/* All Categories Button */}
-                  <Button
-                    variant={selectedCategory === null ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedCategory(null)}
-                    className={`whitespace-nowrap flex-shrink-0 h-8 ${selectedCategory === null ? 'bg-primary text-white' : ''}`}
-                    data-testid="button-category-all"
-                  >
-                    All
-                  </Button>
-                  
-                  {/* Category Buttons */}
-                  {categories.map((category) => (
+                  {/* Category Buttons - English names for consistency */}
+                  {[
+                    { id: null, name: 'Appetizers' },
+                    ...categories.slice(0, 8).map(cat => ({
+                      id: cat.id,
+                      name: cat.name === 'Nasi & Mie' ? 'Seafood platters' : 
+                            cat.name === 'Ikan & Seafood' ? 'Fish' :
+                            cat.name === 'Ayam & Daging' ? 'Shrimp' :
+                            cat.name === 'Sayur & Sup' ? 'Crab' :
+                            cat.name === 'Minuman' ? 'Drinks' :
+                            cat.name === 'Camilan & Dessert' ? 'Dessert' :
+                            cat.name
+                    }))
+                  ].map((category, index) => (
                     <Button
-                      key={category.id}
+                      key={category.id || 'all'}
                       variant={selectedCategory === category.id ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedCategory(category.id)}
-                      className={`whitespace-nowrap flex-shrink-0 h-8 ${selectedCategory === category.id ? 'bg-primary text-white' : ''}`}
-                      data-testid={`button-category-${category.name.toLowerCase()}`}
+                      className={`whitespace-nowrap flex-shrink-0 h-9 px-4 ${selectedCategory === category.id ? 'bg-primary text-white' : ''}`}
+                      data-testid={`button-category-${index}`}
                     >
                       {category.name}
                     </Button>
@@ -1355,35 +1368,95 @@ export default function CashierSection() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {filteredMenuItems.map((item) => (
-                      <Card key={item.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-3">
-                          <div className="flex flex-col space-y-2">
-                            <h3 className="font-semibold text-sm text-foreground line-clamp-2 min-h-[2.5rem]" data-testid={`menu-item-${item.id}`}>
-                              {item.name}
-                            </h3>
-                            <div className="bg-gray-100 rounded-lg px-2 py-1.5 border border-gray-200" data-testid={`price-${item.id}`}>
-                              <div className="flex items-baseline gap-1 justify-center">
-                                <span className="text-xs font-medium text-gray-600">Rp</span>
-                                <span className="text-xs font-bold text-primary">
-                                  {item.price.toLocaleString('id-ID')}
-                                </span>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {filteredMenuItems.map((item) => {
+                      const cartItem = cart.find(c => c.id === item.id);
+                      const quantity = cartItem?.quantity || 0;
+                      
+                      return (
+                        <Card key={item.id} className="hover:shadow-lg transition-all border-0 shadow-sm overflow-hidden">
+                          <CardContent className="p-0">
+                            <div className="flex flex-col">
+                              {/* Menu Image */}
+                              <div className="relative w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                                {item.image ? (
+                                  <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <img
+                                      src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop"
+                                      alt={item.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Menu Details */}
+                              <div className="p-3 space-y-2">
+                                <h3 className="font-semibold text-sm text-foreground line-clamp-2 min-h-[2.5rem]" data-testid={`menu-item-${item.id}`}>
+                                  {item.name}
+                                </h3>
+                                <div className="flex items-center justify-between">
+                                  <div className="text-sm font-bold text-foreground" data-testid={`price-${item.id}`}>
+                                    $ {(item.price / 1000).toFixed(2)} / serving
+                                  </div>
+                                </div>
+                                
+                                {/* Category Badge */}
+                                <div className="text-xs text-muted-foreground">
+                                  {categories.find(c => c.id === item.categoryId)?.name || 'Food'}
+                                </div>
+                                
+                                {/* Add/Quantity Controls */}
+                                {quantity === 0 ? (
+                                  <Button
+                                    onClick={() => addToCart(item)}
+                                    className="w-full h-9"
+                                    size="sm"
+                                    variant="outline"
+                                    data-testid={`button-add-${item.id}`}
+                                  >
+                                    Add to cart
+                                  </Button>
+                                ) : (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => updateQuantity(item.id, quantity - 1)}
+                                      className="h-9 w-9 p-0 rounded-lg"
+                                      data-testid={`button-decrease-${item.id}`}
+                                    >
+                                      <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <span className="text-sm font-bold w-8 text-center" data-testid={`quantity-${item.id}`}>
+                                      {quantity}
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => updateQuantity(item.id, quantity + 1)}
+                                      className="h-9 w-9 p-0 rounded-lg"
+                                      data-testid={`button-increase-${item.id}`}
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <Button
-                              onClick={() => addToCart(item)}
-                              className="w-full"
-                              size="sm"
-                              data-testid={`button-add-${item.id}`}
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Tambah
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1393,11 +1466,50 @@ export default function CashierSection() {
 
         {/* RIGHT COLUMN - Cart Details */}
         <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        {/* Cart Details Header with Tabs */}
+        <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Cart Details</CardTitle>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Eye className="h-4 w-4" />
+            </Button>
+          </div>
+          {/* Order Type Tabs */}
+          <div className="flex gap-2 mt-3">
+            <Button
+              variant={orderType === "dine_in" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setOrderType("dine_in")}
+              className="flex-1 h-8"
+            >
+              Dine in
+            </Button>
+            <Button
+              variant={orderType === "takeaway" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setOrderType("takeaway")}
+              className="flex-1 h-8"
+            >
+              Takeaway
+            </Button>
+            <Button
+              variant={orderType === "delivery" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setOrderType("delivery")}
+              className="flex-1 h-8"
+            >
+              Delivery
+            </Button>
+          </div>
+        </CardHeader>
+        </Card>
+        
         {/* Customer Information - Modern Clean Design */}
         <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
+            <h3 className="text-sm font-semibold text-foreground">Customer information</h3>
             {editingBill && (
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
@@ -1427,36 +1539,42 @@ export default function CashierSection() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="customerName" className="text-xs text-muted-foreground mb-1.5 block">Your name</Label>
+              <Label htmlFor="customerName" className="text-xs text-muted-foreground mb-1.5 block">Customer name</Label>
               <Input
                 id="customerName"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter customer name"
+                placeholder="Enter name"
                 className="h-9 text-sm"
                 data-testid="input-customer-name"
               />
             </div>
             <div>
-              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Table number</Label>
-              <Input
-                id="tableNumber"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="Table number"
-                disabled={!!editingBill}
-                className="h-9 text-sm"
-                data-testid="input-table-number"
-              />
+              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Table location</Label>
+              <Select value={tableNumber} onValueChange={setTableNumber}>
+                <SelectTrigger className="h-9 text-sm" data-testid="select-table-number">
+                  <SelectValue placeholder="Select table" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                    <SelectItem key={num} value={`${num}`}>Table {num}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
         </Card>
 
-        {/* Current Order - Modern Design */}
+        {/* Order Items - Modern Design */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Current Order</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Order items</CardTitle>
+                <Button variant="ghost" size="sm" className="text-xs text-primary h-auto p-0" onClick={() => setCart([])}>
+                  Clear all items
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {cart.length === 0 ? (
@@ -1521,132 +1639,78 @@ export default function CashierSection() {
                   </div>
 
                   {/* Payment Summary */}
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-sm font-semibold text-foreground">Summary</h4>
+                  <div className="space-y-3 pt-2 border-t">
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Subtotal</span>
+                        <span>Sub total</span>
                         <span data-testid="subtotal">{formatCurrency(subtotal)}</span>
                       </div>
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Discount sales</span>
-                        <span className="text-primary" data-testid="discount-amount">
-                          {totalDiscount > 0 ? `-${formatCurrency(totalDiscount)}` : formatCurrency(0)}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Discount (5%)</span>
+                        <span className="text-destructive" data-testid="discount-amount">
+                          {totalDiscount > 0 ? `-${formatCurrency(totalDiscount)}` : '-Rp.0'}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>Total tax</span>
+                        <span>Tax (2.6%)</span>
                         <span data-testid="tax-amount">{formatCurrency(taxAmount)}</span>
                       </div>
-                      <div className="flex justify-between text-base font-bold text-foreground pt-2 border-t">
-                        <span>Total</span>
-                        <span className="text-primary" data-testid="total">{formatCurrency(total)}</span>
-                      </div>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-foreground pt-2 border-t">
+                      <span>Total amount</span>
+                      <span className="text-primary" data-testid="total">{formatCurrency(total)}</span>
                     </div>
                   </div>
 
-                  {/* Payment Method */}
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-foreground">Payment Method</h4>
-                    <div className="grid grid-cols-4 gap-2">
-                      <button
-                        onClick={() => setPaymentMethod("qris")}
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                          paymentMethod === "qris" 
-                            ? "bg-primary text-white border-primary" 
-                            : "bg-background border-border hover:border-primary/50"
-                        }`}
-                        data-testid="button-payment-qris"
-                      >
-                        <QrCode className="h-5 w-5 mb-1" />
-                        <span className="text-xs font-medium">Qris</span>
-                      </button>
-                      <button
-                        onClick={() => setPaymentMethod("cash")}
-                        className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
-                          paymentMethod === "cash" 
-                            ? "bg-primary text-white border-primary" 
-                            : "bg-background border-border hover:border-primary/50"
-                        }`}
-                        data-testid="button-payment-cash"
-                      >
-                        <Banknote className="h-5 w-5 mb-1" />
-                        <span className="text-xs font-medium">Cash</span>
-                      </button>
-                      <button
-                        className="flex flex-col items-center justify-center p-3 rounded-lg border border-border bg-background/50 opacity-50 cursor-not-allowed"
-                        disabled
-                      >
-                        <CreditCardIcon className="h-5 w-5 mb-1" />
-                        <span className="text-xs font-medium">Debit</span>
-                      </button>
-                      <button
-                        className="flex flex-col items-center justify-center p-3 rounded-lg border border-border bg-background/50 opacity-50 cursor-not-allowed"
-                        disabled
-                      >
-                        <Wallet className="h-5 w-5 mb-1" />
-                        <span className="text-xs font-medium">e-Money</span>
-                      </button>
-                    </div>
+                  {/* Promo Code */}
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Enter promo code"
+                      className="h-10 text-sm"
+                    />
+                    <Button variant="outline" className="h-10 px-6">
+                      Apply
+                    </Button>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="space-y-2">
-                    {/* Show split warning if unpaid assignments exist */}
-                    {getUnpaidAssignedCount() > 0 && (
-                      <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                          <strong>Split Bill Aktif:</strong> {getUnpaidAssignedCount()} items di-assign ke unpaid splits.
-                        </p>
-                        <Button
-                          onClick={cancelSplitBill}
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 w-full"
-                        >
-                          Batal Split Bill
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {/* Main Order Now Button */}
+                  {/* Payment Button */}
+                  <Button
+                    onClick={handleSubmitOrder}
+                    disabled={createOrderMutation.isPending || cart.length === 0 || getUnpaidAssignedCount() > 0}
+                    className="w-full bg-primary hover:bg-primary/90 text-white h-12 text-base font-semibold"
+                    data-testid="button-submit-order"
+                  >
+                    {createOrderMutation.isPending ? "Processing..." : "Proceed payment"}
+                  </Button>
+
+                  {/* Secondary Actions */}
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
-                      onClick={handleSubmitOrder}
-                      disabled={createOrderMutation.isPending || getUnpaidAssignedCount() > 0}
-                      className="w-full bg-primary hover:bg-primary/90 text-white h-12 text-base font-semibold rounded-xl"
-                      data-testid="button-submit-order"
+                      onClick={handleCreateOpenBill}
+                      disabled={createOpenBillMutation.isPending || getUnpaidAssignedCount() > 0}
+                      variant="outline"
+                      className="h-9 text-xs"
+                      data-testid="button-create-open-bill"
                     >
-                      {createOrderMutation.isPending ? "Processing..." : "Order Now"}
+                      <FileText className="h-3.5 w-3.5 mr-1.5" />
+                      {createOpenBillMutation.isPending 
+                        ? "Saving..." 
+                        : editingBill 
+                          ? "Update Bill" 
+                          : "Open Bill"}
                     </Button>
                     
-                    {/* Secondary Actions */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        onClick={handleCreateOpenBill}
-                        disabled={createOpenBillMutation.isPending || getUnpaidAssignedCount() > 0}
-                        variant="outline"
-                        className="h-9 text-xs"
-                        data-testid="button-create-open-bill"
-                      >
-                        <FileText className="h-3.5 w-3.5 mr-1.5" />
-                        {createOpenBillMutation.isPending 
-                          ? "Saving..." 
-                          : editingBill 
-                            ? "Update Bill" 
-                            : "Open Bill"}
-                      </Button>
-                      
-                      <Button
-                        onClick={initiateSplitBill}
-                        variant="outline"
-                        className="h-9 text-xs"
-                        data-testid="button-split-bill"
-                        disabled={splitParts.length > 0}
-                      >
-                        <Split className="h-3.5 w-3.5 mr-1.5" />
-                        {splitParts.length > 0 ? "Split Active" : "Split Bill"}
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={initiateSplitBill}
+                      variant="outline"
+                      className="h-9 text-xs"
+                      data-testid="button-split-bill"
+                      disabled={splitParts.length > 0}
+                    >
+                      <Split className="h-3.5 w-3.5 mr-1.5" />
+                      {splitParts.length > 0 ? "Split Active" : "Split Bill"}
+                    </Button>
                   </div>
                 </>
               )}
