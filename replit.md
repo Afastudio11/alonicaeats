@@ -49,7 +49,11 @@ Preferred communication style: Simple, everyday language.
 - **Dev Server**: Express + Vite with HMR enabled, allowedHosts configured
 - **Seeded Data**: Admin and kasir accounts created (admin/admin123, kasir1/kasir123, etc.)
 - **Deployment**: Configured for autoscale with build and production scripts
-- **New Feature**: Dedicated Approval Management page at `/admin/approvals` (October 2, 2025)
+- **Unified Approval Management**: Single-page interface at `/admin/approvals` with three tabs:
+  - **Pending Approvals**: Real-time notifications for deletion requests from kasir (3s polling)
+  - **Deletion History**: Complete audit trail of approved/deleted items (5s polling)
+  - **PIN Management**: Generate and manage admin PINs for deletion authorization (5s polling)
+  - **Sync Strategy**: All mutations invalidate both `/api/notifications` and `/api/deletion-logs` for guaranteed consistency
 
 ### Running the Application
 1. **Development**: `npm run dev` - Starts Express server with Vite middleware on port 5000
