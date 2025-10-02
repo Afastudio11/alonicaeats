@@ -1407,7 +1407,7 @@ export default function CashierSection() {
                                 </h3>
                                 <div className="flex items-center justify-between">
                                   <div className="text-sm font-bold text-foreground" data-testid={`price-${item.id}`}>
-                                    $ {(item.price / 1000).toFixed(2)} / serving
+                                    Rp {item.price.toLocaleString('id-ID')}
                                   </div>
                                 </div>
                                 
@@ -1466,7 +1466,7 @@ export default function CashierSection() {
         </div>
 
         {/* RIGHT COLUMN - Cart Details */}
-        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
         {/* Cart Details Header with Tabs */}
         <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">

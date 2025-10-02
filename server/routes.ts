@@ -112,6 +112,90 @@ function handleApiError(res: Response, error: unknown, defaultMessage: string = 
   return sendErrorResponse(res, 500, defaultMessage);
 }
 
+// Helper function to update daily report when an order is paid
+async function updateDailyReportForOrder(orderId: string) {
+  try {
+    const order = await storage.getOrder(orderId);
+    if (!order || order.paymentStatus !== 'paid') {
+      return; // Only process paid orders
+    }
+
+    // Get today's date (start and end of day)
+    const orderDate = order.paidAt || order.createdAt;
+    const reportDate = new Date(orderDate);
+    reportDate.setHours(0, 0, 0, 0);
+
+    // Get all orders for this date
+    const allOrders = await storage.getOrders();
+    const dayOrders = allOrders.filter(o => {
+      const oDate = new Date(o.paidAt || o.createdAt);
+      oDate.setHours(0, 0, 0, 0);
+      return oDate.getTime() === reportDate.getTime();
+    });
+
+    // Calculate statistics
+    const paidOrders = dayOrders.filter(o => o.paymentStatus === 'paid' && o.orderStatus !== 'cancelled');
+    const cashOrders = paidOrders.filter(o => o.paymentMethod === 'cash');
+    const nonCashOrders = paidOrders.filter(o => o.paymentMethod !== 'cash');
+
+    const totalRevenueCash = cashOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalRevenueNonCash = nonCashOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalRevenue = totalRevenueCash + totalRevenueNonCash;
+
+    // Check if daily report exists for this date
+    const allReports = await storage.getDailyReports();
+    const existingReport = allReports.find(r => {
+      const rDate = new Date(r.reportDate);
+      rDate.setHours(0, 0, 0, 0);
+      return rDate.getTime() === reportDate.getTime();
+    });
+
+    if (existingReport) {
+      // Update existing report
+      await storage.updateDailyReport(existingReport.id, {
+        totalRevenueCash,
+        totalRevenueNonCash,
+        totalRevenue,
+        physicalCashAmount: totalRevenueCash, // Match cash amount
+        cashDifference: 0, // No difference for auto-updated reports
+        totalOrders: dayOrders.length,
+        cashOrders: cashOrders.length,
+        nonCashOrders: nonCashOrders.length,
+      });
+    } else {
+      // Create new report
+      // Find a kasir user to assign
+      const users = await storage.getUsers();
+      const kasirUser = users.find(u => u.role === 'kasir');
+      
+      if (kasirUser) {
+        const shiftStart = new Date(reportDate);
+        shiftStart.setHours(9, 0, 0, 0);
+        const shiftEnd = new Date(reportDate);
+        shiftEnd.setHours(21, 0, 0, 0);
+
+        await storage.createDailyReport({
+          reportDate,
+          cashierId: kasirUser.id,
+          totalRevenueCash,
+          totalRevenueNonCash,
+          totalRevenue,
+          physicalCashAmount: totalRevenueCash,
+          cashDifference: 0,
+          totalOrders: dayOrders.length,
+          cashOrders: cashOrders.length,
+          nonCashOrders: nonCashOrders.length,
+          shiftStartTime: shiftStart,
+          shiftEndTime: shiftEnd,
+          notes: null,
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error updating daily report:', error);
+    // Don't throw - we don't want to fail order processing if report update fails
+  }
+}
 
 // Auth middleware to protect admin routes
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -234,6 +318,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update order status when payment is confirmed
       if (notificationData.paymentStatus === 'paid' && order.orderStatus === 'queued') {
         await storage.updateOrderStatus(order.id, 'preparing');
+      }
+
+      // Update daily report when payment is confirmed
+      if (notificationData.paymentStatus === 'paid') {
+        await updateDailyReportForOrder(order.id);
       }
 
       console.log(`Payment ${notificationData.paymentStatus} for order ${order.id}`);
@@ -1988,6 +2077,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const order = await storage.createOrder(orderData);
       
+      // Update daily report for this paid order
+      await updateDailyReportForOrder(order.id);
+      
       const responsePayload = {
         order,
         payment: {
@@ -2253,6 +2345,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethod: paymentMethod || 'cash',
         paidAt: new Date()
       });
+      
+      // Update daily report for this paid order
+      await updateDailyReportForOrder(id);
       
       const updatedOrder = await storage.getOrder(id);
       

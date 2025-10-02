@@ -11,12 +11,12 @@ import { eq, and, gte, sql, lt } from "drizzle-orm";
  * Target: ~100 order/hari dengan revenue ~5,000,000 IDR/hari
  */
 
-// Configuration
+// Configuration - 3 BULAN DATA
 const CONFIG = {
-  DAYS_TO_SEED: 30,
-  TARGET_ORDERS_PER_DAY: 100,
-  TARGET_REVENUE_PER_DAY: 5_000_000, // 5 juta rupiah
-  VARIANCE: 0.15 // 15% variance untuk realisme
+  DAYS_TO_SEED: 90, // 3 bulan
+  TARGET_ORDERS_PER_DAY: 14, // 1232 / 90 ≈ 14 orders per day
+  TARGET_REVENUE_PER_DAY: 600_000, // ~600k rupiah per day
+  VARIANCE: 0.2 // 20% variance untuk realisme
 };
 
 // Helper: Random number dengan variance
@@ -72,27 +72,27 @@ async function ensureMenuItems(cats: Array<typeof categories.$inferSelect>): Pro
   
   const menuData: Record<string, { items: string[], prices: [number, number] }> = {
     "Nasi & Mie": {
-      items: ["Nasi Goreng", "Nasi Ayam", "Nasi Uduk", "Mie Goreng", "Mie Kuah", "Nasi Goreng Spesial", "Nasi Goreng Seafood", "Mie Goreng Ayam", "Kwetiau Goreng", "Bihun Goreng"],
+      items: ["Nasi Goreng", "Nasi Ayam", "Nasi Uduk", "Mie Goreng", "Mie Kuah", "Nasi Goreng Spesial", "Nasi Goreng Seafood", "Mie Goreng Ayam", "Kwetiau Goreng", "Bihun Goreng", "Nasi Campur", "Mie Ayam", "Bakmi Goreng"],
       prices: [18000, 38000]
     },
     "Ayam & Daging": {
-      items: ["Ayam Bakar", "Ayam Goreng", "Ayam Geprek", "Rendang", "Sate Ayam", "Ayam Geprek Keju", "Rendang Spesial", "Ayam Penyet", "Ayam Rica-Rica"],
+      items: ["Ayam Bakar", "Ayam Goreng", "Ayam Geprek", "Rendang", "Sate Ayam", "Ayam Geprek Keju", "Rendang Spesial", "Ayam Penyet", "Ayam Rica-Rica", "Ayam Kremes", "Empal Gepuk", "Dendeng Balado"],
       prices: [22000, 48000]
     },
     "Ikan & Seafood": {
-      items: ["Ikan Bakar", "Ikan Goreng", "Cumi Goreng", "Udang Goreng", "Gurame Asam Manis", "Ikan Bakar Rica-Rica", "Pepes Ikan", "Cumi Saus Padang"],
+      items: ["Ikan Bakar", "Ikan Goreng", "Cumi Goreng", "Udang Goreng", "Gurame Asam Manis", "Ikan Bakar Rica-Rica", "Pepes Ikan", "Cumi Saus Padang", "Udang Asam Manis", "Kakap Goreng", "Bandeng Presto"],
       prices: [25000, 65000]
     },
     "Sayur & Sup": {
-      items: ["Sayur Asem", "Sop Ayam", "Sop Iga", "Capcay", "Tumis Kangkung", "Soto Ayam", "Rawon", "Gado-Gado", "Pecel"],
+      items: ["Sayur Asem", "Sop Ayam", "Sop Iga", "Capcay", "Tumis Kangkung", "Soto Ayam", "Rawon", "Gado-Gado", "Pecel", "Sayur Lodeh", "Tongseng", "Gulai Kambing"],
       prices: [12000, 30000]
     },
     "Minuman": {
-      items: ["Es Teh", "Es Jeruk", "Es Kopi Susu", "Kopi Hitam", "Lemon Tea", "Teh Tarik", "Matcha Latte", "Jus Alpukat", "Jus Mangga", "Cappuccino"],
+      items: ["Es Teh", "Es Jeruk", "Es Kopi Susu", "Kopi Hitam", "Lemon Tea", "Teh Tarik", "Matcha Latte", "Jus Alpukat", "Jus Mangga", "Cappuccino", "Jus Stroberi", "Thai Tea", "Es Campur", "Jus Melon"],
       prices: [8000, 38000]
     },
     "Camilan & Dessert": {
-      items: ["Pisang Goreng", "Tahu Isi", "Tempe Mendoan", "Cireng", "Roti Bakar", "Martabak Mini", "Donat", "Klepon", "Lemper"],
+      items: ["Pisang Goreng", "Tahu Isi", "Tempe Mendoan", "Cireng", "Roti Bakar", "Martabak Mini", "Donat", "Klepon", "Lemper", "Pastel", "Risoles", "Kue Cucur", "Es Krim", "Pudding", "Brownies"],
       prices: [10000, 25000]
     }
   };
@@ -258,7 +258,9 @@ async function generateReservations(startDate: Date, endDate: Date) {
     
     // Skip jika sudah ada reservations untuk tanggal ini
     if (!existingDates.has(dateKey)) {
-      const resvCount = 2 + Math.floor(Math.random() * 2); // 2-3 reservations
+      // Target: ~100 reservations untuk 90 hari = ~1.1 per hari
+      // Beberapa hari tidak ada reservasi, beberapa hari 1-2 reservasi
+      const resvCount = Math.random() > 0.3 ? (Math.random() > 0.7 ? 2 : 1) : 0; // 0, 1, atau 2 reservations
       
       for (let i = 0; i < resvCount; i++) {
         const resDate = new Date(currentDate);
