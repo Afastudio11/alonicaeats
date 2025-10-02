@@ -1150,7 +1150,7 @@ export default function CashierSection() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-foreground">Order queues</h2>
+              <h2 className="text-lg font-semibold text-foreground">Open Bill</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1174,14 +1174,14 @@ export default function CashierSection() {
                 <p className="text-muted-foreground text-sm">Tidak ada open bills</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {openBills.slice(0, 6).map((bill) => {
                 const statusColors = {
-                  pending: 'bg-green-100 text-green-700 border-green-200',
-                  preparing: 'bg-amber-100 text-amber-700 border-amber-200',
-                  ready: 'bg-green-100 text-green-700 border-green-200',
-                  served: 'bg-gray-100 text-gray-700 border-gray-200',
-                  cancelled: 'bg-red-100 text-red-700 border-red-200'
+                  pending: 'bg-green-50 text-green-700 border-green-200',
+                  preparing: 'bg-amber-50 text-amber-700 border-amber-200',
+                  ready: 'bg-green-50 text-green-700 border-green-200',
+                  served: 'bg-gray-50 text-gray-700 border-gray-200',
+                  cancelled: 'bg-red-50 text-red-700 border-red-200'
                 };
                 const status = bill.orderStatus || 'pending';
                 const statusText = status === 'pending' || status === 'ready' ? 'Ready to serve' : 
@@ -1189,55 +1189,56 @@ export default function CashierSection() {
                                   status === 'cancelled' ? 'Cancelled' : 'Served';
                 
                 return (
-                  <Card key={bill.id} className="border hover:shadow-md transition-shadow cursor-pointer group" onClick={() => handlePayOpenBill(bill)}>
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-semibold text-foreground">#{bill.id.slice(0, 8)}</span>
-                            <Badge className={`text-xs px-2 py-0.5 ${statusColors[status as keyof typeof statusColors] || statusColors.pending}`}>
-                              {statusText}
-                            </Badge>
-                          </div>
-                          <p className="font-medium text-foreground">{bill.customerName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(bill.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}, {new Date(bill.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
+                  <Card key={bill.id} className="border hover:shadow-md transition-all cursor-pointer bg-white" onClick={() => handlePayOpenBill(bill)}>
+                    <CardContent className="p-3">
+                      {/* Header with ID and Status */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-foreground">#{bill.id.slice(0, 8).toUpperCase()}</span>
+                        <Badge className={`text-xs px-2 py-0.5 border ${statusColors[status as keyof typeof statusColors] || statusColors.pending}`}>
+                          {statusText}
+                        </Badge>
                       </div>
                       
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <ShoppingBag className="h-3.5 w-3.5" />
-                            <span>{Array.isArray(bill.items) ? bill.items.length : 0} items</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <FileText className="h-3.5 w-3.5" />
-                            <span>Table {bill.tableNumber}</span>
-                          </div>
+                      {/* Customer Name */}
+                      <p className="font-semibold text-sm text-foreground mb-1">{bill.customerName}</p>
+                      
+                      {/* Date and Time */}
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {new Date(bill.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}, {new Date(bill.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </p>
+                      
+                      {/* Item Count and Table */}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                        <div className="flex items-center gap-1">
+                          <ShoppingBag className="h-3.5 w-3.5" />
+                          <span>{Array.isArray(bill.items) ? bill.items.length : 0} items</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Table className="h-3.5 w-3.5" />
+                          <span>Table {bill.tableNumber}</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1">
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="outline"
                           onClick={(e) => { e.stopPropagation(); setViewingBill(bill); }}
-                          className="h-8 flex-1 hover:bg-muted"
+                          className="h-7 flex-1 text-xs"
                           data-testid={`button-view-bill-${bill.id}`}
                         >
-                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          <Eye className="h-3 w-3 mr-1" />
                           Lihat
                         </Button>
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="outline"
                           onClick={(e) => { e.stopPropagation(); handleEditOpenBill(bill); }}
-                          className="h-8 flex-1 hover:bg-muted"
+                          className="h-7 flex-1 text-xs"
                           data-testid={`button-edit-bill-${bill.id}`}
                         >
-                          <FileText className="h-3.5 w-3.5 mr-1" />
+                          <FileText className="h-3 w-3 mr-1" />
                           Edit
                         </Button>
                       </div>

@@ -97,7 +97,7 @@ export default function KasirDashboard() {
       />
       
       {/* Main Content */}
-      <div className="flex-1 lg:pl-64">
+      <div className="flex-1 lg:pl-20">
         {/* Mobile Header */}
         <div className="lg:hidden bg-white border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center space-x-3">
