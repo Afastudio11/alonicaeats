@@ -71,7 +71,7 @@ export default function DiscountsSection() {
   });
 
   const { data: menuItems = [] } = useQuery<MenuItem[]>({
-    queryKey: ["/api/menu-items"],
+    queryKey: ["/api/menu"],
   });
 
   // Mutations
