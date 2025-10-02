@@ -1141,7 +1141,10 @@ export default function CashierSection() {
 
   return (
     <>
-      <div className="space-y-4">
+      {/* 2-Column Layout: Product Lists (Left) and Cart Details (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* LEFT COLUMN - Product Lists */}
+        <div className="space-y-4">
         {/* Open Bills Section - Clean Card Layout */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -1241,66 +1244,6 @@ export default function CashierSection() {
           )}
         </div>
 
-        {/* Customer Information - Modern Clean Design */}
-        <Card className="border-0 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
-            {editingBill && (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-                  Edit Mode
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingBill(null);
-                    setCustomerName("");
-                    setTableNumber("");
-                    setCart([]);
-                    setNotes({});
-                    toast({
-                      title: "Edit dibatalkan",
-                      description: "Kembali ke mode buat pesanan baru",
-                    });
-                  }}
-                  data-testid="button-cancel-edit"
-                  className="text-xs h-7"
-                >
-                  Cancel Edit
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="customerName" className="text-xs text-muted-foreground mb-1.5 block">Your name</Label>
-              <Input
-                id="customerName"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter customer name"
-                className="h-9 text-sm"
-                data-testid="input-customer-name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Table number</Label>
-              <Input
-                id="tableNumber"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="Table number"
-                disabled={!!editingBill}
-                className="h-9 text-sm"
-                data-testid="input-table-number"
-              />
-            </div>
-          </div>
-        </CardContent>
-        </Card>
-
         {/* Special Discount Today Section */}
         {discountsWithItems.length > 0 && (
           <Card className="border-0 shadow-sm">
@@ -1365,9 +1308,7 @@ export default function CashierSection() {
         />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Menu Selection */}
-        <div className="lg:col-span-2">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -1450,8 +1391,69 @@ export default function CashierSection() {
           </Card>
         </div>
 
+        {/* RIGHT COLUMN - Cart Details */}
+        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        {/* Customer Information - Modern Clean Design */}
+        <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
+            {editingBill && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  Edit Mode
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditingBill(null);
+                    setCustomerName("");
+                    setTableNumber("");
+                    setCart([]);
+                    setNotes({});
+                    toast({
+                      title: "Edit dibatalkan",
+                      description: "Kembali ke mode buat pesanan baru",
+                    });
+                  }}
+                  data-testid="button-cancel-edit"
+                  className="text-xs h-7"
+                >
+                  Cancel Edit
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="customerName" className="text-xs text-muted-foreground mb-1.5 block">Your name</Label>
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter customer name"
+                className="h-9 text-sm"
+                data-testid="input-customer-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="tableNumber" className="text-xs text-muted-foreground mb-1.5 block">Table number</Label>
+              <Input
+                id="tableNumber"
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                placeholder="Table number"
+                disabled={!!editingBill}
+                className="h-9 text-sm"
+                data-testid="input-table-number"
+              />
+            </div>
+          </div>
+        </CardContent>
+        </Card>
+
         {/* Current Order - Modern Design */}
-        <div className="space-y-4">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">Current Order</CardTitle>
@@ -2580,7 +2582,6 @@ export default function CashierSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </>
   );
 }
