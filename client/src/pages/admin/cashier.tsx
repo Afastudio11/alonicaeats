@@ -1143,9 +1143,9 @@ export default function CashierSection() {
   return (
     <>
       {/* 2-Column Layout: Product Lists (Left) and Cart Details (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN - Product Lists */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:col-span-2">
         {/* Open Bills Section - Collapsible */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
