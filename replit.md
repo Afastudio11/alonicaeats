@@ -119,8 +119,11 @@ Preferred communication style: Simple, everyday language.
 - ✅ Server configured to bind to 0.0.0.0:5000 for Replit webview
 - ✅ Fixed discount page: changed API endpoint from `/api/menu-items` to `/api/menu`
 - ✅ Enhanced Recent Orders page: added Payment Status column with color-coded badges (Paid/Pending/Failed/Expired/Unpaid/Refunded), cleaned up empty state padding
+- ✅ Fixed cashier page: Resolved "Cannot access getItemDiscount before initialization" error by moving discount helper functions before usage
+- ✅ Fixed discount save error: Changed date transformation from ISO strings to Date objects to match backend expectations
 - ✅ Enhanced Reservations page: 
-  - Added multi-day calendar view - Week mode shows full 7 days, Month mode shows full 30 days
-  - Cleaned up header - removed redundant "total reservasi" text and calendar icon
-  - Updated navigation to support day/week/month period switching
-  - Reservations now properly grouped by date and time in multi-column grid
+  - Day mode: Shows traditional time-slot grid with hourly slots
+  - Week/Month mode: Modern date card layout with large date numbers, no time slots
+  - Reservations grouped by date in clean, modern card design
+  - Today's date highlighted with visual indicator
+  - All reservation actions (confirm, complete, cancel) preserved in both views
