@@ -60,31 +60,32 @@ export default function AuditReportsSection() {
   const { toast } = useToast();
 
   // Fetch all required data
-  const { data: shifts = [], isLoading: shiftsLoading } = useQuery<Shift[]>({
+  const { data: shifts = [], isLoading: shiftsLoading, error: shiftsError } = useQuery<Shift[]>({
     queryKey: ["/api/shifts"],
   });
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<AppUser[]>({
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery<AppUser[]>({
     queryKey: ["/api/users"],
   });
 
-  const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
+  const { data: expenses = [], isLoading: expensesLoading, error: expensesError } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
   });
 
-  const { data: cashMovements = [], isLoading: cashMovementsLoading } = useQuery<CashMovement[]>({
+  const { data: cashMovements = [], isLoading: cashMovementsLoading, error: cashMovementsError } = useQuery<CashMovement[]>({
     queryKey: ["/api/cash-movements"],
   });
 
-  const { data: auditLogs = [], isLoading: auditLogsLoading } = useQuery<AuditLog[]>({
+  const { data: auditLogs = [], isLoading: auditLogsLoading, error: auditLogsError } = useQuery<AuditLog[]>({
     queryKey: ["/api/audit-logs"],
   });
 
-  const { data: deletionLogs = [], isLoading: deletionLogsLoading } = useQuery<DeletionLog[]>({
+  const { data: deletionLogs = [], isLoading: deletionLogsLoading, error: deletionLogsError } = useQuery<DeletionLog[]>({
     queryKey: ["/api/deletion-logs"],
   });
 
   const isLoading = shiftsLoading || usersLoading || expensesLoading || cashMovementsLoading || auditLogsLoading || deletionLogsLoading;
+  const hasError = shiftsError || usersError || expensesError || cashMovementsError || auditLogsError || deletionLogsError;
 
   // Filter and process data
   const processedData = useMemo(() => {
@@ -209,6 +210,30 @@ export default function AuditReportsSection() {
             <div key={i} className="h-24 bg-muted rounded animate-pulse"></div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Laporan & Audit Kasir</h1>
+            <p className="text-muted-foreground">Laporan dan audit komprehensif per sesi/shift kasir</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-lg font-semibold text-foreground mb-2">Gagal Memuat Data</p>
+            <p className="text-muted-foreground mb-4">Terjadi kesalahan saat memuat data laporan audit</p>
+            <Button onClick={() => window.location.reload()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Muat Ulang Halaman
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
