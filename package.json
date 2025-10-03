@@ -15,7 +15,9 @@
     "seed:monthly-data": "npm install tsx && npx tsx scripts/seed-monthly-data.ts",
     "deploy:setup": "npm ci && npm run build && npm run db:push:prod && npm run seed:users",
     "test:integration": "node tests/integration.test.js",
-    "test:manual": "echo 'Manual testing instructions:' && echo '1. npm run dev' && echo '2. Open http://localhost:5000/login' && echo '3. Login dengan admin/admin123 atau kasir1/kasir123' && echo '4. Test navigasi dashboard' && echo '5. Test logout functionality'"
+    "test:manual": "echo 'Manual testing instructions:' && echo '1. npm run dev' && echo '2. Open http://localhost:5000/login' && echo '3. Login dengan admin/admin123 atau kasir1/kasir123' && echo '4. Test navigasi dashboard' && echo '5. Test logout functionality'",
+    "seed:massive": "npm install tsx && npx tsx scripts/seed-massive-data.ts",
+    "db:export": "bash scripts/export-database.sh"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.17.1",
