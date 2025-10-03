@@ -97,10 +97,10 @@ export default function AuditReportsSection() {
     const startDate = startOfDay(filterDate);
     const endDate = endOfDay(new Date());
 
-    // Filter shifts by date
+    // Filter shifts by date (inclusive of boundaries)
     const filteredShifts = shifts.filter(shift => {
       const shiftDate = new Date(shift.startTime);
-      const withinDateRange = isAfter(shiftDate, startDate) && isBefore(shiftDate, endDate);
+      const withinDateRange = (shiftDate >= startDate && shiftDate <= endDate);
       
       // Filter by cashier if specified
       const matchesCashier = cashierFilter === "all" || shift.cashierId === cashierFilter;
