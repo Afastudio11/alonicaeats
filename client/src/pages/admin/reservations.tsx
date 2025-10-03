@@ -35,6 +35,11 @@ export default function ReservationsSection() {
     queryKey: ["/api/reservations"],
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
+    select: (data) => data.map(reservation => ({
+      ...reservation,
+      reservationDate: new Date(reservation.reservationDate),
+      createdAt: new Date(reservation.createdAt)
+    }))
   });
 
   const updateReservationMutation = useMutation({

@@ -20,7 +20,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Navigate based on user role
+      // Redirect immediately without showing intermediate screen
       if (user.role === 'admin') {
         navigate('/admin');
       } else if (user.role === 'kasir') {
@@ -36,10 +36,8 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      toast({
-        title: "Login berhasil",
-        description: "Selamat datang kembali!",
-      });
+      // Redirect will happen automatically via useEffect
+      // No need to show toast here as redirect is immediate
     } catch (err: any) {
       const errorMessage = err?.message || "Login gagal. Periksa kembali username dan password Anda.";
       setError(errorMessage);
@@ -48,38 +46,9 @@ export default function LoginPage() {
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
-
-
-  if (isAuthenticated && user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="w-8 h-8 text-red-600" />
-            </div>
-            <CardTitle className="text-2xl text-green-700">Login Berhasil</CardTitle>
-            <CardDescription>
-              Selamat datang, {user.username}! ({user.role})
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button
-              onClick={() => navigate(user.role === 'admin' ? '/admin' : '/kasir')}
-              className="w-full bg-red-600 hover:bg-red-700"
-              data-testid="button-go-dashboard"
-            >
-              {user.role === 'admin' ? 'Buka Admin Dashboard' : 'Buka Kasir Dashboard'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-100 flex items-center justify-center p-4">
