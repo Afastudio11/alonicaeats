@@ -31,7 +31,7 @@ interface KasirSidebarProps {
 
 const menuItems = [
   { id: 'orders', label: 'Orders', icon: ClipboardList, path: '/kasir/orders' },
-  { id: 'kitchen', label: 'Sistem Dapur (KDS)', icon: ChefHat, path: '/kasir/kitchen' },
+  { id: 'kitchen', label: 'Dapur', icon: ChefHat, path: '/kasir/kitchen' },
   { id: 'cashier', label: 'Point of Sale (POS)', icon: Calculator, path: '/kasir/cashier' },
   { id: 'reservations', label: 'Reservasi', icon: Calendar, path: '/kasir/reservations' },
   { id: 'expenses', label: 'Pencatatan Pengeluaran', icon: Receipt, path: '/kasir/expenses' },
