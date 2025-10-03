@@ -474,9 +474,12 @@ export default function AnalyticsSection() {
 }
 
 function calculateAnalytics(orders: Order[], period: string) {
+  // Ensure orders is an array
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  
   // Filter orders based on period
   const now = new Date();
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = safeOrders.filter(order => {
     const orderDate = new Date(order.createdAt);
     switch (period) {
       case 'daily':
@@ -492,7 +495,7 @@ function calculateAnalytics(orders: Order[], period: string) {
   });
 
   // Filter previous period orders for comparison
-  const previousPeriodOrders = orders.filter(order => {
+  const previousPeriodOrders = safeOrders.filter(order => {
     const orderDate = new Date(order.createdAt);
     switch (period) {
       case 'daily':

@@ -105,6 +105,13 @@ export default function AuditReportsSection() {
   const processedData = useMemo(() => {
     if (isLoading) return [];
 
+    // Ensure all data are arrays
+    const safeShifts = Array.isArray(shifts) ? shifts : [];
+    const safeUsers = Array.isArray(users) ? users : [];
+    const safeExpenses = Array.isArray(expenses) ? expenses : [];
+    const safeCashMovements = Array.isArray(cashMovements) ? cashMovements : [];
+    const safeAuditLogs = Array.isArray(auditLogs) ? auditLogs : [];
+
     // Create date filter
     const daysBack = parseInt(dateFilter);
     const filterDate = subDays(new Date(), daysBack);
@@ -112,7 +119,7 @@ export default function AuditReportsSection() {
     const endDate = endOfDay(new Date());
 
     // Filter shifts by date (inclusive of boundaries)
-    const filteredShifts = shifts.filter(shift => {
+    const filteredShifts = safeShifts.filter(shift => {
       const shiftDate = new Date(shift.startTime);
       const withinDateRange = (shiftDate >= startDate && shiftDate <= endDate);
       
@@ -124,22 +131,22 @@ export default function AuditReportsSection() {
 
     // Create audit data for each shift
     const auditData: ShiftAuditData[] = filteredShifts.map(shift => {
-      const cashier = users.find(u => u.id === shift.cashierId) || {
+      const cashier = safeUsers.find(u => u.id === shift.cashierId) || {
         id: shift.cashierId,
         username: "Unknown User",
         role: "kasir"
       } as AppUser;
 
-      const shiftExpenses = expenses.filter(expense => {
+      const shiftExpenses = safeExpenses.filter(expense => {
         const expenseDate = new Date(expense.createdAt);
         const shiftStart = new Date(shift.startTime);
         const shiftEnd = shift.endTime ? new Date(shift.endTime) : new Date();
         return expenseDate >= shiftStart && expenseDate <= shiftEnd && expense.recordedBy === shift.cashierId;
       });
 
-      const shiftCashMovements = cashMovements.filter(movement => movement.shiftId === shift.id);
+      const shiftCashMovements = safeCashMovements.filter(movement => movement.shiftId === shift.id);
 
-      const shiftAuditLogs = auditLogs.filter(log => 
+      const shiftAuditLogs = safeAuditLogs.filter(log => 
         (log.targetId === shift.id && log.targetType === 'shift') ||
         (log.performedBy === shift.cashierId && 
          new Date(log.createdAt) >= new Date(shift.startTime) && 
@@ -307,7 +314,7 @@ export default function AuditReportsSection() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Kasir</SelectItem>
-                  {users.filter(u => u.role === 'kasir').map(user => (
+                  {Array.isArray(users) && users.filter(u => u.role === 'kasir').map(user => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.username}
                     </SelectItem>

@@ -110,7 +110,22 @@ This project was freshly imported from GitHub and successfully configured for Re
 
 ## Recent Changes (October 3, 2025)
 
-### UI Consistency & Theming Fixes (October 3, 2025 - Latest)
+### Performance & UX Improvements (October 3, 2025 - Latest)
+1. **Fixed Blank Screen on Financial Reports Page**: Fixed TypeError on Laporan Keuangan page
+   - Bug: `S.filter is not a function` error causing blank screen on financial reports
+   - Root cause: Data from API sometimes not returned as arrays
+   - Fix: Added `Array.isArray()` safety checks in audit-reports.tsx and analytics.tsx
+   - Protected all `.filter()`, `.map()`, `.reduce()` operations with array validation
+   - Now handles edge cases when server returns null/undefined gracefully
+
+2. **Initial Loading Screen**: Implemented loading spinner for better first-load experience
+   - Added inline CSS loading spinner in index.html that shows immediately on page load
+   - Designed with brand maroon color (#800001) and Playfair Display font
+   - Smooth fade-out transition (0.5s) when React is ready
+   - Eliminates blank/dark screen during initial JS/CSS load
+   - Improves perceived performance and user experience
+
+### UI Consistency & Theming Fixes (October 3, 2025 - Previous)
 1. **Admin Login Dialog Loading State**: Fixed loading state in welcome page admin login dialog
    - Added proper loading state with "Memproses..." text on button and disabled inputs
    - Eliminates blank screen during authentication process
