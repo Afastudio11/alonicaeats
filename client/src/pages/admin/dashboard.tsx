@@ -120,39 +120,29 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <div className="flex-1 lg:pl-20">
-        {/* Header */}
-        <header className="bg-white shadow-sm px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center space-x-3">
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden mr-4 text-muted-foreground"
-              data-testid="button-toggle-sidebar"
+              data-testid="button-mobile-menu"
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="dashboard-title" data-testid="text-admin-title">
-                Admin Restoran – Dashboard Self Order
-              </h1>
-              <p className="dashboard-subtitle">Selamat Datang, {user.username}</p>
-            </div>
+            <h1 className="dashboard-title">Dashboard Admin</h1>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <Button 
-              variant="outline" 
-              onClick={logout}
-              data-testid="button-logout"
-            >
+            <Button variant="outline" size="sm" onClick={logout} data-testid="button-logout">
               Keluar
             </Button>
           </div>
-        </header>
-
-        {/* Content */}
-        <div className="p-4">
+        </div>
+        
+        {/* Page Content */}
+        <div className="p-4 lg:p-6">
           {renderSection()}
         </div>
       </div>

@@ -110,7 +110,31 @@ This project was freshly imported from GitHub and successfully configured for Re
 
 ## Recent Changes (October 3, 2025)
 
-### Pre-VPS Deployment Bug Fixes (October 3, 2025)
+### UI Consistency & Theming Fixes (October 3, 2025 - Latest)
+1. **Admin Login Dialog Loading State**: Fixed loading state in welcome page admin login dialog
+   - Added proper loading state with "Memproses..." text on button and disabled inputs
+   - Eliminates blank screen during authentication process
+   - Consistent with main login page behavior
+
+2. **Admin Sidebar Spacing**: Synchronized spacing with kasir dashboard
+   - Changed main content padding from `lg:pl-64` to `lg:pl-20`
+   - Matches kasir dashboard's hover-to-expand sidebar behavior
+   - Sidebar collapses to w-20, expands to w-64 on hover with content overlay
+   - Consistent UX between admin and kasir dashboards
+
+3. **Printer Management Theme**: Updated color scheme to match brand colors
+   - Changed from blue theme to maroon/primary theme
+   - Updated background to use neutral `bg-background` instead of blue gradient
+   - Icon and text now use primary maroon color (`text-primary`, `bg-primary/10`)
+   - Consistent with overall app branding
+
+4. **Admin Header Gap Fix**: Removed desktop header to match kasir dashboard layout
+   - Header now only shows on mobile (`lg:hidden`), hidden on desktop
+   - Eliminates gap between sidebar and content on desktop
+   - Maintains mobile functionality with menu toggle and logout buttons
+   - Complete layout consistency between admin and kasir dashboards
+
+### Pre-VPS Deployment Bug Fixes (October 3, 2025 - Previous)
 1. **Login Page Text Fix**: Removed "Login Dashboard" text that appeared during login
    - Login page now displays only "Sistem Self-Order" subtitle for cleaner UX
    - Simplified login branding for better user experience
