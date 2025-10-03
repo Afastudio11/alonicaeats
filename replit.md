@@ -109,6 +109,13 @@ This project was freshly imported from GitHub and successfully configured for Re
 
 ## Recent Changes (October 3, 2025)
 
+### Bug Fixes - Replit Environment (October 3, 2025)
+1. **Admin Login Dialog Success Toast Fix**: Removed intermediate success screen from welcome page admin login
+   - Fixed welcome page admin login to redirect immediately without showing "Login berhasil" toast
+   - Updated to use auth hook's user object instead of localStorage (consistent with httpOnly cookie auth)
+   - Added useEffect to handle automatic redirect after successful login
+   - Matches behavior of main login page for consistent user experience
+
 ### Bug Fixes - Pre-Deployment VPS
 1. **Login Delay Fix**: Removed intermediate success screen causing gray background delay during login
    - Direct redirect to dashboard after authentication

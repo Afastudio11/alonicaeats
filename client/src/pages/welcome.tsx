@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Settings, Calendar, Clock, Phone, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -224,8 +224,20 @@ export default function WelcomePage() {
   const [showReservation, setShowReservation] = useState(false);
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const { toast } = useToast();
+
+  // Handle redirect after successful login
+  useEffect(() => {
+    if (user && !showAdminLogin) {
+      // Redirect based on user role immediately without showing toast
+      if (user.role === 'kasir') {
+        setLocation("/kasir/orders");
+      } else if (user.role === 'admin') {
+        setLocation("/admin");
+      }
+    }
+  }, [user, showAdminLogin, setLocation]);
 
   const handleStartOrder = () => {
     if (!customerName.trim() || !tableNumber.trim()) {
@@ -261,25 +273,7 @@ export default function WelcomePage() {
     try {
       await login(adminUsername, adminPassword);
       setShowAdminLogin(false);
-      
-      // Get user from auth hook after successful login
-      const savedUser = localStorage.getItem('alonica-user');
-      const userData = savedUser ? JSON.parse(savedUser) : null;
-      
-      // Redirect based on user role
-      if (userData?.role === 'kasir') {
-        setLocation("/kasir/orders");
-        toast({
-          title: "Login berhasil",
-          description: "Selamat datang di kasir dashboard",
-        });
-      } else {
-        setLocation("/admin");
-        toast({
-          title: "Login berhasil",
-          description: "Selamat datang di admin dashboard",
-        });
-      }
+      // Redirect will happen automatically via useEffect
     } catch (error) {
       toast({
         title: "Login gagal",
