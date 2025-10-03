@@ -111,7 +111,14 @@ This project was freshly imported from GitHub and successfully configured for Re
 ## Recent Changes (October 3, 2025)
 
 ### Performance & UX Improvements (October 3, 2025 - Latest)
-1. **Fixed Blank Screen on Financial Reports Page**: Fixed TypeError on Laporan Keuangan page
+1. **Enhanced Reservation Calendar UI**: Improved visibility and usability
+   - Added visual dot indicators on calendar dates that have reservations
+   - Optimized time slot display to fit full schedule in one screen (no scrolling needed)
+   - Reduced time slot height from 96px to 48px (13 slots now fit in 624px)
+   - Adjusted font sizes and spacing for better readability in compact view
+   - Calendar now shows clear indicators making it easy to spot busy dates
+
+2. **Fixed Blank Screen on Financial Reports Page**: Fixed TypeError on Laporan Keuangan page
    - Bug: `S.filter is not a function` error causing blank screen on financial reports
    - Root cause: Data from API sometimes not returned as arrays
    - Fix: Added `Array.isArray()` safety checks in audit-reports.tsx and analytics.tsx

@@ -322,16 +322,18 @@ export default function ReservationsSection() {
                       onClick={() => !isPlaceholder && setSelectedDate(day)}
                       disabled={isPlaceholder}
                       className={`
-                        h-8 w-8 rounded-full text-xs font-medium transition-colors
+                        h-8 w-8 rounded-full text-xs font-medium transition-colors relative
                         ${isPlaceholder ? 'invisible' : ''}
                         ${isSelected ? 'bg-primary text-primary-foreground' : ''}
                         ${isToday && !isSelected ? 'border-2 border-primary text-primary' : ''}
                         ${!isSelected && !isToday ? 'hover:bg-muted text-foreground' : ''}
-                        ${hasReservations && !isSelected && !isToday ? 'font-bold' : ''}
                       `}
                       data-testid={`calendar-day-${!isPlaceholder ? format(day, 'yyyy-MM-dd') : ''}`}
                     >
                       {!isPlaceholder && format(day, 'd')}
+                      {hasReservations && !isSelected && (
+                        <span className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                      )}
                     </button>
                   );
                 })}
@@ -595,14 +597,14 @@ export default function ReservationsSection() {
               </div>
 
               {/* Time Slots */}
-              <div className="grid" style={{ gridTemplateColumns: `100px repeat(${displayDays.length}, 1fr)` }}>
+              <div className="grid" style={{ gridTemplateColumns: `80px repeat(${displayDays.length}, 1fr)` }}>
                 <div className="border-r border-border bg-background">
                   {TIME_SLOTS.map((time) => (
                     <div 
                       key={time} 
-                      className="h-24 border-b border-border px-3 py-2 text-right"
+                      className="h-12 border-b border-border px-2 py-1 text-right flex items-center justify-end"
                     >
-                      <span className="text-xs font-medium text-muted-foreground">{time}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">{time}</span>
                     </div>
                   ))}
                 </div>
@@ -615,15 +617,15 @@ export default function ReservationsSection() {
                       {TIME_SLOTS.map((time) => (
                         <div 
                           key={`${dateKey}-${time}`} 
-                          className="h-24 border-b border-border relative bg-background hover:bg-muted/20 transition-colors"
+                          className="h-12 border-b border-border relative bg-background hover:bg-muted/20 transition-colors"
                           data-testid={`slot-${dateKey}-${time}`}
                         >
                           {reservationsByDateAndTime[dateKey]?.[time]?.map((reservation, resIndex) => (
                             <Card
                               key={reservation.id}
-                              className={`absolute left-1 right-1 top-1 p-2 border-l-4 ${getStatusBgColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer ${getStatusColor(reservation.status)}`}
+                              className={`absolute left-0.5 right-0.5 p-1.5 border-l-4 ${getStatusBgColor(reservation.status)} hover:shadow-md transition-shadow cursor-pointer ${getStatusColor(reservation.status)}`}
                               style={{ 
-                                top: `${resIndex * 60 + 4}px`,
+                                top: `${resIndex * 36 + 2}px`,
                                 zIndex: resIndex + 1
                               }}
                               onClick={() => setSelectedReservation(reservation)}
@@ -631,16 +633,16 @@ export default function ReservationsSection() {
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-xs font-semibold truncate" data-testid={`text-customer-${reservation.id}`}>
+                                  <h4 className="text-[11px] font-semibold truncate leading-tight" data-testid={`text-customer-${reservation.id}`}>
                                     {reservation.customerName}
                                   </h4>
-                                  <div className="flex items-center space-x-2 text-[10px] mt-1">
+                                  <div className="flex items-center space-x-1.5 text-[9px] mt-0.5">
                                     <span className="flex items-center">
-                                      <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                      <Clock className="h-2 w-2 mr-0.5" />
                                       {reservation.reservationTime?.substring(0, 5)}
                                     </span>
                                     <span className="flex items-center">
-                                      <Users className="h-2.5 w-2.5 mr-0.5" />
+                                      <Users className="h-2 w-2 mr-0.5" />
                                       {reservation.guestCount}
                                     </span>
                                   </div>
