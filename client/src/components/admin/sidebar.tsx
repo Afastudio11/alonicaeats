@@ -75,7 +75,7 @@ const SIDEBAR_CATEGORIES: SidebarCategory[] = [
     label: "LAPORAN",
     items: [
       { key: 'approvals', label: 'Persetujuan', icon: CheckSquare, path: '/admin/approvals' },
-      { key: 'audit-reports', label: 'Laporan Saldo Kredit', icon: Building2, path: '/admin/audit-reports' },
+      { key: 'audit-reports', label: 'Laporan Keuangan', icon: Building2, path: '/admin/audit-reports' },
       { key: 'analytics', label: 'Laporan Penjualan', icon: TrendingUp, path: '/admin/analytics' },
       { key: 'inventory', label: 'Laporan Item', icon: Package2, path: '/admin/inventory' },
     ]

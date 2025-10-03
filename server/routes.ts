@@ -865,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  app.put("/api/users/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const currentUser = (req as any).user;
@@ -877,12 +877,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sendErrorResponse(res, 404, "User not found");
       }
       
+      // Check permissions: admin can update anyone, users can update themselves with restrictions
+      const isAdmin = currentUser.role === 'admin';
+      const isSelfUpdate = currentUser.id === id;
+      
+      if (!isAdmin && !isSelfUpdate) {
+        return sendErrorResponse(res, 403, "Forbidden: You can only update your own account");
+      }
+      
+      // For non-admin self-updates, restrict to only isActive field
+      if (isSelfUpdate && !isAdmin) {
+        const allowedFields = ['isActive'];
+        const requestedFields = Object.keys(validatedData);
+        const unauthorizedFields = requestedFields.filter(field => !allowedFields.includes(field));
+        
+        if (unauthorizedFields.length > 0) {
+          return sendErrorResponse(res, 403, `Forbidden: You can only update isActive status. Unauthorized fields: ${unauthorizedFields.join(', ')}`);
+        }
+      }
+      
       // Prevent admin from changing their own role to non-admin
-      if (currentUser.id === id && validatedData.role && validatedData.role !== 'admin') {
+      if (isAdmin && isSelfUpdate && validatedData.role && validatedData.role !== 'admin') {
         return sendErrorResponse(res, 400, "Cannot change your own role from admin");
       }
       
-      // Hash password if it's being updated
+      // Hash password if it's being updated (admin only)
       let updateData = validatedData;
       if (validatedData.password) {
         const hashedPassword = await hashPassword(validatedData.password);
@@ -906,7 +925,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           username: user.username,
           changedFields,
           passwordChanged: !!validatedData.password,
-          updatedBy: currentUser.username
+          updatedBy: currentUser.username,
+          isSelfUpdate
         }
       });
       

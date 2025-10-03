@@ -59,33 +59,47 @@ export default function AuditReportsSection() {
   const [selectedShift, setSelectedShift] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Fetch all required data
+  // Fetch all required data with optimized caching
   const { data: shifts = [], isLoading: shiftsLoading, error: shiftsError } = useQuery<Shift[]>({
     queryKey: ["/api/shifts"],
+    staleTime: 30000, // 30 seconds
+    retry: 2,
   });
 
   const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery<AppUser[]>({
     queryKey: ["/api/users"],
+    staleTime: 60000, // 1 minute (users change less frequently)
+    retry: 2,
   });
 
   const { data: expenses = [], isLoading: expensesLoading, error: expensesError } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
+    staleTime: 30000,
+    retry: 2,
   });
 
   const { data: cashMovements = [], isLoading: cashMovementsLoading, error: cashMovementsError } = useQuery<CashMovement[]>({
     queryKey: ["/api/cash-movements"],
+    staleTime: 30000,
+    retry: 2,
   });
 
   const { data: auditLogs = [], isLoading: auditLogsLoading, error: auditLogsError } = useQuery<AuditLog[]>({
     queryKey: ["/api/audit-logs"],
+    staleTime: 30000,
+    retry: 2,
   });
 
   const { data: deletionLogs = [], isLoading: deletionLogsLoading, error: deletionLogsError } = useQuery<DeletionLog[]>({
     queryKey: ["/api/deletion-logs"],
+    retry: 1,
+    staleTime: 10000,
   });
 
-  const isLoading = shiftsLoading || usersLoading || expensesLoading || cashMovementsLoading || auditLogsLoading || deletionLogsLoading;
-  const hasError = shiftsError || usersError || expensesError || cashMovementsError || auditLogsError || deletionLogsError;
+  // Loading state: all critical queries must finish (deletion logs is optional)
+  const isLoading = shiftsLoading || usersLoading || expensesLoading || cashMovementsLoading || auditLogsLoading;
+  // Error state: only show error if critical queries fail (not deletion logs)
+  const hasCriticalError = shiftsError || usersError || expensesError || cashMovementsError || auditLogsError;
 
   // Filter and process data
   const processedData = useMemo(() => {
@@ -214,7 +228,7 @@ export default function AuditReportsSection() {
     );
   }
 
-  if (hasError) {
+  if (hasCriticalError) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
