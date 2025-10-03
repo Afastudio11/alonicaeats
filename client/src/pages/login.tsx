@@ -61,7 +61,7 @@ export default function LoginPage() {
             Alonica Restaurant
           </CardTitle>
           <CardDescription className="text-lg">
-            Sistem Self-Order - Login Dashboard
+            Sistem Self-Order
           </CardDescription>
         </CardHeader>
         

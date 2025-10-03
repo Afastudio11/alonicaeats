@@ -134,9 +134,11 @@ export default function ApprovalsSection() {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
       
-      // Force immediate refetch
+      // Force immediate refetch to show changes everywhere
       refetchNotifications();
       refetchLogs();
+      queryClient.refetchQueries({ queryKey: ['/api/orders'] });
+      queryClient.refetchQueries({ queryKey: ['/api/orders/open-bills'] });
       
       toast({
         title: "Permintaan Disetujui",

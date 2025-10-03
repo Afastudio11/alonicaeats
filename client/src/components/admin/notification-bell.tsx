@@ -53,10 +53,15 @@ export default function NotificationBell() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all order-related queries to ensure UI refreshes everywhere
       queryClient.invalidateQueries({ queryKey: ['/api/notifications/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders/open-bills'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deletion-logs'] });
+      // Force immediate refetch to show changes
+      queryClient.refetchQueries({ queryKey: ['/api/orders'] });
+      queryClient.refetchQueries({ queryKey: ['/api/orders/open-bills'] });
       toast({
         title: "Item Deleted",
         description: "Item berhasil dihapus dari open bill",
