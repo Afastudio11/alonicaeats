@@ -43,6 +43,37 @@ Preferred communication style: Simple, everyday language.
 - **Deployment**: Configured for Replit environment with autoscale deployment.
 - **Admin Approval System**: Real-time notification system for item deletion requests, with admin-only approval/rejection and audit trails, managed via a unified interface at `/admin/approvals`.
 
+## Replit Setup
+
+This project has been configured to run in the Replit environment:
+
+### Development
+- **Workflow**: `npm run dev` - Runs the development server on port 5000
+- **Database**: PostgreSQL database provisioned via Replit
+- **Schema**: Database schema automatically pushed via `npm run db:push`
+- **Seed Data**: 
+  - User accounts seeded via `npm run seed:users`
+  - Demo data seeded via `npm run seed:fake-data`
+
+### Login Credentials
+- **Admin**: username: `admin`, password: `admin123`
+- **Cashier 1**: username: `kasir1`, password: `kasir123`
+- **Cashier 2**: username: `kasir2`, password: `kasir123`
+- **Cashier 3**: username: `kasir3`, password: `kasir123`
+- **Cashier 4**: username: `kasir4`, password: `kasir123`
+
+### Deployment
+- **Target**: Autoscale deployment (stateless web app)
+- **Build**: `npm run build` (compiles frontend with Vite and backend with esbuild)
+- **Run**: `npm run start` (runs production server from dist/)
+- **Port**: 5000 (frontend and backend served on same port)
+
+### Environment Configuration
+- **Host**: Frontend dev server binds to `0.0.0.0:5000` with `allowedHosts: ["*"]` for Replit proxy
+- **Database**: Uses `DATABASE_URL` environment variable (auto-configured by Replit)
+- **File Storage**: Local file storage for uploads
+- **Sessions**: PostgreSQL-based session storage with httpOnly cookies
+
 ## External Dependencies
 
 ### Database & ORM
