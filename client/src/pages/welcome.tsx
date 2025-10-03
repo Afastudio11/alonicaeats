@@ -224,20 +224,21 @@ export default function WelcomePage() {
   const [showReservation, setShowReservation] = useState(false);
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { login, user } = useAuth();
   const { toast } = useToast();
 
-  // Handle redirect after successful login
+  // Handle redirect after successful login - redirect immediately
   useEffect(() => {
-    if (user && !showAdminLogin) {
-      // Redirect based on user role immediately without showing toast
+    if (user) {
+      // Redirect based on user role immediately
       if (user.role === 'kasir') {
         setLocation("/kasir/orders");
       } else if (user.role === 'admin') {
         setLocation("/admin");
       }
     }
-  }, [user, showAdminLogin, setLocation]);
+  }, [user, setLocation]);
 
   const handleStartOrder = () => {
     if (!customerName.trim() || !tableNumber.trim()) {
@@ -270,11 +271,13 @@ export default function WelcomePage() {
   };
 
   const handleAdminLogin = async () => {
+    setIsLoggingIn(true);
     try {
       await login(adminUsername, adminPassword);
+      // Close dialog and redirect will happen via useEffect
       setShowAdminLogin(false);
-      // Redirect will happen automatically via useEffect
     } catch (error) {
+      setIsLoggingIn(false);
       toast({
         title: "Login gagal",
         description: "Username atau password salah",
@@ -310,6 +313,7 @@ export default function WelcomePage() {
               placeholder="Username"
               value={adminUsername}
               onChange={(e) => setAdminUsername(e.target.value)}
+              disabled={isLoggingIn}
               data-testid="input-admin-username"
             />
             <Input
@@ -317,6 +321,7 @@ export default function WelcomePage() {
               placeholder="Password"
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
+              disabled={isLoggingIn}
               data-testid="input-admin-password"
             />
             <div className="flex space-x-3">
@@ -324,6 +329,7 @@ export default function WelcomePage() {
                 variant="outline" 
                 className="flex-1" 
                 onClick={() => setShowAdminLogin(false)}
+                disabled={isLoggingIn}
                 data-testid="button-cancel-admin"
               >
                 Batal
@@ -331,9 +337,10 @@ export default function WelcomePage() {
               <Button 
                 className="flex-1" 
                 onClick={handleAdminLogin}
+                disabled={isLoggingIn}
                 data-testid="button-login-admin"
               >
-                Login
+                {isLoggingIn ? "Memproses..." : "Login"}
               </Button>
             </div>
           </div>
