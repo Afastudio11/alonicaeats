@@ -22,6 +22,7 @@ export interface IStorage {
 
   // Menu Items
   getMenuItems(): Promise<MenuItem[]>;
+  getPaginatedMenuItems(params: { limit?: number; offset?: number; categoryId?: string; available?: boolean }): Promise<{ items: MenuItem[]; total: number }>;
   getMenuItem(id: string): Promise<MenuItem | undefined>;
   createMenuItem(item: InsertMenuItem): Promise<MenuItem>;
   updateMenuItem(id: string, item: Partial<InsertMenuItem>): Promise<MenuItem | undefined>;
@@ -29,6 +30,7 @@ export interface IStorage {
 
   // Orders
   getOrders(): Promise<Order[]>;
+  getPaginatedOrders(params: { limit?: number; offset?: number; status?: string; paymentStatus?: string }): Promise<{ orders: Order[]; total: number }>;
   getOrder(id: string): Promise<Order | undefined>;
   getOrderByMidtransOrderId(midtransOrderId: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
@@ -70,6 +72,7 @@ export interface IStorage {
 
   // Reservations
   getReservations(): Promise<Reservation[]>;
+  getPaginatedReservations(params: { limit?: number; offset?: number; status?: string }): Promise<{ reservations: Reservation[]; total: number }>;
   getReservation(id: string): Promise<Reservation | undefined>;
   createReservation(reservation: InsertReservation): Promise<Reservation>;
   updateReservationStatus(id: string, status: string): Promise<Reservation | undefined>;
@@ -511,6 +514,23 @@ export class DatabaseStorage implements IStorage {
     return items;
   }
 
+  async getPaginatedMenuItems(params: { limit?: number; offset?: number; categoryId?: string; available?: boolean }): Promise<{ items: MenuItem[]; total: number }> {
+    const { limit = 50, offset = 0, categoryId, available } = params;
+    
+    const conditions = [];
+    if (categoryId) conditions.push(eq(menuItems.categoryId, categoryId));
+    if (available !== undefined) conditions.push(eq(menuItems.isAvailable, available));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [items, [{ count }]] = await Promise.all([
+      db.select().from(menuItems).where(whereClause).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(menuItems).where(whereClause)
+    ]);
+    
+    return { items, total: count };
+  }
+
   async getMenuItem(id: string): Promise<MenuItem | undefined> {
     const [item] = await db.select().from(menuItems).where(eq(menuItems.id, id));
     return item || undefined;
@@ -539,6 +559,23 @@ export class DatabaseStorage implements IStorage {
   async getOrders(): Promise<Order[]> {
     const ordersList = await db.select().from(orders).orderBy(desc(orders.createdAt));
     return ordersList;
+  }
+
+  async getPaginatedOrders(params: { limit?: number; offset?: number; status?: string; paymentStatus?: string }): Promise<{ orders: Order[]; total: number }> {
+    const { limit = 50, offset = 0, status, paymentStatus } = params;
+    
+    const conditions = [];
+    if (status) conditions.push(eq(orders.orderStatus, status));
+    if (paymentStatus) conditions.push(eq(orders.paymentStatus, paymentStatus));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [ordersList, [{ count }]] = await Promise.all([
+      db.select().from(orders).where(whereClause).orderBy(desc(orders.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(orders).where(whereClause)
+    ]);
+    
+    return { orders: ordersList, total: count };
   }
 
   async getOrder(id: string): Promise<Order | undefined> {
@@ -982,6 +1019,24 @@ export class DatabaseStorage implements IStorage {
   // Reservation methods
   async getReservations(): Promise<Reservation[]> {
     return await db.select().from(reservations).orderBy(desc(reservations.reservationDate));
+  }
+
+  async getPaginatedReservations(params: { limit?: number; offset?: number; status?: string; startDate?: string; endDate?: string }): Promise<{ reservations: Reservation[]; total: number }> {
+    const { limit = 50, offset = 0, status, startDate, endDate } = params;
+    
+    const conditions = [];
+    if (status) conditions.push(eq(reservations.status, status));
+    if (startDate) conditions.push(gte(reservations.reservationDate, new Date(startDate)));
+    if (endDate) conditions.push(lte(reservations.reservationDate, new Date(endDate)));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [reservationsList, [{ count }]] = await Promise.all([
+      db.select().from(reservations).where(whereClause).orderBy(desc(reservations.reservationDate)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(reservations).where(whereClause)
+    ]);
+    
+    return { reservations: reservationsList, total: count };
   }
 
   async getReservation(id: string): Promise<Reservation | undefined> {
@@ -1681,6 +1736,7 @@ class MemStorage implements IStorage {
 
   // Menu methods (stub implementations)
   async getMenuItems(): Promise<any[]> { return []; }
+  async getPaginatedMenuItems(params: any): Promise<{ items: any[]; total: number }> { return { items: [], total: 0 }; }
   async getMenuItem(id: string): Promise<any | undefined> { return undefined; }
   async createMenuItem(item: any): Promise<any> { const id = randomUUID(); const newItem = { ...item, id }; this.menuItems.set(id, newItem); return newItem; }
   async updateMenuItem(id: string, item: any): Promise<any | undefined> { return undefined; }
@@ -1688,6 +1744,7 @@ class MemStorage implements IStorage {
 
   // Order methods (stub implementations)
   async getOrders(): Promise<any[]> { return []; }
+  async getPaginatedOrders(params: any): Promise<{ orders: any[]; total: number }> { return { orders: [], total: 0 }; }
   async getOrder(id: string): Promise<any | undefined> { return undefined; }
   async getOrderByMidtransOrderId(midtransOrderId: string): Promise<any | undefined> { return undefined; }
   async createOrder(order: any): Promise<any> { const id = randomUUID(); const newOrder = { ...order, id }; this.orders.set(id, newOrder); return newOrder; }
@@ -1720,6 +1777,7 @@ class MemStorage implements IStorage {
 
   // Reservations methods (stub implementations)
   async getReservations(): Promise<any[]> { return []; }
+  async getPaginatedReservations(params: any): Promise<{ reservations: any[]; total: number }> { return { reservations: [], total: 0 }; }
   async getReservation(id: string): Promise<any | undefined> { return undefined; }
   async createReservation(reservation: any): Promise<any> { const id = randomUUID(); const newReservation = { ...reservation, id }; this.reservations.set(id, newReservation); return newReservation; }
   async updateReservationStatus(id: string, status: string): Promise<any | undefined> { return undefined; }
@@ -2053,6 +2111,12 @@ class FallbackStorage implements IStorage {
     );
   }
 
+  async getPaginatedMenuItems(params: any): Promise<{ items: any[]; total: number }> {
+    return this.withFallback(async () => 
+      this.usingMemStorage ? this.memStorage.getPaginatedMenuItems(params) : this.dbStorage.getPaginatedMenuItems(params)
+    );
+  }
+
   async getMenuItem(id: string): Promise<any | undefined> {
     return this.withFallback(async () => 
       this.usingMemStorage ? this.memStorage.getMenuItem(id) : this.dbStorage.getMenuItem(id)
@@ -2163,6 +2227,7 @@ class FallbackStorage implements IStorage {
 
   // For brevity, implementing stub methods for other interfaces, but they would follow the same pattern
   async getOrders(): Promise<any[]> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getOrders() : this.dbStorage.getOrders()); }
+  async getPaginatedOrders(params: any): Promise<{ orders: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedOrders(params) : this.dbStorage.getPaginatedOrders(params)); }
   async getOrder(id: string): Promise<any | undefined> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getOrder(id) : this.dbStorage.getOrder(id)); }
   async getOrderByMidtransOrderId(midtransOrderId: string): Promise<any | undefined> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getOrderByMidtransOrderId(midtransOrderId) : this.dbStorage.getOrderByMidtransOrderId(midtransOrderId)); }
   async createOrder(order: any): Promise<any> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.createOrder(order) : this.dbStorage.createOrder(order)); }
@@ -2195,6 +2260,7 @@ class FallbackStorage implements IStorage {
 
   // Reservations methods (stub)
   async getReservations(): Promise<any[]> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getReservations() : this.dbStorage.getReservations()); }
+  async getPaginatedReservations(params: any): Promise<{ reservations: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedReservations(params) : this.dbStorage.getPaginatedReservations(params)); }
   async getReservation(id: string): Promise<any | undefined> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getReservation(id) : this.dbStorage.getReservation(id)); }
   async createReservation(reservation: any): Promise<any> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.createReservation(reservation) : this.dbStorage.createReservation(reservation)); }
   async updateReservationStatus(id: string, status: string): Promise<any | undefined> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.updateReservationStatus(id, status) : this.dbStorage.updateReservationStatus(id, status)); }

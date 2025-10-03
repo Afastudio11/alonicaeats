@@ -1846,8 +1846,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Menu Items (public read access for customer menu, admin required for modifications)
   app.get("/api/menu", async (req, res) => {
     try {
-      const items = await storage.getMenuItems();
-      res.json(items);
+      const { limit, offset, category, available } = req.query;
+      
+      if (limit || offset) {
+        const result = await storage.getPaginatedMenuItems({
+          limit: limit ? parseInt(limit as string, 10) : 50,
+          offset: offset ? parseInt(offset as string, 10) : 0,
+          categoryId: category as string,
+          available: available === 'true' ? true : available === 'false' ? false : undefined
+        });
+        res.json(result);
+      } else {
+        const items = await storage.getMenuItems();
+        res.json(items);
+      }
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -1897,8 +1909,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Orders (admin required for viewing orders, public access for creating orders)
   app.get("/api/orders", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
-      const orders = await storage.getOrders();
-      res.json(orders);
+      const { limit, offset, status, paymentStatus } = req.query;
+      
+      if (limit || offset) {
+        const result = await storage.getPaginatedOrders({
+          limit: limit ? parseInt(limit as string, 10) : 50,
+          offset: offset ? parseInt(offset as string, 10) : 0,
+          status: status as string,
+          paymentStatus: paymentStatus as string
+        });
+        res.json(result);
+      } else {
+        const orders = await storage.getOrders();
+        res.json(orders);
+      }
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -2643,8 +2667,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reservations (public access for creating, kasir/admin access for management)
   app.get("/api/reservations", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
-      const reservations = await storage.getReservations();
-      res.json(reservations);
+      const { limit, offset, status, startDate, endDate } = req.query;
+      
+      if (limit || offset) {
+        const result = await storage.getPaginatedReservations({
+          limit: limit ? parseInt(limit as string, 10) : 50,
+          offset: offset ? parseInt(offset as string, 10) : 0,
+          status: status as string,
+          startDate: startDate as string,
+          endDate: endDate as string
+        });
+        res.json(result);
+      } else {
+        const reservations = await storage.getReservations();
+        res.json(reservations);
+      }
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }

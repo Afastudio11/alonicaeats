@@ -60,7 +60,10 @@ export const menuItems = pgTable("menu_items", {
   image: text("image"),
   isAvailable: boolean("is_available").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  categoryIdIdx: sql`CREATE INDEX IF NOT EXISTS "menu_items_category_id_idx" ON "menu_items" ("category_id")`,
+  availabilityIdx: sql`CREATE INDEX IF NOT EXISTS "menu_items_availability_idx" ON "menu_items" ("is_available")`,
+}));
 
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -83,7 +86,13 @@ export const orders = pgTable("orders", {
   orderStatus: text("order_status").notNull().default("queued"), // 'queued', 'preparing', 'ready', 'served', 'cancelled'
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "orders_created_at_idx" ON "orders" ("created_at" DESC)`,
+  paymentStatusIdx: sql`CREATE INDEX IF NOT EXISTS "orders_payment_status_idx" ON "orders" ("payment_status")`,
+  paymentMethodIdx: sql`CREATE INDEX IF NOT EXISTS "orders_payment_method_idx" ON "orders" ("payment_method")`,
+  orderStatusIdx: sql`CREATE INDEX IF NOT EXISTS "orders_order_status_idx" ON "orders" ("order_status")`,
+  tableNumberIdx: sql`CREATE INDEX IF NOT EXISTS "orders_table_number_idx" ON "orders" ("table_number")`,
+}));
 
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -135,7 +144,10 @@ export const reservations = pgTable("reservations", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  reservationDateIdx: sql`CREATE INDEX IF NOT EXISTS "reservations_date_idx" ON "reservations" ("reservation_date" DESC)`,
+  statusIdx: sql`CREATE INDEX IF NOT EXISTS "reservations_status_idx" ON "reservations" ("status")`,
+}));
 
 // Discounts table for discount management
 export const discounts = pgTable("discounts", {
