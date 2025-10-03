@@ -199,8 +199,8 @@ async function updateDailyReportForOrder(orderId: string) {
 
 // Auth middleware to protect admin routes
 async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  const sessionToken = authHeader?.replace('Bearer ', '');
+  // Read session token from httpOnly cookie (secure against XSS)
+  const sessionToken = req.cookies?.session_token;
 
   if (!sessionToken) {
     return res.status(401).json({ message: "Authentication required" });
@@ -402,9 +402,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create persistent session in database
       const sessionToken = await createSession(user.id, user.username, user.role);
       
+      // Set httpOnly cookie for security (protects against XSS)
+      res.cookie('session_token', sessionToken, {
+        httpOnly: true, // Cannot be accessed by JavaScript
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        sameSite: 'lax', // CSRF protection
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/'
+      });
+      
       res.json({ 
-        user: { id: user.id, username: user.username, role: user.role },
-        token: sessionToken
+        user: { id: user.id, username: user.username, role: user.role }
+        // Token no longer sent in response body for security
       });
     } catch (error) {
       console.error("❌ Login error:", error);
@@ -412,14 +421,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user from session cookie
+  app.get("/api/auth/me", async (req, res) => {
+    const sessionToken = req.cookies?.session_token;
+    
+    if (!sessionToken) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const session = await getSession(sessionToken);
+    if (!session) {
+      return res.status(401).json({ message: "Session expired or invalid" });
+    }
+    
+    res.json({ 
+      user: { 
+        id: session.userId, 
+        username: session.username, 
+        role: session.role 
+      } 
+    });
+  });
+
   // Logout endpoint
   app.post("/api/auth/logout", requireAuth, async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const sessionToken = authHeader?.replace('Bearer ', '');
+    const sessionToken = req.cookies.session_token;
     
     if (sessionToken) {
       await deleteSession(sessionToken);
     }
+    
+    // Clear the cookie
+    res.clearCookie('session_token', { path: '/' });
     
     res.json({ message: "Logged out successfully" });
   });

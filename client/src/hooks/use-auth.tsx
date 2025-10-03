@@ -23,20 +23,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    // Check for saved user and token in localStorage
-    const savedUser = localStorage.getItem('alonica-user');
-    const savedToken = localStorage.getItem('alonica-token');
-    if (savedUser && savedToken) {
+    // Try to get current user from session cookie
+    // The server will validate the httpOnly cookie automatically
+    const checkAuth = async () => {
       try {
-        setUser(JSON.parse(savedUser));
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include' // Important: send cookies
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        }
       } catch (error) {
-        console.error('Failed to load user from localStorage:', error);
-        localStorage.removeItem('alonica-user');
-        localStorage.removeItem('alonica-token');
+        // No valid session, user stays null
+        console.log('No active session');
+      } finally {
+        setAuthReady(true);
       }
-    }
-    // Auth hydration is complete
-    setAuthReady(true);
+    };
+    checkAuth();
   }, []);
 
   const loginMutation = useMutation({
@@ -45,26 +50,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return response.json();
     },
     onSuccess: (data) => {
+      // Cookie is set by server automatically
+      // No need to store token in localStorage anymore (security improvement)
       setUser(data.user);
-      localStorage.setItem('alonica-user', JSON.stringify(data.user));
-      localStorage.setItem('alonica-token', data.token);
       setAuthReady(true);
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const token = localStorage.getItem('alonica-token');
-      if (token) {
-        await apiRequest('POST', '/api/auth/logout', {}, {
-          'Authorization': `Bearer ${token}`
-        });
-      }
+      // Cookie will be sent automatically with credentials: 'include'
+      await apiRequest('POST', '/api/auth/logout', {});
     },
     onSettled: () => {
       setUser(null);
-      localStorage.removeItem('alonica-user');
-      localStorage.removeItem('alonica-token');
+      // No need to clear localStorage - no tokens stored there anymore
       // Redirect to welcome page after logout
       window.location.href = '/';
     },
