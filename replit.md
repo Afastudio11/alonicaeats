@@ -101,8 +101,44 @@ This project was freshly imported from GitHub and successfully configured for Re
 ### Authentication & Session
 - **connect-pg-simple**: PostgreSQL session store
 - **bcrypt**: Password hashing
-- **Local Storage**: Client-side session persistence
+- **httpOnly Cookies**: Secure session management (XSS protection)
 
 ### Payment Integration
 - **QRIS**: Indonesian QR code payment standard (mock implementation)
 - **Cash Payments**: Manual processing
+
+## Recent Changes (October 3, 2025)
+
+### Bug Fixes - Pre-Deployment VPS
+1. **Login Delay Fix**: Removed intermediate success screen causing gray background delay during login
+   - Direct redirect to dashboard after authentication
+   - Improved user experience with instant login feedback
+
+2. **Reservation Page Fix**: Fixed blank page issue 
+   - Added date transformation in useQuery select to convert API string dates to Date objects
+   - Resolved runtime errors from treating date strings as Date objects
+
+3. **Audit Reports Fix**: Fixed blank credit balance report page
+   - Added comprehensive error handling for all 6 data queries (shifts, users, expenses, cashMovements, auditLogs, deletionLogs)
+   - Added error state UI with reload button
+   - Fixed date filtering bug using inclusive comparison (>= <=) instead of exclusive (isAfter/isBefore) to prevent data loss
+
+### Security Improvements - CRITICAL
+4. **httpOnly Cookie Authentication**: Migrated from localStorage tokens to secure httpOnly cookies
+   - **BREAKING CHANGE**: All users must log in again after this update
+   - Protects against XSS attacks (localStorage tokens were vulnerable)
+   - Backend: Session tokens stored in httpOnly cookies with secure/sameSite flags
+   - Frontend: Removed all localStorage token usage, cookies sent automatically with credentials: 'include'
+   - New endpoint: `/api/auth/me` for session validation on page load
+   - Session cookies: httpOnly=true, secure (production only), sameSite=lax, maxAge=24h
+
+### Technical Details
+- **Cookie-Parser**: Installed and configured for cookie handling
+- **CORS**: Updated to support credentials with all origins
+- **Auth Flow**: Login → Set httpOnly cookie → Validate via /api/auth/me → Automatic cookie inclusion in all requests
+- **Logout**: Clears httpOnly cookie server-side
+
+### Migration Notes
+- Old sessions using Bearer tokens will not work
+- Users must log out and log in again to get new httpOnly cookie session
+- No data loss - only authentication mechanism changed
