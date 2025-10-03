@@ -110,7 +110,30 @@ This project was freshly imported from GitHub and successfully configured for Re
 
 ## Recent Changes (October 3, 2025)
 
-### Bug Fixes - Replit Environment (October 3, 2025)
+### Pre-VPS Deployment Bug Fixes (October 3, 2025)
+1. **Login Page Text Fix**: Removed "Login Dashboard" text that appeared during login
+   - Login page now displays only "Sistem Self-Order" subtitle for cleaner UX
+   - Simplified login branding for better user experience
+
+2. **Item Deletion Real-time Sync Fix**: Enhanced query invalidation for immediate UI updates
+   - Added forced refetch queries after admin approval/rejection in notification bell component
+   - Added forced refetch queries in approvals page for consistent behavior
+   - Ensures kasir dashboard sees deleted items immediately without manual refresh
+   - Invalidates multiple query keys: `/api/orders`, `/api/orders/open-bills`, `/api/notifications`, `/api/deletion-logs`
+
+3. **Admin Sidebar Redesign**: Synchronized admin sidebar with kasir sidebar behavior
+   - Implemented hover-to-expand pattern (collapsed: w-20, expanded: w-64)
+   - Maintains mobile drawer functionality with bottom sheet
+   - Consistent UX between admin and kasir dashboards
+   - Desktop: Sidebar collapses by default, expands on hover
+   - Mobile: Full drawer with proper navigation
+
+4. **Financial Reports Verification**: Confirmed error handling is working correctly
+   - All 6 data queries have comprehensive error handling
+   - Error state UI with reload button working as expected
+   - Date filtering using inclusive comparison (>= <=) to prevent data loss
+
+### Bug Fixes - Replit Environment (Previous)
 1. **Admin Login Dialog Success Toast Fix**: Removed intermediate success screen from welcome page admin login
    - Fixed welcome page admin login to redirect immediately without showing "Login berhasil" toast
    - Updated to use auth hook's user object instead of localStorage (consistent with httpOnly cookie auth)
