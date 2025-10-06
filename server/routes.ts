@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import rateLimit from 'express-rate-limit';
 import { ZodError } from 'zod';
 import { storage } from "./storage";
-import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, insertUserSchema, insertDiscountSchema, insertExpenseSchema, insertDailyReportSchema, insertPrintSettingSchema, insertShiftSchema, insertCashMovementSchema, insertRefundSchema, insertAuditLogSchema, type InsertOrder } from "@shared/schema";
+import { insertOrderSchema, insertMenuItemSchema, insertInventoryItemSchema, insertMenuItemIngredientSchema, insertCategorySchema, insertStoreProfileSchema, insertReservationSchema, insertUserSchema, insertDiscountSchema, insertExpenseSchema, insertDailyReportSchema, insertPrintSettingSchema, insertShiftSchema, insertCashMovementSchema, insertRefundSchema, insertAuditLogSchema, type InsertOrder, type AuditLog } from "@shared/schema";
 import { z } from 'zod';
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, canAccessObject } from "./objectAcl";
@@ -1111,7 +1111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { action, userId, limit = 100, offset = 0 } = req.query;
       
-      let auditLogs;
+      // Fetch audit logs based on query parameters
+      let auditLogs: AuditLog[];
       if (userId) {
         auditLogs = await storage.getAuditLogsByUser(userId as string);
       } else if (action) {
@@ -1120,11 +1121,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         auditLogs = await storage.getAuditLogs();
       }
       
+      // Validate storage contract - must return an array
+      if (!Array.isArray(auditLogs)) {
+        console.error('Storage contract violation: audit logs is not an array:', typeof auditLogs);
+        throw new Error('Storage returned invalid audit logs data');
+      }
+      
       // Apply pagination
-      const limitNum = parseInt(limit as string, 10);
-      const offsetNum = parseInt(offset as string, 10);
+      const limitNum = Math.max(1, Math.min(1000, parseInt(limit as string, 10) || 100));
+      const offsetNum = Math.max(0, parseInt(offset as string, 10) || 0);
+      
+      // Sort and paginate
       const paginatedLogs = auditLogs
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort((a, b) => {
+          const dateA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        })
         .slice(offsetNum, offsetNum + limitNum);
       
       res.json({
@@ -1134,6 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         offset: offsetNum
       });
     } catch (error) {
+      console.error('Audit logs endpoint error:', error);
       return handleApiError(res, error, "Failed to fetch audit logs");
     }
   });
@@ -3208,9 +3222,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications/pending", requireAuth, requireAdmin, async (req, res) => {
     try {
       const notifications = await storage.getPendingNotifications();
+      // Validate storage contract
+      if (!Array.isArray(notifications)) {
+        console.error('Storage contract violation: pending notifications is not an array');
+        throw new Error('Storage returned invalid notifications data');
+      }
       res.json(notifications);
     } catch (error) {
-      handleApiError(res, error, "Failed to get pending notifications");
+      console.error('Get pending notifications error:', error);
+      return handleApiError(res, error, "Failed to get pending notifications");
     }
   });
 
@@ -3218,9 +3238,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications/unread", requireAuth, requireAdmin, async (req, res) => {
     try {
       const notifications = await storage.getUnreadNotifications();
+      // Validate storage contract
+      if (!Array.isArray(notifications)) {
+        console.error('Storage contract violation: unread notifications is not an array');
+        throw new Error('Storage returned invalid notifications data');
+      }
       res.json(notifications);
     } catch (error) {
-      handleApiError(res, error, "Failed to get unread notifications");
+      console.error('Get unread notifications error:', error);
+      return handleApiError(res, error, "Failed to get unread notifications");
     }
   });
 
@@ -3228,9 +3254,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications", requireAuth, requireAdmin, async (req, res) => {
     try {
       const notifications = await storage.getNotifications();
+      // Validate storage contract
+      if (!Array.isArray(notifications)) {
+        console.error('Storage contract violation: notifications is not an array');
+        throw new Error('Storage returned invalid notifications data');
+      }
       res.json(notifications);
     } catch (error) {
-      handleApiError(res, error, "Failed to get notifications");
+      console.error('Get notifications error:', error);
+      return handleApiError(res, error, "Failed to get notifications");
     }
   });
 
@@ -3238,13 +3270,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/notifications/:id/read", requireAuth, requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
+      if (!id) {
+        return sendErrorResponse(res, 400, "Notification ID is required");
+      }
       const notification = await storage.markNotificationAsRead(id);
       if (!notification) {
-        return res.status(404).json({ message: "Notification not found" });
+        return sendErrorResponse(res, 404, "Notification not found");
       }
       res.json(notification);
     } catch (error) {
-      handleApiError(res, error, "Failed to mark notification as read");
+      console.error('Mark notification as read error:', error);
+      return handleApiError(res, error, "Failed to mark notification as read");
     }
   });
 
@@ -3321,30 +3357,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const admin = (req as any).user;
 
+      if (!id) {
+        return sendErrorResponse(res, 400, "Notification ID is required");
+      }
+
+      if (!admin || !admin.id) {
+        return sendErrorResponse(res, 401, "Admin authentication required");
+      }
+
       const notification = await storage.getNotification(id);
       if (!notification) {
-        return res.status(404).json({ message: "Notification not found" });
+        return sendErrorResponse(res, 404, "Notification not found");
       }
 
       if (notification.status !== 'pending') {
-        return res.status(400).json({ message: "Notification already processed" });
+        return sendErrorResponse(res, 400, "Notification already processed");
       }
 
       if (notification.type !== 'deletion_request') {
-        return res.status(400).json({ message: "Invalid notification type" });
+        return sendErrorResponse(res, 400, "Invalid notification type");
       }
 
       // Get the order and item details
       const orderId = notification.relatedId;
-      const { itemIndex, item, reason } = notification.relatedData as any;
-
       if (!orderId) {
-        return res.status(400).json({ message: "Invalid notification data" });
+        return sendErrorResponse(res, 400, "Invalid notification data: missing order ID");
       }
+
+      const relatedData = notification.relatedData as any;
+      if (!relatedData || typeof relatedData.itemIndex !== 'number') {
+        return sendErrorResponse(res, 400, "Invalid notification data: missing item information");
+      }
+
+      const { itemIndex, item, reason } = relatedData;
 
       const order = await storage.getOrder(orderId);
       if (!order) {
-        return res.status(404).json({ message: "Order not found" });
+        return sendErrorResponse(res, 404, "Order not found");
       }
 
       // Remove the item from the order
@@ -3352,16 +3401,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Defensive check: verify itemIndex is still valid
       if (itemIndex < 0 || itemIndex >= items.length) {
-        return res.status(400).json({ 
-          message: "Item sudah tidak ada di order (mungkin sudah dihapus sebelumnya)" 
-        });
+        return sendErrorResponse(res, 400, "Item sudah tidak ada di order (mungkin sudah dihapus sebelumnya)");
       }
       
       const deletedItem = items[itemIndex];
+      if (!deletedItem) {
+        return sendErrorResponse(res, 400, "Item not found at specified index");
+      }
+
       items.splice(itemIndex, 1);
 
       // Recalculate subtotal
-      const newSubtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      const newSubtotal = items.reduce((sum: number, item: any) => sum + ((item.price || 0) * (item.quantity || 0)), 0);
 
       // Update the order
       await storage.replaceOpenBillItems(orderId, items, newSubtotal);
@@ -3369,9 +3420,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create deletion log
       await storage.createDeletionLog({
         orderId,
-        itemName: deletedItem.name,
-        itemQuantity: deletedItem.quantity,
-        itemPrice: deletedItem.price,
+        itemName: deletedItem.name || 'Unknown Item',
+        itemQuantity: deletedItem.quantity || 1,
+        itemPrice: deletedItem.price || 0,
         requestedBy: notification.requestedBy,
         authorizedBy: admin.id,
         reason: reason || 'Tidak ada alasan'
@@ -3380,14 +3431,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Approve notification
       await storage.approveNotification(id, admin.id);
 
+      // Get updated order
+      const updatedOrder = await storage.getOrder(orderId);
+
       res.json({ 
         success: true, 
         message: "Item berhasil dihapus dari open bill",
-        order: await storage.getOrder(orderId)
+        order: updatedOrder
       });
     } catch (error) {
       console.error('Approve deletion error:', error);
-      handleApiError(res, error, "Failed to approve deletion");
+      return handleApiError(res, error, "Failed to approve deletion");
     }
   });
 
@@ -3397,13 +3451,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const admin = (req as any).user;
 
+      if (!id) {
+        return sendErrorResponse(res, 400, "Notification ID is required");
+      }
+
+      if (!admin || !admin.id) {
+        return sendErrorResponse(res, 401, "Admin authentication required");
+      }
+
       const notification = await storage.getNotification(id);
       if (!notification) {
-        return res.status(404).json({ message: "Notification not found" });
+        return sendErrorResponse(res, 404, "Notification not found");
       }
 
       if (notification.status !== 'pending') {
-        return res.status(400).json({ message: "Notification already processed" });
+        return sendErrorResponse(res, 400, "Notification already processed");
       }
 
       // Reject notification
@@ -3414,7 +3476,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Permintaan penghapusan ditolak" 
       });
     } catch (error) {
-      handleApiError(res, error, "Failed to reject deletion");
+      console.error('Reject deletion error:', error);
+      return handleApiError(res, error, "Failed to reject deletion");
     }
   });
 
@@ -3422,9 +3485,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/deletion-logs", requireAuth, requireAdmin, async (req, res) => {
     try {
       const logs = await storage.getDeletionLogs();
+      // Validate storage contract
+      if (!Array.isArray(logs)) {
+        console.error('Storage contract violation: deletion logs is not an array');
+        throw new Error('Storage returned invalid deletion logs data');
+      }
       res.json(logs);
     } catch (error) {
-      handleApiError(res, error, "Failed to get deletion logs");
+      console.error('Get deletion logs error:', error);
+      return handleApiError(res, error, "Failed to get deletion logs");
     }
   });
 
@@ -3432,10 +3501,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/deletion-logs/order/:orderId", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const { orderId } = req.params;
+      if (!orderId) {
+        return sendErrorResponse(res, 400, "Order ID is required");
+      }
       const logs = await storage.getDeletionLogsByOrder(orderId);
+      // Validate storage contract
+      if (!Array.isArray(logs)) {
+        console.error('Storage contract violation: deletion logs by order is not an array');
+        throw new Error('Storage returned invalid deletion logs data');
+      }
       res.json(logs);
     } catch (error) {
-      handleApiError(res, error, "Failed to get deletion logs for order");
+      console.error('Get deletion logs by order error:', error);
+      return handleApiError(res, error, "Failed to get deletion logs for order");
     }
   });
 
