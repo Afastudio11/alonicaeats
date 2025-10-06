@@ -20,9 +20,11 @@ export default function InventorySection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: inventoryItems = [], isLoading, refetch } = useQuery<InventoryItem[]>({
+  const { data, isLoading, refetch } = useQuery<{ items: InventoryItem[]; total: number }>({
     queryKey: ["/api/inventory"],
   });
+
+  const inventoryItems = data?.items || [];
 
   const createItemMutation = useMutation({
     mutationFn: async (item: InsertInventoryItem) => {
