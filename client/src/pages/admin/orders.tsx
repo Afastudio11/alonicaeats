@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer, Search, TrendingUp } from "lucide-react";
+import { RefreshCw, ShoppingBag, CheckCircle, Clock, DollarSign, Eye, X, Receipt, Printer, Search, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -20,42 +20,35 @@ export default function OrdersSection() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: orders = [], isLoading, refetch } = useQuery<Order[]>({
-    queryKey: ["/api/orders"],
-    refetchInterval: 3000,
+  const hasActiveFilters = searchQuery !== "" || dateFilter !== "all" || statusFilter !== "all";
+
+  const { data, isLoading, refetch } = useQuery<{ orders: Order[]; total: number } | Order[]>({
+    queryKey: hasActiveFilters 
+      ? ["/api/orders"] 
+      : ["/api/orders", { limit: pageSize, offset: page * pageSize }],
+    refetchInterval: 30000,
     refetchOnWindowFocus: true,
-    refetchIntervalInBackground: true,
     staleTime: 0,
   });
 
+  const isLegacyFormat = Array.isArray(data);
+  const orders = isLegacyFormat ? data : (data?.orders || []);
+  const totalOrders = isLegacyFormat ? data.length : (data?.total || 0);
+  const totalPages = Math.ceil(totalOrders / pageSize);
+
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, dateFilter, searchQuery]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
       const response = await apiRequest('PATCH', `/api/orders/${orderId}/status`, { status });
       return response.json();
-    },
-    onMutate: async ({ orderId, status }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['/api/orders'] });
-      
-      // Snapshot the previous value
-      const previousOrders = queryClient.getQueryData<Order[]>(['/api/orders']);
-      
-      // Optimistically update to the new value
-      queryClient.setQueryData<Order[]>(['/api/orders'], (old) => {
-        if (!old) return old;
-        return old.map(order => 
-          order.id === orderId 
-            ? { ...order, orderStatus: status, updatedAt: new Date() }
-            : order
-        );
-      });
-      
-      // Return a context object with the snapshotted value
-      return { previousOrders };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
@@ -64,20 +57,12 @@ export default function OrdersSection() {
         description: "Status pesanan telah diperbarui",
       });
     },
-    onError: (err, variables, context) => {
-      // If we have a previous value, rollback to it
-      if (context?.previousOrders) {
-        queryClient.setQueryData(['/api/orders'], context.previousOrders);
-      }
+    onError: () => {
       toast({
         title: "Gagal update status",
         description: "Silakan coba lagi",
         variant: "destructive",
       });
-    },
-    onSettled: () => {
-      // Always refetch after error or success to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
     }
   });
 
@@ -478,6 +463,47 @@ export default function OrdersSection() {
             <p className="text-muted-foreground text-sm" data-testid="text-no-orders">
               {orders.length === 0 ? "Belum ada pesanan" : "Tidak ada pesanan dengan filter ini"}
             </p>
+          </div>
+        )}
+
+        {/* Pagination Controls - Only show when no filters active */}
+        {!hasActiveFilters && (
+          <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/50">
+            <div className="text-sm text-muted-foreground">
+              Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, totalOrders)} of {totalOrders} orders
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                Page {page + 1} of {totalPages || 1}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                data-testid="button-next-page"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+        {hasActiveFilters && (
+          <div className="px-6 py-4 border-t border-border bg-muted/50">
+            <div className="text-sm text-muted-foreground text-center">
+              Showing {filteredAndSortedOrders.length} filtered orders
+            </div>
           </div>
         )}
       </div>
