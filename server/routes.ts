@@ -165,7 +165,7 @@ async function updateDailyReportForOrder(orderId: string) {
     } else {
       // Create new report
       // Find a kasir user to assign
-      const users = await storage.getUsers();
+      const users = await storage.getAllUsers();
       const kasirUser = users.find(u => u.role === 'kasir');
       
       if (kasirUser) {
@@ -542,12 +542,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ message: "PIN sudah kadaluarsa" });
         }
         
-        if (foundPin.maxUses && foundPin.usageCount >= foundPin.maxUses) {
+        if (foundPin.maxUsage && foundPin.usageCount >= foundPin.maxUsage) {
           return res.status(401).json({ message: "PIN telah mencapai batas penggunaan" });
         }
         
         // Get the admin who generated this PIN
-        adminUser = await storage.getUser(foundPin.generatedBy);
+        adminUser = await storage.getUser(foundPin.createdBy);
         authMethod = 'generated_pin';
         generatedPin = foundPin;
       } else {
@@ -614,8 +614,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         itemPrice: itemToDelete.price,
         requestedBy: user.id,
         authorizedBy: adminUser.id,
-        requestTime: new Date(),
-        approvalTime: new Date(),
         reason: reason || (authMethod === 'generated_pin' ? 'Penghapusan dengan PIN tergenerasi' : 'Penghapusan dengan PIN Admin')
       });
       
@@ -679,10 +677,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newPin = await storage.createDeletionPin({
         pin,
-        generatedBy: user.id,
+        createdBy: user.id,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
-        maxUses: maxUses || null,
-        usageCount: 0,
+        maxUsage: maxUses || null,
         isActive: true,
         description: description || null
       });
@@ -1205,7 +1202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: 'shift_opened',
         targetType: 'shift',
         targetId: shift.id,
-        details: { startingCash: shift.startingCash }
+        details: { initialCash: shift.initialCash }
       });
       
       res.status(201).json(shift);
@@ -1314,7 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: { 
           type: movement.type,
           amount: movement.amount,
-          reason: movement.reason 
+          description: movement.description 
         }
       });
       
@@ -1432,7 +1429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetId: refund.id,
         details: {
           orderId: order.id,
-          amount: refund.amount,
+          refundAmount: refund.refundAmount,
           refundType: refund.refundType,
           reason: refund.reason
         }
@@ -1574,80 +1571,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(cancelledRefund);
     } catch (error) {
       return handleApiError(res, error, "Failed to cancel refund");
-    }
-  });
-
-  // Daily Reports (Kasir and Admin access)
-  app.get("/api/daily-reports", requireAuth, requireAdminOrKasir, async (req, res) => {
-    try {
-      const currentUser = (req as any).user;
-      let reports;
-      
-      if (currentUser.role === 'admin') {
-        // Admin can see all reports
-        reports = await storage.getDailyReports();
-      } else {
-        // Kasir can only see their own reports
-        reports = await storage.getDailyReportsByCashier(currentUser.id);
-      }
-      
-      res.json(reports);
-    } catch (error) {
-      return handleApiError(res, error, "Failed to fetch daily reports");
-    }
-  });
-
-  app.post("/api/daily-reports", requireAuth, requireKasir, async (req, res) => {
-    try {
-      const currentUser = (req as any).user;
-      // Omit server-controlled fields from validation
-      const dailyReportInputSchema = insertDailyReportSchema.omit({ cashierId: true });
-      const validatedData = dailyReportInputSchema.parse(req.body);
-      
-      // Inject the current cashier ID
-      const reportData = { ...validatedData, cashierId: currentUser.id };
-      
-      const report = await storage.createDailyReport(reportData);
-      res.status(201).json(report);
-    } catch (error) {
-      return handleApiError(res, error, "Failed to create daily report");
-    }
-  });
-
-  // Expenses (Kasir and Admin access)
-  app.get("/api/expenses", requireAuth, requireAdminOrKasir, async (req, res) => {
-    try {
-      const currentUser = (req as any).user;
-      let expenses;
-      
-      if (currentUser.role === 'admin') {
-        // Admin can see all expenses
-        expenses = await storage.getExpenses();
-      } else {
-        // Kasir can only see their own expenses
-        expenses = await storage.getExpensesByCashier(currentUser.id);
-      }
-      
-      res.json(expenses);
-    } catch (error) {
-      return handleApiError(res, error, "Failed to fetch expenses");
-    }
-  });
-
-  app.post("/api/expenses", requireAuth, requireKasir, async (req, res) => {
-    try {
-      const currentUser = (req as any).user;
-      // Omit server-controlled fields from validation
-      const expenseInputSchema = insertExpenseSchema.omit({ recordedBy: true });
-      const validatedData = expenseInputSchema.parse(req.body);
-      
-      // Inject the current cashier ID
-      const expenseData = { ...validatedData, recordedBy: currentUser.id };
-      
-      const expense = await storage.createExpense(expenseData);
-      res.status(201).json(expense);
-    } catch (error) {
-      return handleApiError(res, error, "Failed to create expense");
     }
   });
 
@@ -2419,7 +2342,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // We ONLY update payment status, NOT create duplicate order
       await storage.updateOrderPayment(id, {
         paymentStatus: 'paid',
-        paymentMethod: paymentMethod || 'cash',
         paidAt: new Date()
       });
       
@@ -2529,8 +2451,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Inventory (admin access required for all operations)
   app.get("/api/inventory", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
-      const items = await storage.getInventoryItems();
-      res.json(items);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const category = req.query.category as string;
+      const offset = (page - 1) * limit;
+      
+      const result = await storage.getPaginatedInventoryItems({ offset, limit, category });
+      res.json({ ...result, page, limit, totalPages: Math.ceil(result.total / limit) });
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -3034,14 +2961,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // EXPENSE TRACKING ROUTES
   // ================================
   
-  // Get all expenses (Admin can see all, Kasir can see own)
+  // Get all expenses (Admin can see all, Kasir can see own) - with pagination
   app.get("/api/expenses", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const user = (req as any).user;
-      const expenses = user.role === 'admin' 
-        ? await storage.getExpenses()
-        : await storage.getExpensesByCashier(user.id);
-      res.json(expenses);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const category = req.query.category as string;
+      const search = req.query.search as string;
+      const offset = (page - 1) * limit;
+      
+      const result = await storage.getPaginatedExpenses({ 
+        offset, 
+        limit, 
+        cashierId: user.role === 'kasir' ? user.id : undefined 
+      });
+      res.json({ ...result, page, limit, totalPages: Math.ceil(result.total / limit) });
     } catch (error) {
       handleApiError(res, error, "Failed to fetch expenses");
     }
@@ -3118,14 +3053,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DAILY REPORTS ROUTES
   // ================================
   
-  // Get daily reports (Admin can see all, Kasir can see own)
+  // Get daily reports (Admin can see all, Kasir can see own) - with pagination
   app.get("/api/daily-reports", requireAuth, requireAdminOrKasir, async (req, res) => {
     try {
       const user = (req as any).user;
-      const reports = user.role === 'admin' 
-        ? await storage.getDailyReports()
-        : await storage.getDailyReportsByCashier(user.id);
-      res.json(reports);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = (page - 1) * limit;
+      
+      const result = await storage.getPaginatedDailyReports({ 
+        offset, 
+        limit, 
+        cashierId: user.role === 'kasir' ? user.id : undefined
+      });
+      res.json({ ...result, page, limit, totalPages: Math.ceil(result.total / limit) });
     } catch (error) {
       handleApiError(res, error, "Failed to fetch daily reports");
     }

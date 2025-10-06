@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -31,7 +31,10 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role").notNull().default("admin"),
   isActive: boolean("is_active").notNull().default(true),
-});
+}, (table) => [
+  index("users_role_idx").on(table.role),
+  index("users_is_active_idx").on(table.isActive),
+]);
 
 // Sessions table for persistent authentication
 export const sessions = pgTable("sessions", {
@@ -41,7 +44,10 @@ export const sessions = pgTable("sessions", {
   role: text("role").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("sessions_user_id_idx").on(table.userId),
+  index("sessions_expires_at_idx").on(table.expiresAt),
+]);
 
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -49,7 +55,9 @@ export const categories = pgTable("categories", {
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("categories_is_active_idx").on(table.isActive),
+]);
 
 export const menuItems = pgTable("menu_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -60,10 +68,10 @@ export const menuItems = pgTable("menu_items", {
   image: text("image"),
   isAvailable: boolean("is_available").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-}, (table) => ({
-  categoryIdIdx: sql`CREATE INDEX IF NOT EXISTS "menu_items_category_id_idx" ON "menu_items" ("category_id")`,
-  availabilityIdx: sql`CREATE INDEX IF NOT EXISTS "menu_items_availability_idx" ON "menu_items" ("is_available")`,
-}));
+}, (table) => [
+  index("menu_items_category_id_idx").on(table.categoryId),
+  index("menu_items_availability_idx").on(table.isAvailable),
+]);
 
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -86,13 +94,13 @@ export const orders = pgTable("orders", {
   orderStatus: text("order_status").notNull().default("queued"), // 'queued', 'preparing', 'ready', 'served', 'cancelled'
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-}, (table) => ({
-  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "orders_created_at_idx" ON "orders" ("created_at" DESC)`,
-  paymentStatusIdx: sql`CREATE INDEX IF NOT EXISTS "orders_payment_status_idx" ON "orders" ("payment_status")`,
-  paymentMethodIdx: sql`CREATE INDEX IF NOT EXISTS "orders_payment_method_idx" ON "orders" ("payment_method")`,
-  orderStatusIdx: sql`CREATE INDEX IF NOT EXISTS "orders_order_status_idx" ON "orders" ("order_status")`,
-  tableNumberIdx: sql`CREATE INDEX IF NOT EXISTS "orders_table_number_idx" ON "orders" ("table_number")`,
-}));
+}, (table) => [
+  index("orders_created_at_idx").on(table.createdAt.desc()),
+  index("orders_payment_status_idx").on(table.paymentStatus),
+  index("orders_payment_method_idx").on(table.paymentMethod),
+  index("orders_order_status_idx").on(table.orderStatus),
+  index("orders_table_number_idx").on(table.tableNumber),
+]);
 
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -105,7 +113,10 @@ export const inventoryItems = pgTable("inventory_items", {
   pricePerUnit: integer("price_per_unit").notNull(),
   supplier: text("supplier"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("inventory_items_category_idx").on(table.category),
+  index("inventory_items_current_stock_idx").on(table.currentStock),
+]);
 
 // Menu item ingredients - maps menu items to required inventory items
 export const menuItemIngredients = pgTable("menu_item_ingredients", {
@@ -115,7 +126,10 @@ export const menuItemIngredients = pgTable("menu_item_ingredients", {
   quantityNeeded: integer("quantity_needed").notNull(), // amount of inventory item needed per menu item
   unit: text("unit").notNull(), // unit for this ingredient (should match inventory item unit)
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("menu_item_ingredients_menu_item_id_idx").on(table.menuItemId),
+  index("menu_item_ingredients_inventory_item_id_idx").on(table.inventoryItemId),
+]);
 
 // Store profile - for customizing receipt and restaurant info
 export const storeProfile = pgTable("store_profile", {
@@ -144,10 +158,10 @@ export const reservations = pgTable("reservations", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-}, (table) => ({
-  reservationDateIdx: sql`CREATE INDEX IF NOT EXISTS "reservations_date_idx" ON "reservations" ("reservation_date" DESC)`,
-  statusIdx: sql`CREATE INDEX IF NOT EXISTS "reservations_status_idx" ON "reservations" ("status")`,
-}));
+}, (table) => [
+  index("reservations_date_idx").on(table.reservationDate.desc()),
+  index("reservations_status_idx").on(table.status),
+]);
 
 // Discounts table for discount management
 export const discounts = pgTable("discounts", {
@@ -166,7 +180,9 @@ export const discounts = pgTable("discounts", {
   endDate: timestamp("end_date"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("discounts_is_active_idx").on(table.isActive),
+]);
 
 // Expenses table for tracking unexpected operational expenses
 export const expenses = pgTable("expenses", {
@@ -177,7 +193,10 @@ export const expenses = pgTable("expenses", {
   recordedBy: varchar("recorded_by").notNull().references(() => users.id), // kasir who recorded it
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("expenses_recorded_by_created_idx").on(table.recordedBy, table.createdAt.desc()),
+  index("expenses_created_at_idx").on(table.createdAt.desc()),
+]);
 
 // Daily reports table for cashier shift closing
 export const dailyReports = pgTable("daily_reports", {
@@ -199,7 +218,10 @@ export const dailyReports = pgTable("daily_reports", {
   shiftEndTime: timestamp("shift_end_time"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
+}, (table) => [
+  index("daily_reports_cashier_report_date_idx").on(table.cashierId, table.reportDate.desc()),
+  index("daily_reports_report_date_idx").on(table.reportDate.desc()),
+]);
 
 // Print settings table for printer management
 export const printSettings = pgTable("print_settings", {
@@ -239,12 +261,10 @@ export const shifts = pgTable("shifts", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Unique constraint: only one open shift per cashier
-  uniqueOpenShift: sql`CREATE UNIQUE INDEX IF NOT EXISTS "shifts_unique_open_per_cashier" ON "shifts" ("cashier_id") WHERE "status" = 'open'`,
-  // Index for cashier shift queries
-  cashierIdIdx: sql`CREATE INDEX IF NOT EXISTS "shifts_cashier_id_idx" ON "shifts" ("cashier_id", "start_time")`,
-}));
+}, (table) => [
+  uniqueIndex("shifts_unique_open_per_cashier").on(table.cashierId).where(sql`status = 'open'`),
+  index("shifts_cashier_id_idx").on(table.cashierId, table.startTime),
+]);
 
 // Cash movements table for tracking cash in/out during shifts
 export const cashMovements = pgTable("cash_movements", {
@@ -257,12 +277,10 @@ export const cashMovements = pgTable("cash_movements", {
   category: text("category").notNull().default("other"), // 'initial_deposit', 'expense', 'deposit', 'other'
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Index for shift cash movements
-  shiftIdIdx: sql`CREATE INDEX IF NOT EXISTS "cash_movements_shift_id_idx" ON "cash_movements" ("shift_id", "created_at")`,
-  // Index for reporting by date
-  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "cash_movements_created_at_idx" ON "cash_movements" ("created_at")`,
-}));
+}, (table) => [
+  index("cash_movements_shift_id_idx").on(table.shiftId, table.createdAt),
+  index("cash_movements_created_at_idx").on(table.createdAt),
+]);
 
 // Refunds table for tracking refund/void transactions
 export const refunds = pgTable("refunds", {
@@ -280,12 +298,10 @@ export const refunds = pgTable("refunds", {
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Index for queries on order refunds
-  orderIdIdx: sql`CREATE INDEX IF NOT EXISTS "refunds_order_id_idx" ON "refunds" ("order_id")`,
-  // Index for status and created_at queries
-  statusCreatedIdx: sql`CREATE INDEX IF NOT EXISTS "refunds_status_created_idx" ON "refunds" ("status", "created_at")`,
-}));
+}, (table) => [
+  index("refunds_order_id_idx").on(table.orderId),
+  index("refunds_status_created_idx").on(table.status, table.createdAt),
+]);
 
 // Audit logs table for tracking all admin authorization actions
 export const auditLogs = pgTable("audit_logs", {
@@ -298,14 +314,11 @@ export const auditLogs = pgTable("audit_logs", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Index for admin reporting by user
-  performedByIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_performed_by_idx" ON "audit_logs" ("performed_by", "created_at")`,
-  // Index for action-based queries
-  actionIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_action_idx" ON "audit_logs" ("action", "created_at")`,
-  // Index for chronological queries
-  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "audit_logs_created_at_idx" ON "audit_logs" ("created_at")`,
-}));
+}, (table) => [
+  index("audit_logs_performed_by_idx").on(table.performedBy, table.createdAt),
+  index("audit_logs_action_idx").on(table.action, table.createdAt),
+  index("audit_logs_created_at_idx").on(table.createdAt),
+]);
 
 // Deletion logs table for tracking deleted order items from Open Bills
 export const deletionLogs = pgTable("deletion_logs", {
@@ -320,14 +333,11 @@ export const deletionLogs = pgTable("deletion_logs", {
   approvalTime: timestamp("approval_time").notNull().default(sql`now()`), // When admin approved
   reason: text("reason"), // Reason for deletion (optional)
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Index for queries by order
-  orderIdIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_logs_order_id_idx" ON "deletion_logs" ("order_id")`,
-  // Index for queries by kasir
-  requestedByIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_logs_requested_by_idx" ON "deletion_logs" ("requested_by", "created_at")`,
-  // Index for chronological queries
-  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_logs_created_at_idx" ON "deletion_logs" ("created_at")`,
-}));
+}, (table) => [
+  index("deletion_logs_order_id_idx").on(table.orderId),
+  index("deletion_logs_requested_by_idx").on(table.requestedBy, table.createdAt),
+  index("deletion_logs_created_at_idx").on(table.createdAt),
+]);
 
 // Notifications table for admin approval requests
 export const notifications = pgTable("notifications", {
@@ -343,14 +353,11 @@ export const notifications = pgTable("notifications", {
   processedAt: timestamp("processed_at"),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Index for status queries
-  statusIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_status_idx" ON "notifications" ("status", "created_at")`,
-  // Index for unread notifications
-  unreadIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_unread_idx" ON "notifications" ("is_read", "status")`,
-  // Index for chronological queries
-  createdAtIdx: sql`CREATE INDEX IF NOT EXISTS "notifications_created_at_idx" ON "notifications" ("created_at")`,
-}));
+}, (table) => [
+  index("notifications_status_idx").on(table.status, table.createdAt),
+  index("notifications_unread_idx").on(table.isRead, table.status),
+  index("notifications_created_at_idx").on(table.createdAt),
+]);
 
 // Deletion PINs table for temporary admin PINs for kasir to delete items
 export const deletionPins = pgTable("deletion_pins", {
@@ -363,12 +370,10 @@ export const deletionPins = pgTable("deletion_pins", {
   usageCount: integer("usage_count").notNull().default(0), // Track how many times used
   maxUsage: integer("max_usage"), // Optional maximum uses (null = unlimited)
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-}, (table) => ({
-  // Index for active PINs
-  activeIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_pins_active_idx" ON "deletion_pins" ("is_active", "created_at")`,
-  // Index for PIN lookup
-  pinIdx: sql`CREATE INDEX IF NOT EXISTS "deletion_pins_pin_idx" ON "deletion_pins" ("pin")`,
-}));
+}, (table) => [
+  index("deletion_pins_active_idx").on(table.isActive, table.createdAt),
+  index("deletion_pins_pin_idx").on(table.pin),
+]);
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({

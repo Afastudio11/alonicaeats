@@ -51,6 +51,7 @@ export interface IStorage {
 
   // Inventory
   getInventoryItems(): Promise<InventoryItem[]>;
+  getPaginatedInventoryItems(params: { limit?: number; offset?: number; category?: string }): Promise<{ items: InventoryItem[]; total: number }>;
   getInventoryItem(id: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
   updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
@@ -88,6 +89,7 @@ export interface IStorage {
   
   // Expenses
   getExpenses(): Promise<Expense[]>;
+  getPaginatedExpenses(params: { limit?: number; offset?: number; cashierId?: string; startDate?: Date; endDate?: Date }): Promise<{ expenses: Expense[]; total: number }>;
   getExpensesByCashier(cashierId: string): Promise<Expense[]>;
   getExpensesByDateRange(startDate: Date, endDate: Date): Promise<Expense[]>;
   getExpense(id: string): Promise<Expense | undefined>;
@@ -97,6 +99,7 @@ export interface IStorage {
 
   // Daily Reports
   getDailyReports(): Promise<DailyReport[]>;
+  getPaginatedDailyReports(params: { limit?: number; offset?: number; cashierId?: string }): Promise<{ reports: DailyReport[]; total: number }>;
   getDailyReportsByCashier(cashierId: string): Promise<DailyReport[]>;
   getDailyReportByDate(cashierId: string, date: Date): Promise<DailyReport | undefined>;
   getDailyReport(id: string): Promise<DailyReport | undefined>;
@@ -115,6 +118,7 @@ export interface IStorage {
 
   // Shifts
   getShifts(): Promise<Shift[]>;
+  getPaginatedShifts(params: { limit?: number; offset?: number; cashierId?: string; status?: string }): Promise<{ shifts: Shift[]; total: number }>;
   getShiftsByCashier(cashierId: string): Promise<Shift[]>;
   getActiveShift(cashierId: string): Promise<Shift | undefined>;
   getShift(id: string): Promise<Shift | undefined>;
@@ -141,12 +145,14 @@ export interface IStorage {
 
   // Audit Logs
   getAuditLogs(): Promise<AuditLog[]>;
+  getPaginatedAuditLogs(params: { limit?: number; offset?: number; userId?: string; action?: string }): Promise<{ logs: AuditLog[]; total: number }>;
   getAuditLogsByUser(userId: string): Promise<AuditLog[]>;
   getAuditLogsByAction(action: string): Promise<AuditLog[]>;
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
 
   // Notifications
   getNotifications(): Promise<Notification[]>;
+  getPaginatedNotifications(params: { limit?: number; offset?: number; status?: string; isRead?: boolean }): Promise<{ notifications: Notification[]; total: number }>;
   getPendingNotifications(): Promise<Notification[]>;
   getUnreadNotifications(): Promise<Notification[]>;
   getNotification(id: string): Promise<Notification | undefined>;
@@ -703,6 +709,22 @@ export class DatabaseStorage implements IStorage {
     return items;
   }
 
+  async getPaginatedInventoryItems(params: { limit?: number; offset?: number; category?: string }): Promise<{ items: InventoryItem[]; total: number }> {
+    const { limit = 50, offset = 0, category } = params;
+    
+    const conditions = [];
+    if (category) conditions.push(eq(inventoryItems.category, category));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [items, [{ count }]] = await Promise.all([
+      db.select().from(inventoryItems).where(whereClause).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(inventoryItems).where(whereClause)
+    ]);
+    
+    return { items, total: count };
+  }
+
   async getInventoryItem(id: string): Promise<InventoryItem | undefined> {
     const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id));
     return item || undefined;
@@ -1101,6 +1123,24 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
   }
 
+  async getPaginatedExpenses(params: { limit?: number; offset?: number; cashierId?: string; startDate?: Date; endDate?: Date }): Promise<{ expenses: Expense[]; total: number }> {
+    const { limit = 50, offset = 0, cashierId, startDate, endDate } = params;
+    
+    const conditions = [];
+    if (cashierId) conditions.push(eq(expenses.recordedBy, cashierId));
+    if (startDate) conditions.push(gte(expenses.createdAt, startDate));
+    if (endDate) conditions.push(lte(expenses.createdAt, endDate));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [expensesList, [{ count }]] = await Promise.all([
+      db.select().from(expenses).where(whereClause).orderBy(desc(expenses.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(expenses).where(whereClause)
+    ]);
+    
+    return { expenses: expensesList, total: count };
+  }
+
   async getExpensesByCashier(cashierId: string): Promise<Expense[]> {
     return await db.select().from(expenses).where(eq(expenses.recordedBy, cashierId)).orderBy(desc(expenses.createdAt));
   }
@@ -1140,6 +1180,22 @@ export class DatabaseStorage implements IStorage {
   // Daily Report methods
   async getDailyReports(): Promise<DailyReport[]> {
     return await db.select().from(dailyReports).orderBy(desc(dailyReports.reportDate));
+  }
+
+  async getPaginatedDailyReports(params: { limit?: number; offset?: number; cashierId?: string }): Promise<{ reports: DailyReport[]; total: number }> {
+    const { limit = 50, offset = 0, cashierId } = params;
+    
+    const conditions = [];
+    if (cashierId) conditions.push(eq(dailyReports.cashierId, cashierId));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [reportsList, [{ count }]] = await Promise.all([
+      db.select().from(dailyReports).where(whereClause).orderBy(desc(dailyReports.reportDate)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(dailyReports).where(whereClause)
+    ]);
+    
+    return { reports: reportsList, total: count };
   }
 
   async getDailyReportsByCashier(cashierId: string): Promise<DailyReport[]> {
@@ -1234,6 +1290,23 @@ export class DatabaseStorage implements IStorage {
   // Shift methods
   async getShifts(): Promise<Shift[]> {
     return await db.select().from(shifts).orderBy(desc(shifts.startTime));
+  }
+
+  async getPaginatedShifts(params: { limit?: number; offset?: number; cashierId?: string; status?: string }): Promise<{ shifts: Shift[]; total: number }> {
+    const { limit = 50, offset = 0, cashierId, status } = params;
+    
+    const conditions = [];
+    if (cashierId) conditions.push(eq(shifts.cashierId, cashierId));
+    if (status) conditions.push(eq(shifts.status, status));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [shiftsList, [{ count }]] = await Promise.all([
+      db.select().from(shifts).where(whereClause).orderBy(desc(shifts.startTime)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(shifts).where(whereClause)
+    ]);
+    
+    return { shifts: shiftsList, total: count };
   }
 
   async getShiftsByCashier(cashierId: string): Promise<Shift[]> {
@@ -1472,6 +1545,23 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
   }
 
+  async getPaginatedAuditLogs(params: { limit?: number; offset?: number; userId?: string; action?: string }): Promise<{ logs: AuditLog[]; total: number }> {
+    const { limit = 50, offset = 0, userId, action } = params;
+    
+    const conditions = [];
+    if (userId) conditions.push(eq(auditLogs.performedBy, userId));
+    if (action) conditions.push(eq(auditLogs.action, action));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [logsList, [{ count }]] = await Promise.all([
+      db.select().from(auditLogs).where(whereClause).orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(auditLogs).where(whereClause)
+    ]);
+    
+    return { logs: logsList, total: count };
+  }
+
   async getAuditLogsByUser(userId: string): Promise<AuditLog[]> {
     return await db.select().from(auditLogs).where(eq(auditLogs.performedBy, userId)).orderBy(desc(auditLogs.createdAt));
   }
@@ -1488,6 +1578,23 @@ export class DatabaseStorage implements IStorage {
   // Notifications
   async getNotifications(): Promise<Notification[]> {
     return db.select().from(notifications).orderBy(desc(notifications.createdAt));
+  }
+
+  async getPaginatedNotifications(params: { limit?: number; offset?: number; status?: string; isRead?: boolean }): Promise<{ notifications: Notification[]; total: number }> {
+    const { limit = 50, offset = 0, status, isRead } = params;
+    
+    const conditions = [];
+    if (status) conditions.push(eq(notifications.status, status));
+    if (isRead !== undefined) conditions.push(eq(notifications.isRead, isRead));
+    
+    const whereClause = conditions.length > 0 ? sql`${sql.join(conditions, sql` AND `)}` : undefined;
+    
+    const [notificationsList, [{ count }]] = await Promise.all([
+      db.select().from(notifications).where(whereClause).orderBy(desc(notifications.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(notifications).where(whereClause)
+    ]);
+    
+    return { notifications: notificationsList, total: count };
   }
 
   async getPendingNotifications(): Promise<Notification[]> {
@@ -1756,6 +1863,7 @@ class MemStorage implements IStorage {
 
   // Inventory methods (stub implementations)
   async getInventoryItems(): Promise<any[]> { return []; }
+  async getPaginatedInventoryItems(params: any): Promise<{ items: any[]; total: number }> { return { items: [], total: 0 }; }
   async getInventoryItem(id: string): Promise<any | undefined> { return undefined; }
   async createInventoryItem(item: any): Promise<any> { const id = randomUUID(); const newItem = { ...item, id }; this.inventoryItems.set(id, newItem); return newItem; }
   async updateInventoryItem(id: string, item: any): Promise<any | undefined> { return undefined; }
@@ -1820,6 +1928,8 @@ class MemStorage implements IStorage {
     return Array.from(this.expenses.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  async getPaginatedExpenses(params: any): Promise<{ expenses: any[]; total: number }> { return { expenses: [], total: 0 }; }
+
   async getExpensesByCashier(cashierId: string): Promise<any[]> {
     return Array.from(this.expenses.values()).filter(e => e.recordedBy === cashierId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
@@ -1858,6 +1968,8 @@ class MemStorage implements IStorage {
   async getDailyReports(): Promise<any[]> {
     return Array.from(this.dailyReports.values()).sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
   }
+
+  async getPaginatedDailyReports(params: any): Promise<{ reports: any[]; total: number }> { return { reports: [], total: 0 }; }
 
   async getDailyReportsByCashier(cashierId: string): Promise<any[]> {
     return Array.from(this.dailyReports.values()).filter(r => r.cashierId === cashierId).sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
@@ -1950,6 +2062,7 @@ class MemStorage implements IStorage {
 
   // Stub implementations for new methods (MemStorage fallback)
   async getShifts(): Promise<any[]> { return []; }
+  async getPaginatedShifts(params: any): Promise<{ shifts: any[]; total: number }> { return { shifts: [], total: 0 }; }
   async getShiftsByCashier(cashierId: string): Promise<any[]> { return []; }
   async getActiveShift(cashierId: string): Promise<any | undefined> { return undefined; }
   async getShift(id: string): Promise<any | undefined> { return undefined; }
@@ -1973,12 +2086,14 @@ class MemStorage implements IStorage {
   async processRefund(id: string): Promise<any | undefined> { throw new Error('Refunds not supported in MemStorage fallback'); }
 
   async getAuditLogs(): Promise<any[]> { return []; }
+  async getPaginatedAuditLogs(params: any): Promise<{ logs: any[]; total: number }> { return { logs: [], total: 0 }; }
   async getAuditLogsByUser(userId: string): Promise<any[]> { return []; }
   async getAuditLogsByAction(action: string): Promise<any[]> { return []; }
   async createAuditLog(log: any): Promise<any> { throw new Error('Audit logs not supported in MemStorage fallback'); }
   
   // Notifications (not supported in MemStorage)
   async getNotifications(): Promise<any[]> { throw new Error('Notifications not supported in MemStorage fallback'); }
+  async getPaginatedNotifications(params: any): Promise<{ notifications: any[]; total: number }> { throw new Error('Notifications not supported in MemStorage fallback'); }
   async getPendingNotifications(): Promise<any[]> { throw new Error('Notifications not supported in MemStorage fallback'); }
   async getUnreadNotifications(): Promise<any[]> { throw new Error('Notifications not supported in MemStorage fallback'); }
   async getNotification(id: string): Promise<any> { throw new Error('Notifications not supported in MemStorage fallback'); }
@@ -2189,6 +2304,8 @@ class FallbackStorage implements IStorage {
     );
   }
 
+  async getPaginatedExpenses(params: any): Promise<{ expenses: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedExpenses(params) : this.dbStorage.getPaginatedExpenses(params)); }
+
   async getExpensesByCashier(cashierId: string): Promise<any[]> {
     return this.withFallback(async () => 
       this.usingMemStorage ? this.memStorage.getExpensesByCashier(cashierId) : this.dbStorage.getExpensesByCashier(cashierId)
@@ -2239,6 +2356,7 @@ class FallbackStorage implements IStorage {
 
   // Inventory methods (stub)
   async getInventoryItems(): Promise<any[]> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getInventoryItems() : this.dbStorage.getInventoryItems()); }
+  async getPaginatedInventoryItems(params: any): Promise<{ items: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedInventoryItems(params) : this.dbStorage.getPaginatedInventoryItems(params)); }
   async getInventoryItem(id: string): Promise<any | undefined> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getInventoryItem(id) : this.dbStorage.getInventoryItem(id)); }
   async createInventoryItem(item: any): Promise<any> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.createInventoryItem(item) : this.dbStorage.createInventoryItem(item)); }
   async updateInventoryItem(id: string, item: any): Promise<any | undefined> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.updateInventoryItem(id, item) : this.dbStorage.updateInventoryItem(id, item)); }
@@ -2272,6 +2390,8 @@ class FallbackStorage implements IStorage {
       this.usingMemStorage ? this.memStorage.getDailyReports() : this.dbStorage.getDailyReports()
     );
   }
+
+  async getPaginatedDailyReports(params: any): Promise<{ reports: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedDailyReports(params) : this.dbStorage.getPaginatedDailyReports(params)); }
 
   async getDailyReportsByCashier(cashierId: string): Promise<any[]> {
     return this.withFallback(async () => 
@@ -2358,6 +2478,8 @@ class FallbackStorage implements IStorage {
       this.usingMemStorage ? this.memStorage.getShifts() : this.dbStorage.getShifts()
     );
   }
+
+  async getPaginatedShifts(params: any): Promise<{ shifts: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedShifts(params) : this.dbStorage.getPaginatedShifts(params)); }
 
   async getShiftsByCashier(cashierId: string): Promise<any[]> {
     return this.withFallback(async () => 
@@ -2482,6 +2604,8 @@ class FallbackStorage implements IStorage {
     );
   }
 
+  async getPaginatedAuditLogs(params: any): Promise<{ logs: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedAuditLogs(params) : this.dbStorage.getPaginatedAuditLogs(params)); }
+
   async getAuditLogsByUser(userId: string): Promise<any[]> {
     return this.withFallback(async () => 
       this.usingMemStorage ? this.memStorage.getAuditLogsByUser(userId) : this.dbStorage.getAuditLogsByUser(userId)
@@ -2506,6 +2630,8 @@ class FallbackStorage implements IStorage {
       this.usingMemStorage ? this.memStorage.getNotifications() : this.dbStorage.getNotifications()
     );
   }
+
+  async getPaginatedNotifications(params: any): Promise<{ notifications: any[]; total: number }> { return this.withFallback(async () => this.usingMemStorage ? this.memStorage.getPaginatedNotifications(params) : this.dbStorage.getPaginatedNotifications(params)); }
 
   async getPendingNotifications(): Promise<any[]> {
     return this.withFallback(async () => 
