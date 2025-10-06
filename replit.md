@@ -26,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 - **Middleware**: Request logging, JSON parsing, error handling, Helmet (security), CORS
 - **Authentication**: Passport.js with local strategy, session-based auth with PostgreSQL session store, role-based access (admin/kasir), httpOnly cookie authentication.
 - **File Storage**: Local file storage for uploads
-- **Performance Optimization**: Database indexing, API pagination and filtering for Orders, Menu, and Reservations.
+- **Performance Optimization**: Database indexing, API pagination and filtering for Orders, Menu, and Reservations. Hybrid pagination approach for admin orders page (50 orders per page in default view, full dataset when filters active). Reduced polling interval from 3s to 30s to minimize server load with large datasets (12,000+ orders).
 
 ### Data Models
 - **Users**: Admin accounts (username, password, role)
